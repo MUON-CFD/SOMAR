@@ -1,26 +1,116 @@
+# MAC DS files
+.DS*
+._*
+# Python Cache directory and virtual env
+__pycache__
+PythonScripts/env/*
+*.pyc
+
 # SOMAR output files
-exec/*.hdf5
-exec/pout.*
-*.sublime-project
-*.sublime-workspace
+*.hdf5
+pout.*
+exec*/*.hdf5
+exec*/out*
+exec*/pout.*
+exec*/hdf5_output*/*
+exec*/check_points*/*
+exec*/npy/*
+exec*/pdf/*
+exec*/output/*
+exec*/std.out
+exec*/*.npy
+exec*/gmon.out
+exec*/**/*.vtp
+exec*/**/*.pvtp
+exec/*/output*
 
 # SOMAR build files
-exec/d/
-exec/f/
-exec/o/
-exec/p/
-exec/*.ex
+exec*/*.tmp
+exec*/d/
+exec*/f/
+exec*/o/
+exec*/p/
+exec*/*.ex
+exec*/**/*.ex
+exec*/*.os
+exec*/build*/*
+build*/*
+build*/**/*
+*F_F.H
+dummyF.ChF
+dummy_F.H
 
-# Latex build files
-doc/*.aux
-doc/*.bbl
-doc/*.blg
-doc/*.log
-doc/*.out
-doc/*.pdf
-doc/*.synctex.gz
-doc/*.toc
-doc/*.log
+*/*.f
+*/*.C
+*/*F_F.H
+*/*.o
+*/*.os
+*/*.so
+compileUtils/*
+*.os
+*.o
+*.f
+*.C
+*.F_F.H
+*.so
+src_exp/*
+hdf5*/*
+lib/*
+
+# IDE files
+*.sublime-project
+*.sublime-workspace
+*.session
+*.session.gui
+*.code-workspace
+*.map
+*.ptp-sync-folder
+*.sconsign.dblite
+*.vscode
+
+# Documentation files
+docs/sphinx/build/*
+docs/sphinx/source/_build/**
+docs/doxygen/build/*
+docs/html/*
+# Post-processing files
+post/BCEnergyBudget/*.hdf5
+post/BCEnergyBudget/pout.*
+post/BCEnergyBudget/d/
+post/BCEnergyBudget/f/
+post/BCEnergyBudget/o/
+post/BCEnergyBudget/p/
+post/BCEnergyBudget/*.ex
+post/BCEnergyBudget/hdf5_output/*
+post/BCEnergyBudget/output/*
+post/BCEnergyBudget/std.out
+
+post/TecplotToDEM/*.hdf5
+post/TecplotToDEM/pout.*
+post/TecplotToDEM/d/
+post/TecplotToDEM/f/
+post/TecplotToDEM/o/
+post/TecplotToDEM/p/
+post/TecplotToDEM/*.ex
+post/TecplotToDEM/hdf5_output/*
+post/TecplotToDEM/output/*
+post/TecplotToDEM/std.out
+
+post/TecplotToHDF5/*.hdf5
+post/TecplotToHDF5/pout.*
+post/TecplotToHDF5/d/
+post/TecplotToHDF5/f/
+post/TecplotToHDF5/o/
+post/TecplotToHDF5/p/
+post/TecplotToHDF5/*.ex
+post/TecplotToHDF5/hdf5_output/*
+post/TecplotToHDF5/output/*
+post/TecplotToHDF5/std.out
+
+# Valgrind files
+*.supp
+parse_valgrind_suppressions.sh
+valgrind_output.log
 
 # Other files
 *.bin
@@ -30,3 +120,18 @@ doc/*.log
 .project
 .settings/
 DNS/
+src/LES/modules.o
+*.zip
+*.tar
+*.tar.bz2
+*.tar.gz
+*.bak
+*.npy
+
+# For now, let's ignore these. They are used in my IB tests.
+*.vtk
+*.asc
+
+
+exec/DoubleDiffusion/output_*
+

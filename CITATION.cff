@@ -1,0 +1,22 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: >-
+  The Stratified Ocean Model with Adaptive Refinement
+  (SOMAR)
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Edward
+    family-names: Santilli
+    email: Edward.Santilli@jefferson.edu
+    affiliation: Jefferson East Falls
+    orcid: 'https://orcid.org/0000-0001-7925-7252'
+  - given-names: Alberto
+    family-names: Scotti
+    email: adscotti@asu.edu
+    affiliation: Arizona State University
+    orcid: 'https://orcid.org/0000-0001-8283-3070'
