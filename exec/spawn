@@ -1,0 +1,71 @@
+#!/bin/bash
+
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+NOCOLOR='\033[0m'
+
+
+### Help...
+if [[ $* == *--help* ]] || [[ $* == *-h* ]]; then
+    echo 'Utility that creates a new project that is ready to run.'
+    echo 'Usage: ./spawn.sh NewProjectName'
+    exit 0
+fi
+
+
+### Project name...
+
+# Gather project name from command line argument and trim whitespace.
+PROJNAME=$1
+PROJNAME="$(echo -e "${PROJNAME}" | tr -d '[:space:]')"
+# Check validity of project name.
+if [ ${#PROJNAME} -eq 0 ]; then
+    echo -e "${RED}ERROR:${NOCOLOR} Project name must not be blank."
+    echo "Aborting."
+    exit 1
+fi
+# Make sure first character is a letter.
+re='[a-zA-Z]'
+if [[ ! "${PROJNAME:0:1}" =~ $re ]]; then
+    echo -e "${RED}ERROR:${NOCOLOR} Project name must begin with a letter."
+    echo "Aborting."
+    exit 1
+fi
+# Make first character of project name capitalized.
+PROJNAME="$(tr '[:lower:]' '[:upper:]' <<< ${PROJNAME:0:1})${PROJNAME:1}"
+
+
+### Gather source (template) and destination (new project) folders...
+SRCDIR=${PWD}/.Template
+DESTDIR=${PWD}/${PROJNAME}
+
+# Does project already exist?
+if [ -d "${DESTDIR}" ]; then
+    echo -e "${RED}ERROR:${NOCOLOR} ${DESTDIR} already exists."
+    echo "Aborting."
+    exit 1
+fi
+
+
+### Create template...
+
+# Copy the template to the new project
+cp -r ${SRCDIR} ${DESTDIR}
+
+# Rename TemplatePhysics.
+mv ${DESTDIR}/TemplatePhysics.H ${DESTDIR}/UserPhysics.H
+mv ${DESTDIR}/TemplatePhysics.cpp ${DESTDIR}/UserPhysics.cpp
+
+# Substitute placeholders with project name in each file.
+find ${DESTDIR}/* -type f -exec sed -i "s/T_USER_PHYSICS_NAME/UserPhysics/g" {} \;
+
+# Create softlinks
+ln -s ../../compileUtils/buildall.sh ${DESTDIR}/buildall
+ln -s ../../SConstruct_ex.py ${DESTDIR}/SConstruct
+ln -s ../../site_scons/ ${DESTDIR}/site_scons
+
+### Create output folders...
+mkdir ${DESTDIR}/hdf5_output
+mkdir ${DESTDIR}/check_points
+
+echo -e "${GREEN}OK:${NOCOLOR} ${PROJNAME} created successfully."

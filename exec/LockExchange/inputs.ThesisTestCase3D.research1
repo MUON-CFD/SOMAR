@@ -1,0 +1,92 @@
+############################################
+##### A very basic input file template #####
+############################################
+
+# AMRParameters...
+
+amr.verbosity = 2               # [1]
+
+# rhs.L = 1.0 1.0         # MUST SPECIFY
+# # amr.nx = 64 64                # MUST SPECIFY
+# amr.nx = 128 128                 # MUST SPECIFY
+
+# amr.nx = 480 48 32                # MUST SPECIFY
+# amr.nxOffset = -240 0 0           # [0 0 0]
+
+amr.nx = 960 96 64                # MUST SPECIFY
+amr.nxOffset = -480 0 0           # [0 0 0]
+
+# amr.nx = 1920 144 128                # MUST SPECIFY
+# amr.nxOffset = -960 0 0           # [0 0 0]
+
+amr.isPeriodic = 0 1 0          # [0 0 0]
+amr.splitDirs = 1 1 1           # [1 1 1]
+# amr.maxGridSize = 0 0 0         # [0 0 0]
+amr.maxBaseGridSize = 64 96 64     # [amr.maxGridSize]
+
+amr.maxLevel = 0                # [0]
+amr.refRatio = 2 2 2              # [4 4 4]
+# amr.refRatio_lev0 = 16 16       # [amr.refRatio]
+# amr.refRatio_lev1 = 4 4 4       # [amr.refRatio]
+# and so on...
+amr.bufferSize = 1                          # [1]
+amr.fillRatio = 0.8                         # [0.8]
+# amr.blockFactor = 16                         # [0]
+amr.regridIntervals = 1 1 1      # [10 on each level]  Excess values ignored.
+
+amr.plotInterval = 1                        # [-1]       MUST SPECIFY THIS
+amr.plotPeriod = -1.0                       # [-1.0]     OR THIS!
+amr.plotPrefix = hdf5_output/plot_          # [plot_]
+amr.checkpointInterval = 50                 # [-1]       Negative value turns this off.
+amr.checkpointPrefix = check_points/chkpt_  # [chkpt_]
+
+amr.stopTime = 100.0
+amr.maxSteps = 2 #2000
+# amr.fixedDt = 0.02              # [-1.0]     Negative value turns this off.
+amr.maxDt = 10.0                 # [1.0e8]
+amr.initDtMult = 0.1            # [0.1]
+amr.dtMult = 0.90                # [0.80]     This used to be called amr.cfl.
+amr.maxDtGrow = 1.5             # [1.5]      Negative value sets this to 1.0e8.
+amr.useSubcycling = 1           # [1]
+
+# amr.restartFile = check_points/chkpt_000070.2d.hdf5  # [commented out / no restart file]
+# dem.fileName = MasoudCEX1_2D.hdf5
+# DEM_test_2d.hdf5
+
+# RHSParameters...
+
+rhs.L = 30.0 3.0 2.0                 # MUST SPECIFY
+rhs.nu = 0.00089442719          # [0.]
+rhs.TKappa = 0.0012597566       # [0.]
+rhs.scalarsKappa = 0.0001 0.0001 0.0001 0.00       # [0. 0. 0. ...]
+# rhs.sKappa = 0.0012597566 0.0 0.0       # [0. 0. 0. ...]
+rhs.coriolisF = 0.0 0.0 0.0            # [0.0]
+rhs.domainBCTypeLo = 1 1 1      # [1 1 1]   1 = no slip, 2 = free slip
+rhs.domainBCTypeHi = 1 1 1      # [1 1 1]   1 = no slip, 2 = free slip
+
+rhs.stratType = 0
+
+# Gr = (1/nu)^2 = 1.25e6
+# Sc = nu/kappa = 0.71
+
+
+# LES stuff. Methods are: -1 = Zero everywhere except where averaged down
+#                          0 = Zero everywhere,
+#                          1 = Static Smag, 2 = Dynamic Smag, 3 = Ducrose
+rhs.eddyViscMethod =  3 3  # [0]
+rhs.eddyPrandtlT = 0.71    # [1.0]
+rhs.eddyPrandtlS = 0.71    # [1.0]
+rhs.eddyPrandtlScalars = 1.0    # [1.0]
+rhs.eddyScale = 1.0 1.0 1.0   # [1.0 1.0 1.0]
+
+rhs.doMomentumAdvection            = 1  # [1]  OK
+rhs.doBuoyancyAdvection            = 1  # [1]  OK
+rhs.doScalarAdvection              = 1  # [1]  OK
+rhs.doViscousForcing               = 1  # [1]  Buggy
+rhs.doBuoyancyDiffusion            = 1  # [1]  OK
+rhs.doScalarDiffusion              = 1  # [1]  OK
+rhs.doGravityForcing               = 1  # [1]  OK
+rhs.doCoriolisForcing              = 0  # [1]
+
+rhs.computeInitPressure = 0             # [1]
+
