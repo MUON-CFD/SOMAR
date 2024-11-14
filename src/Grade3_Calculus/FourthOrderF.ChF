@@ -1,0 +1,285 @@
+#include "CONSTANTS.H"
+
+
+! ------------------------------------------------------------------------------
+      subroutine FourthOrder_NodalToAvg (
+     &      CHF_FRA[destFAB],
+     &      CHF_FRA[srcFAB],
+     &      CHF_BOX[loBox],
+     &      CHF_BOX[midBox],
+     &      CHF_BOX[hiBox],
+     &      CHF_CONST_INT[conversionDir],
+     &      CHF_CONST_REAL[scale])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      Real    coeff, lap
+      integer comp
+
+      CHF_AUTOID[ii; conversionDir]
+
+      coeff = scale / (twenty + four)
+
+      do comp = 0, CHF_NCOMP[destFAB] - 1
+        CHF_AUTOMULTIDO[loBox; i]
+          lap = two*srcFAB(CHF_AUTOIX[i], comp) - five*srcFAB(CHF_OFFSETIX[i;+ii], comp) + four*srcFAB(CHF_OFFSETIX[i;+2*ii], comp) - srcFAB(CHF_OFFSETIX[i;+3*ii], comp)
+          destFAB(CHF_AUTOIX[i], comp) = srcFAB(CHF_AUTOIX[i], comp) + coeff * lap
+        CHF_ENDDO
+
+        CHF_AUTOMULTIDO[midBox; i]
+          lap = srcFAB(CHF_OFFSETIX[i;-ii], comp) - two*srcFAB(CHF_AUTOIX[i], comp) + srcFAB(CHF_OFFSETIX[i;+ii], comp)
+          destFAB(CHF_AUTOIX[i], comp) = srcFAB(CHF_AUTOIX[i], comp) + coeff * lap
+        CHF_ENDDO
+
+        CHF_AUTOMULTIDO[hiBox; i]
+          lap = two*srcFAB(CHF_AUTOIX[i], comp) - five*srcFAB(CHF_OFFSETIX[i;-ii], comp) + four*srcFAB(CHF_OFFSETIX[i;-2*ii], comp) - srcFAB(CHF_OFFSETIX[i;-3*ii], comp)
+          destFAB(CHF_AUTOIX[i], comp) = srcFAB(CHF_AUTOIX[i], comp) + coeff * lap
+        CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+! ------------------------------------------------------------------------------
+      subroutine FourthOrder_ConservativeInterp1D_CellToNode (
+     &      CHF_FRA1[destFAB],
+     &      CHF_CONST_FRA1[srcFAB],
+     &      CHF_BOX[loloDestBox],
+     &      CHF_BOX[loDestBox],
+     &      CHF_BOX[midDestBox],
+     &      CHF_BOX[hiDestBox],
+     &      CHF_BOX[hihiDestBox],
+     &      CHF_CONST_INT[interpDir])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer comp
+
+      REAL_T, parameter :: A0 =  (53.0d0) / (12.0d0)
+      REAL_T, parameter :: A1 = -(23.0d0) / (12.0d0)
+      REAL_T, parameter :: A2 =  (13.0d0) / (12.0d0)
+      REAL_T, parameter :: A3 = -(31.0d0) / (12.0d0)
+
+      REAL_T, parameter :: B0 =  (5.0d0) / (12.0d0)
+      REAL_T, parameter :: B1 = (13.0d0) / (12.0d0)
+      REAL_T, parameter :: B2 = -(5.0d0) / (12.0d0)
+      REAL_T, parameter :: B3 = -(1.0d0) / (12.0d0)
+
+      REAL_T, parameter :: M0 =  (7.0d0) / (12.0d0)
+      REAL_T, parameter :: M1 = -(1.0d0) / (12.0d0)
+
+      CHF_AUTOID[ii; interpDir]
+
+      CHF_AUTOMULTIDO[loloDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = A0 * srcFAB(CHF_AUTOIX[i])
+     &                           + A1 * srcFAB(CHF_OFFSETIX[i;+ii])
+     &                           + A2 * srcFAB(CHF_OFFSETIX[i;+2*ii])
+     &                           + A3 * srcFAB(CHF_OFFSETIX[i;+3*ii])
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[loDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = B0 * srcFAB(CHF_OFFSETIX[i;-ii])
+     &                           + B1 * srcFAB(CHF_AUTOIX[i])
+     &                           + B2 * srcFAB(CHF_OFFSETIX[i;+ii])
+     &                           + B3 * srcFAB(CHF_OFFSETIX[i;+2*ii])
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[midDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = M0 * (srcFAB(CHF_AUTOIX[i])       + srcFAB(CHF_OFFSETIX[i;-ii]))
+     &                           + M1 * (srcFAB(CHF_OFFSETIX[i;+ii]) + srcFAB(CHF_OFFSETIX[i;-2*ii]))
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[hiDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = B0 * srcFAB(CHF_AUTOIX[i])
+     &                           + B1 * srcFAB(CHF_OFFSETIX[i;-ii])
+     &                           + B2 * srcFAB(CHF_OFFSETIX[i;-2*ii])
+     &                           + B3 * srcFAB(CHF_OFFSETIX[i;-3*ii])
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[hihiDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = A0 * srcFAB(CHF_OFFSETIX[i;-ii])
+     &                           + A1 * srcFAB(CHF_OFFSETIX[i;-2*ii])
+     &                           + A2 * srcFAB(CHF_OFFSETIX[i;-3*ii])
+     &                           + A3 * srcFAB(CHF_OFFSETIX[i;-4*ii])
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ------------------------------------------------------------------------------
+      subroutine FourthOrder_ConservativeInterp1D_NodeToCell (
+     &      CHF_FRA1[destFAB],
+     &      CHF_CONST_FRA1[srcFAB],
+     &      CHF_BOX[loDestBox],
+     &      CHF_BOX[midDestBox],
+     &      CHF_BOX[hiDestBox],
+     &      CHF_CONST_INT[interpDir])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer comp
+
+      REAL_T, parameter :: B0 =  ( 9.0d0) / (24.0d0)
+      REAL_T, parameter :: B1 =  (19.0d0) / (24.0d0)
+      REAL_T, parameter :: B2 = -( 5.0d0) / (24.0d0)
+      REAL_T, parameter :: B3 =  ( 1.0d0) / (24.0d0)
+
+      REAL_T, parameter :: M0 =  (13.0d0) / (24.0d0)
+      REAL_T, parameter :: M1 = -( 1.0d0) / (24.0d0)
+
+      CHF_AUTOID[ii; interpDir]
+
+      CHF_AUTOMULTIDO[loDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = B0 * srcFAB(CHF_AUTOIX[i])
+     &                           + B1 * srcFAB(CHF_OFFSETIX[i;+ii])
+     &                           + B2 * srcFAB(CHF_OFFSETIX[i;+2*ii])
+     &                           + B3 * srcFAB(CHF_OFFSETIX[i;+3*ii])
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[midDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = M0 * (srcFAB(CHF_AUTOIX[i])       + srcFAB(CHF_OFFSETIX[i;+ii]))
+     &                           + M1 * (srcFAB(CHF_OFFSETIX[i;-ii]) + srcFAB(CHF_OFFSETIX[i;+2*ii]))
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[hiDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = B0 * srcFAB(CHF_OFFSETIX[i;+ii])
+     &                           + B1 * srcFAB(CHF_AUTOIX[i])
+     &                           + B2 * srcFAB(CHF_OFFSETIX[i;-ii])
+     &                           + B3 * srcFAB(CHF_OFFSETIX[i;-2*ii])
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ------------------------------------------------------------------------------
+      subroutine FourthOrder_Interp1D_CellToNode (
+     &      CHF_FRA1[destFAB],
+     &      CHF_CONST_FRA1[srcFAB],
+     &      CHF_BOX[loDestBox],
+     &      CHF_BOX[midDestBox],
+     &      CHF_BOX[hiDestBox],
+     &      CHF_CONST_INT[interpDir])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer comp
+
+      REAL_T, parameter :: B0 =  (5.0d0) / (16.0d0)
+      REAL_T, parameter :: B1 = (15.0d0) / (16.0d0)
+      REAL_T, parameter :: B2 = -(5.0d0) / (16.0d0)
+      REAL_T, parameter :: B3 =  (1.0d0) / (16.0d0)
+
+      REAL_T, parameter :: M0 =  (9.0d0) / (16.0d0)
+      REAL_T, parameter :: M1 = -(1.0d0) / (16.0d0)
+
+      CHF_AUTOID[ii; interpDir]
+
+      CHF_AUTOMULTIDO[loDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = B0 * srcFAB(CHF_OFFSETIX[i;-ii])
+     &                           + B1 * srcFAB(CHF_AUTOIX[i])
+     &                           + B2 * srcFAB(CHF_OFFSETIX[i;+ii])
+     &                           + B3 * srcFAB(CHF_OFFSETIX[i;+2*ii])
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[midDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = M0 * (srcFAB(CHF_AUTOIX[i])       + srcFAB(CHF_OFFSETIX[i;-ii]))
+     &                           + M1 * (srcFAB(CHF_OFFSETIX[i;+ii]) + srcFAB(CHF_OFFSETIX[i;-2*ii]))
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[hiDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = B0 * srcFAB(CHF_AUTOIX[i])
+     &                           + B1 * srcFAB(CHF_OFFSETIX[i;-ii])
+     &                           + B2 * srcFAB(CHF_OFFSETIX[i;-2*ii])
+     &                           + B3 * srcFAB(CHF_OFFSETIX[i;-3*ii])
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ------------------------------------------------------------------------------
+      subroutine FourthOrder_Interp1D_NodeToCell (
+     &      CHF_FRA1[destFAB],
+     &      CHF_CONST_FRA1[srcFAB],
+     &      CHF_BOX[loDestBox],
+     &      CHF_BOX[midDestBox],
+     &      CHF_BOX[hiDestBox],
+     &      CHF_CONST_INT[interpDir])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer comp
+
+      REAL_T, parameter :: B0 =  (5.0d0) / (16.0d0)
+      REAL_T, parameter :: B1 = (15.0d0) / (16.0d0)
+      REAL_T, parameter :: B2 = -(5.0d0) / (16.0d0)
+      REAL_T, parameter :: B3 =  (1.0d0) / (16.0d0)
+
+      REAL_T, parameter :: M0 =  (9.0d0) / (16.0d0)
+      REAL_T, parameter :: M1 = -(1.0d0) / (16.0d0)
+
+      CHF_AUTOID[ii; interpDir]
+
+      CHF_AUTOMULTIDO[loDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = B0 * srcFAB(CHF_AUTOIX[i])
+     &                           + B1 * srcFAB(CHF_OFFSETIX[i;+ii])
+     &                           + B2 * srcFAB(CHF_OFFSETIX[i;+2*ii])
+     &                           + B3 * srcFAB(CHF_OFFSETIX[i;+3*ii])
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[midDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = M0 * (srcFAB(CHF_AUTOIX[i])       + srcFAB(CHF_OFFSETIX[i;+ii]))
+     &                           + M1 * (srcFAB(CHF_OFFSETIX[i;-ii]) + srcFAB(CHF_OFFSETIX[i;+2*ii]))
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[hiDestBox; i]
+          destFAB(CHF_AUTOIX[i]) = B0 * srcFAB(CHF_OFFSETIX[i;+ii])
+     &                           + B1 * srcFAB(CHF_AUTOIX[i])
+     &                           + B2 * srcFAB(CHF_OFFSETIX[i;-ii])
+     &                           + B3 * srcFAB(CHF_OFFSETIX[i;-2*ii])
+      CHF_ENDDO
+
+      return
+      end
+
+
+! !     ------------------------------------------------------------------
+!       subroutine FourthOrder_MultiplyAverages_Dir (
+!      &     CHF_FRA1[fg],
+!      &     CHF_CONST_FRA1[f],
+!      &     CHF_CONST_FRA1[g],
+!      &     CHF_CONST_INT[dir],
+!      &     CHF_BOX[loBox],
+!      &     CHF_BOX[centerBox],
+!      &     CHF_BOX[hiBox])
+
+!       integer CHF_AUTODECL[i]
+!       integer CHF_AUTODECL[ii]
+!       Real    lapf, lapg
+!       Real, parameter :: scale = one / (48.0d0)
+
+!       CHF_AUTOID[ii; dir]
+
+!       CHF_AUTOMULTIDO[loBox; i]
+!           lapf = -three*f(CHF_AUTOIX[i]) + four*f(CHF_OFFSETIX[i;+ii]) - f(CHF_OFFSETIX[i;+2*ii])
+!           lapg = -three*g(CHF_AUTOIX[i]) + four*g(CHF_OFFSETIX[i;+ii]) - g(CHF_OFFSETIX[i;+2*ii])
+!           fg(CHF_AUTOIX[i]) = fg(CHF_AUTOIX[i]) + scale * lapf * lapg
+!       CHF_ENDDO
+
+!       CHF_AUTOMULTIDO[centerBox; i]
+!           lapf = f(CHF_OFFSETIX[i;+ii]) - f(CHF_OFFSETIX[i;-ii])
+!           lapg = g(CHF_OFFSETIX[i;+ii]) - g(CHF_OFFSETIX[i;-ii])
+!           fg(CHF_AUTOIX[i]) = fg(CHF_AUTOIX[i]) + scale * lapf * lapg
+!       CHF_ENDDO
+
+!       CHF_AUTOMULTIDO[hiBox; i]
+!           lapf = three*f(CHF_AUTOIX[i]) - four*f(CHF_OFFSETIX[i;-ii]) + f(CHF_OFFSETIX[i;-2*ii])
+!           lapg = three*g(CHF_AUTOIX[i]) - four*g(CHF_OFFSETIX[i;-ii]) + g(CHF_OFFSETIX[i;-2*ii])
+!           fg(CHF_AUTOIX[i]) = fg(CHF_AUTOIX[i]) + scale * lapf * lapg
+!       CHF_ENDDO
+
+!       return
+!       end

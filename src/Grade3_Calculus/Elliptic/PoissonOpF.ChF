@@ -1,0 +1,1702 @@
+!*******************************************************************************
+!     SOMAR - Stratified Ocean Model with Adaptive Refinement
+!     Developed by Ed Santilli & Alberto Scotti
+!     Copyright (C) 2019 Jefferson University and Arizona State University
+!
+!     This library is free software; you can redistribute it and/or
+!     modify it under the terms of the GNU Lesser General Public
+!     License as published by the Free Software Foundation; either
+!     version 2.1 of the License, or (at your option) any later version.
+!
+!     This library is distributed in the hope that it will be useful,
+!     but WITHOUT ANY WARRANTY; without even the implied warranty of
+!     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+!     Lesser General Public License for more details.
+!
+!     You should have received a copy of the GNU Lesser General Public
+!     License along with this library; if not, write to the Free Software
+!     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+!     USA
+!
+!     For up-to-date contact information, please visit the repository homepage,
+!     https://github.com/somarhub.
+!*******************************************************************************
+#include "CONSTANTS.H"
+
+
+#if CH_SPACEDIM == 2
+#   define DO_RBPASS(destBox, i, whichPass)                            \
+          do i##1 = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1];    \
+            imin = CHF_LBOUND[destBox; 0];                             \
+            CHF_DTERM[indtot = imin; + i##1 ; + i##2 ];                \
+            imin = imin + abs(mod(indtot + whichPass, 2));             \
+            imax = CHF_UBOUND[destBox; 0];                             \
+            do i##0 = imin, imax, 2
+#else
+#   define DO_RBPASS(destBox, i, whichPass)                            \
+      do i##2 = CHF_LBOUND[destBox; 2], CHF_UBOUND[destBox; 2];        \
+          do i##1 = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1];    \
+            imin = CHF_LBOUND[destBox; 0];                             \
+            CHF_DTERM[indtot = imin; + i##1 ; + i##2 ];                \
+            imin = imin + abs(mod(indtot + whichPass, 2));             \
+            imax = CHF_UBOUND[destBox; 0];                             \
+            do i##0 = imin, imax, 2
+#endif
+
+
+
+
+!     ------------------------------------------------------------------
+!     ------------------------------------------------------------------
+      subroutine PoissonOp_NonZeroSearch (
+     &     CHF_INT[hasNonZero],
+     &     CHF_CONST_FRA1[data],
+     &     CHF_BOX[region],
+     &     CHF_CONST_REAL[smallVal])
+
+      integer CHF_AUTODECL[i]
+      REAL_T val
+
+      hasNonZero = 0
+      CHF_AUTOMULTIDO[region;i]
+        val = data(CHF_AUTOIX[i])
+        if (abs(val) .gt. smallVal) then
+            hasNonZero = 1
+            return
+        endif
+      CHF_ENDDO
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     This does not compute Dinv!
+!     Only computes upper and lower diagonals in one "direction."
+!     This is NOT scaled by 1/J!
+!     ------------------------------------------------------------------
+      subroutine PoissonOp_ComputeMatrixElements (
+     &      CHF_FRA[Mx],
+     &      CHF_CONST_FRA1[fcDXidx],
+     &      CHF_CONST_FRA1[ccDXidx],
+     &      CHF_CONST_REAL[dXi],
+     &      CHF_CONST_INT[dir],
+     &      CHF_BOX[ccDestBox])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      REAL_T dxScale, c
+
+      CHF_AUTOID[ii; dir]
+      dxScale = one / (dXi*dXi)
+
+      CHF_AUTOMULTIDO[ccDestBox;i]
+        c = dxScale * ccDXidx(CHF_AUTOIX[i])
+        Mx(CHF_AUTOIX[i], 0) = c * fcDXidx(CHF_AUTOIX[i])
+        Mx(CHF_AUTOIX[i], 1) = c * fcDXidx(CHF_OFFSETIX[i;+ii])
+      CHF_ENDDO
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     Computes 1/diags.
+!     ------------------------------------------------------------------
+      subroutine PoissonOp_ComputeDinv (
+     &      CHF_FRA1[DinvFAB],
+     &      CHF_CONST_FRA[Mx],
+     &      CHF_CONST_FRA[My],
+     &      CHF_CONST_FRA[Mz],
+     &      CHF_CONST_FRA1[JFAB],
+     &      CHF_CONST_REAL[alpha],
+     &      CHF_CONST_REAL[beta],
+     &      CHF_BOX[destBox])
+
+      integer CHF_DDECL[i;j;k]
+      REAL_T yzDiags
+      REAL_T CHF_DDECL[MxL; MyL; MzL]
+      REAL_T CHF_DDECL[MxR; MyR; MzR]
+
+#if CH_SPACEDIM > 2
+      do k = CHF_LBOUND[destBox; 2], CHF_UBOUND[destBox; 2]
+        MzL = Mz(CHF_IX[0;0;k],0)
+        MzR = Mz(CHF_IX[0;0;k],1)
+#endif
+        do j = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1]
+          MyL = My(CHF_IX[0;j;0],0)
+          MyR = My(CHF_IX[0;j;0],1)
+          yzDiags = CHF_DTERM[; MyL + MyR; + MzL + MzR]
+
+          do i = CHF_LBOUND[destBox; 0], CHF_UBOUND[destBox; 0]
+            MxL = Mx(CHF_IX[i;0;0],0)
+            MxR = Mx(CHF_IX[i;0;0],1)
+            DinvFAB(CHF_IX[i;j;k]) = one / (
+     &          JFAB(CHF_IX[i;j;k]) * (alpha - beta * (MxL + MxR + yzDiags))
+     &      )
+          enddo
+        enddo
+#if CH_SPACEDIM > 2
+      enddo
+#endif
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     This computes L[phi] = J * (alpha + beta*Laplacian) of phi.
+!      JDinv = the inverse diagonals of L, not the true Laplacian.
+!     ------------------------------------------------------------------
+      subroutine PoissonOp_ApplyOp (
+     &      CHF_FRA[lhs],
+     &      CHF_CONST_FRA[phi],
+     &      CHF_CONST_FRA[Mx],
+     &      CHF_CONST_FRA[My],
+     &      CHF_CONST_FRA[Mz],
+     &      CHF_CONST_FRA1[JDinv],
+     &      CHF_CONST_FRA1[ccJ],
+     &      CHF_CONST_REALVECT[dXi],
+     &      CHF_CONST_REAL[beta],
+     &      CHF_BOX[destBox])
+
+      integer CHF_DDECL[i;j;k]
+      integer n, ncomp
+      REAL_T CHF_DDECL[MxL; MyL; MzL]
+      REAL_T CHF_DDECL[MxR; MyR; MzR]
+
+      ncomp = CHF_NCOMP[phi]
+
+      do n = 0, ncomp-1
+#if CH_SPACEDIM > 2
+        do k = CHF_LBOUND[destBox; 2], CHF_UBOUND[destBox; 2]
+          MzL = Mz(CHF_IX[0;0;k],0)
+          MzR = Mz(CHF_IX[0;0;k],1)
+#endif
+          do j = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1]
+            MyL = My(CHF_IX[0;j;0],0)
+            MyR = My(CHF_IX[0;j;0],1)
+
+            do i = CHF_LBOUND[destBox; 0], CHF_UBOUND[destBox; 0]
+              MxL = Mx(CHF_IX[i;0;0],0)
+              MxR = Mx(CHF_IX[i;0;0],1)
+
+              lhs(CHF_IX[i;j;k],n) = CHF_DTERM[
+     &          MxL * phi(CHF_IX[i-1;j;k],n)
+     &        + MxR * phi(CHF_IX[i+1;j;k],n);
+     &        + MyL * phi(CHF_IX[i;j-1;k],n)
+     &        + MyR * phi(CHF_IX[i;j+1;k],n);
+     &        + MzL * phi(CHF_IX[i;j;k-1],n)
+     &        + MzR * phi(CHF_IX[i;j;k+1],n)]
+        CHF_ENDDO
+
+        CHF_MULTIDO[destBox;i;j;k]
+            lhs(CHF_IX[i;j;k],n) = beta * ccJ(CHF_IX[i;j;k]) * lhs(CHF_IX[i;j;k],n)
+     &                          + phi(CHF_IX[i;j;k],n) / JDinv(CHF_IX[i;j;k])
+        CHF_ENDDO
+       enddo
+
+      return
+      end
+
+!     ------------------------------------------------------------------
+      subroutine PoissonOp_ApplyOpDirs (
+     &      CHF_FRA[lhs],
+     &      CHF_CONST_FRA[phi],
+     &      CHF_CONST_FRA[Mx],
+     &      CHF_CONST_FRA[My],
+     &      CHF_CONST_FRA[Mz],
+     &      CHF_CONST_FRA1[JDinv],
+     &      CHF_CONST_FRA1[ccJ],
+     &      CHF_CONST_REALVECT[dXi],
+     &      CHF_CONST_REAL[beta],
+     &      CHF_BOX[destBox],
+     &      CHF_CONST_INTVECT[activeDirs])
+
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[ii;jj;kk]
+      integer n, ncomp
+      REAL_T CHF_DDECL[MxL; MyL; MzL]
+      REAL_T CHF_DDECL[MxR; MyR; MzR]
+
+      CHF_DTERM[
+      ii = activeDirs(0);
+      jj = activeDirs(1);
+      kk = activeDirs(2)]
+
+      ncomp = CHF_NCOMP[phi]
+
+      do n = 0, ncomp-1
+#if CH_SPACEDIM > 2
+        do k = CHF_LBOUND[destBox; 2], CHF_UBOUND[destBox; 2]
+          MzL = Mz(CHF_IX[0;0;k],0)
+          MzR = Mz(CHF_IX[0;0;k],1)
+#endif
+          do j = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1]
+            MyL = My(CHF_IX[0;j;0],0)
+            MyR = My(CHF_IX[0;j;0],1)
+
+            do i = CHF_LBOUND[destBox; 0], CHF_UBOUND[destBox; 0]
+              MxL = Mx(CHF_IX[i;0;0],0)
+              MxR = Mx(CHF_IX[i;0;0],1)
+
+              lhs(CHF_IX[i;j;k],n) = CHF_DTERM[
+     &          MxL * phi(CHF_IX[i-ii;j   ;k   ],n)
+     &        + MxR * phi(CHF_IX[i+ii;j   ;k   ],n);
+     &        + MyL * phi(CHF_IX[i   ;j-jj;k   ],n)
+     &        + MyR * phi(CHF_IX[i   ;j+jj;k   ],n);
+     &        + MzL * phi(CHF_IX[i   ;j   ;k-kk],n)
+     &        + MzR * phi(CHF_IX[i   ;j   ;k+kk],n)]
+        CHF_ENDDO
+
+        CHF_MULTIDO[destBox;i;j;k]
+            lhs(CHF_IX[i;j;k],n) = beta * ccJ(CHF_IX[i;j;k]) * lhs(CHF_IX[i;j;k],n)
+     &                          + phi(CHF_IX[i;j;k],n) / JDinv(CHF_IX[i;j;k])
+        CHF_ENDDO
+       enddo
+
+      return
+      end
+
+!     ------------------------------------------------------------------
+!     Jacobi relaxation
+!     ------------------------------------------------------------------
+      subroutine PoissonOp_Jacobi (
+     &      CHF_FRA[phi],
+     &      CHF_CONST_FRA[res],
+     &      CHF_CONST_FRA1[Dinv],
+     &      CHF_BOX[destBox])
+
+      integer CHF_AUTODECL[i]
+      integer n, ncomp
+
+      ncomp = CHF_NCOMP[phi]
+
+      do n = 0, ncomp-1
+        CHF_AUTOMULTIDO[destBox;i]
+          phi(CHF_AUTOIX[i],n) = phi(CHF_AUTOIX[i],n)
+     &        + Dinv(CHF_AUTOIX[i]) * res(CHF_AUTOIX[i],n)
+        CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     Red-Black Jacobi relaxation
+!     ------------------------------------------------------------------
+      subroutine PoissonOp_JacobiRB (
+     &      CHF_FRA[phi],
+     &      CHF_CONST_FRA[res],
+     &      CHF_CONST_FRA1[Dinv],
+     &      CHF_CONST_INT[whichPass],
+     &      CHF_BOX[destBox])
+
+      integer CHF_AUTODECL[i]
+      integer indtot,imin,imax
+      integer n, ncomp
+
+      ncomp = CHF_NCOMP[phi]
+
+      do n = 0, ncomp-1
+        DO_RBPASS(destBox, i, whichPass)
+          phi(CHF_AUTOIX[i],n) = phi(CHF_AUTOIX[i],n)
+     &        + Dinv(CHF_AUTOIX[i]) * res(CHF_AUTOIX[i],n)
+        CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     Gauss Seidel relaxation
+!     ------------------------------------------------------------------
+      subroutine PoissonOp_GS (
+     &      CHF_FRA[phi],
+     &      CHF_CONST_FRA[rhs],
+     &      CHF_CONST_FRA1[ccJ],
+     &      CHF_CONST_FRA[Mx],
+     &      CHF_CONST_FRA[My],
+     &      CHF_CONST_FRA[Mz],
+     &      CHF_CONST_FRA1[Dinv],
+     &      CHF_CONST_REAL[beta],
+     &      CHF_BOX[destBox])
+
+      integer CHF_DDECL[i;j;k]
+      integer n, ncomp
+      REAL_T Sphi
+      REAL_T CHF_DDECL[MxL; MyL; MzL]
+      REAL_T CHF_DDECL[MxR; MyR; MzR]
+
+      ncomp = CHF_NCOMP[phi]
+
+      do n = 0, ncomp-1
+#if CH_SPACEDIM > 2
+        do k = CHF_LBOUND[destBox; 2], CHF_UBOUND[destBox; 2]
+          MzL = Mz(CHF_IX[0;0;k],0)
+          MzR = Mz(CHF_IX[0;0;k],1)
+#endif
+          do j = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1]
+            MyL = My(CHF_IX[0;j;0],0)
+            MyR = My(CHF_IX[0;j;0],1)
+
+            do i = CHF_LBOUND[destBox; 0], CHF_UBOUND[destBox; 0]
+              MxL = Mx(CHF_IX[i;0;0],0)
+              MxR = Mx(CHF_IX[i;0;0],1)
+
+              Sphi = CHF_DTERM[
+     &          MxL * phi(CHF_IX[i-1;j;k],n)
+     &        + MxR * phi(CHF_IX[i+1;j;k],n);
+     &        + MyL * phi(CHF_IX[i;j-1;k],n)
+     &        + MyR * phi(CHF_IX[i;j+1;k],n);
+     &        + MzL * phi(CHF_IX[i;j;k-1],n)
+     &        + MzR * phi(CHF_IX[i;j;k+1],n)]
+
+              phi(CHF_IX[i;j;k],n) = (rhs(CHF_IX[i;j;k],n) - beta*ccJ(CHF_IX[i;j;k])*Sphi)
+     &                             * Dinv(CHF_IX[i;j;k])
+        CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+
+!     ------------------------------------------------------------------
+      subroutine PoissonOp_GS_Horiz (
+     &      CHF_FRA[phi],
+     &      CHF_CONST_FRA[rhs],
+     &      CHF_CONST_FRA1[ccJ],
+     &      CHF_CONST_FRA[Mx],
+     &      CHF_CONST_FRA[My],
+     &      CHF_CONST_FRA1[Dinv],
+     &      CHF_CONST_REAL[beta],
+     &      CHF_BOX[destBox])
+
+#if CH_SPACEDIM == 2
+        call MAYDAYERROR()  ! for now
+#else
+      integer i,j,k
+      integer n, ncomp
+      REAL_T Sphi
+      REAL_T MxL, MyL
+      REAL_T MxR, MyR
+
+      ncomp = CHF_NCOMP[phi]
+
+      do n = 0, ncomp-1
+        do k = CHF_LBOUND[destBox; 2], CHF_UBOUND[destBox; 2]
+          do j = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1]
+            MyL = My(CHF_IX[0;j;0],0)
+            MyR = My(CHF_IX[0;j;0],1)
+
+            do i = CHF_LBOUND[destBox; 0], CHF_UBOUND[destBox; 0]
+              MxL = Mx(CHF_IX[i;0;0],0)
+              MxR = Mx(CHF_IX[i;0;0],1)
+
+              Sphi =
+     &          MxL * phi(CHF_IX[i-1;j;k],n)
+     &        + MxR * phi(CHF_IX[i+1;j;k],n)
+     &        + MyL * phi(CHF_IX[i;j-1;k],n)
+     &        + MyR * phi(CHF_IX[i;j+1;k],n)
+
+              phi(CHF_IX[i;j;k],n) = (rhs(CHF_IX[i;j;k],n) - beta*ccJ(CHF_IX[i;j;k])*Sphi)
+     &                             * Dinv(CHF_IX[i;j;k])
+            enddo
+          enddo
+        enddo
+      enddo
+#endif
+      return
+      end
+
+
+
+!     ------------------------------------------------------------------
+!     Red-Black Gauss Seidel relaxation
+!     ------------------------------------------------------------------
+      subroutine PoissonOp_GSRB (
+     &      CHF_FRA[phi],
+     &      CHF_CONST_FRA[rhs],
+     &      CHF_CONST_FRA1[ccJ],
+     &      CHF_CONST_FRA[Mx],
+     &      CHF_CONST_FRA[My],
+     &      CHF_CONST_FRA[Mz],
+     &      CHF_CONST_FRA1[Dinv],
+     &      CHF_CONST_REAL[beta],
+     &      CHF_BOX[destBox],
+     &      CHF_CONST_INT[whichPass])
+
+      integer CHF_DDECL[i;j;k]
+      integer indtot, imin, imax
+      integer n, ncomp
+      REAL_T Sphi
+      REAL_T CHF_DDECL[MxL; MyL; MzL]
+      REAL_T CHF_DDECL[MxR; MyR; MzR]
+
+      ncomp = CHF_NCOMP[phi]
+
+      do n = 0, ncomp-1
+#if CH_SPACEDIM > 2
+        do k = CHF_LBOUND[destBox; 2], CHF_UBOUND[destBox; 2]
+          MzL = Mz(CHF_IX[0;0;k],0)
+          MzR = Mz(CHF_IX[0;0;k],1)
+#endif
+          do j = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1]
+            MyL = My(CHF_IX[0;j;0],0)
+            MyR = My(CHF_IX[0;j;0],1)
+
+            imin = CHF_LBOUND[destBox; 0]
+            CHF_DTERM[indtot = imin; + j ; + k ]
+            imin = imin + abs(mod(indtot + whichPass, 2))
+            imax = CHF_UBOUND[destBox; 0]
+
+            do i = imin, imax, 2
+              MxL = Mx(CHF_IX[i;0;0],0)
+              MxR = Mx(CHF_IX[i;0;0],1)
+
+              Sphi = CHF_DTERM[
+     &          MxL * phi(CHF_IX[i-1;j;k],n)
+     &        + MxR * phi(CHF_IX[i+1;j;k],n);
+     &        + MyL * phi(CHF_IX[i;j-1;k],n)
+     &        + MyR * phi(CHF_IX[i;j+1;k],n);
+     &        + MzL * phi(CHF_IX[i;j;k-1],n)
+     &        + MzR * phi(CHF_IX[i;j;k+1],n)]
+
+              phi(CHF_IX[i;j;k],n) = (rhs(CHF_IX[i;j;k],n) - beta*ccJ(CHF_IX[i;j;k])*Sphi)
+     &                             * Dinv(CHF_IX[i;j;k])
+        CHF_ENDDO
+      enddo
+
+      return
+      end
+
+!     ------------------------------------------------------------------
+      subroutine PoissonOp_GSRB_Horiz (
+     &      CHF_FRA[phi],
+     &      CHF_CONST_FRA[rhs],
+     &      CHF_CONST_FRA1[ccJ],
+     &      CHF_CONST_FRA[Mx],
+     &      CHF_CONST_FRA[My],
+     &      CHF_CONST_FRA1[Dinv],
+     &      CHF_CONST_REAL[beta],
+     &      CHF_BOX[destBox],
+     &      CHF_CONST_INT[whichPass])
+
+#if CH_SPACEDIM == 2
+      integer CHF_DDECL[i;j;k]
+      integer indtot, imin, imax
+      integer n, ncomp
+      REAL_T Sphi
+      REAL_T MxL
+      REAL_T MxR
+
+      ncomp = CHF_NCOMP[phi]
+
+      do n = 0, ncomp-1
+          do j = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1]
+            imin = CHF_LBOUND[destBox; 0]
+            CHF_DTERM[indtot = imin; + 0 ; + 0 ]
+            imin = imin + abs(mod(indtot + whichPass, 2))
+            imax = CHF_UBOUND[destBox; 0]
+
+            do i = imin, imax, 2
+              MxL = Mx(CHF_IX[i;0;0],0)
+              MxR = Mx(CHF_IX[i;0;0],1)
+
+              Sphi =
+     &          MxL * phi(CHF_IX[i-1;j;k],n)
+     &        + MxR * phi(CHF_IX[i+1;j;k],n)
+
+              phi(CHF_IX[i;j;k],n) = (rhs(CHF_IX[i;j;k],n) - beta*ccJ(CHF_IX[i;j;k])*Sphi)
+     &                             * Dinv(CHF_IX[i;j;k])
+        CHF_ENDDO
+      enddo
+#else
+      integer CHF_DDECL[i;j;k]
+      integer indtot, imin, imax
+      integer n, ncomp
+      REAL_T Sphi
+      REAL_T MxL, MyL
+      REAL_T MxR, MyR
+
+      ncomp = CHF_NCOMP[phi]
+
+      do n = 0, ncomp-1
+        do k = CHF_LBOUND[destBox; 2], CHF_UBOUND[destBox; 2]
+          do j = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1]
+            MyL = My(CHF_IX[0;j;0],0)
+            MyR = My(CHF_IX[0;j;0],1)
+
+            imin = CHF_LBOUND[destBox; 0]
+            CHF_DTERM[indtot = imin; + j ; + 0 ]
+            imin = imin + abs(mod(indtot + whichPass, 2))
+            imax = CHF_UBOUND[destBox; 0]
+
+            do i = imin, imax, 2
+              MxL = Mx(CHF_IX[i;0;0],0)
+              MxR = Mx(CHF_IX[i;0;0],1)
+
+              Sphi =
+     &          MxL * phi(CHF_IX[i-1;j;k],n)
+     &        + MxR * phi(CHF_IX[i+1;j;k],n)
+     &        + MyL * phi(CHF_IX[i;j-1;k],n)
+     &        + MyR * phi(CHF_IX[i;j+1;k],n)
+
+              phi(CHF_IX[i;j;k],n) = (rhs(CHF_IX[i;j;k],n) - beta*ccJ(CHF_IX[i;j;k])*Sphi)
+     &                             * Dinv(CHF_IX[i;j;k])
+        CHF_ENDDO
+      enddo
+#endif
+      return
+      end
+
+!     ------------------------------------------------------------------------
+#ifdef IDX
+#  error IDX needs to be renamed
+#endif
+
+#if CH_SPACEDIM == 2
+#  define IDX(j) i,(j)
+#  define ARRAYIDX(i) (i),1
+
+#elif CH_SPACEDIM == 3
+#  define IDX(k) i,j,(k)
+#  define ARRAYIDX(i) (i),1,1
+
+#else
+#  error Bad SpaceDim
+#endif
+
+!     ------------------------------------------------------------------------
+      subroutine PoissonOp_DefineVertLineRelaxBCs_2D (
+     &     CHF_CONST_FRA1[ccJ],
+     &     CHF_CONST_FRA[Mz],
+     &     CHF_CONST_REAL[beta],
+     &     CHF_BOX[region],
+     &     CHF_CONST_FRA[loBCalpha],
+     &     CHF_CONST_FRA[loBCbeta],
+     &     CHF_CONST_REAL[lodz],
+     &     CHF_CONST_FRA[hiBCalpha],
+     &     CHF_CONST_FRA[hiBCbeta],
+     &     CHF_CONST_REAL[hidz],
+     &     CHF_FRA[loBC],
+     &     CHF_FRA[hiBC])
+
+#if CH_SPACEDIM > 2
+      print*, 'PoissonOp_DefineVertLineRelaxBCs_2D can only be called in 2D.'
+      call MAYDAYERROR()
+#else
+      integer i, k
+      integer N, comp
+      REAL_T  MzL, MzR, Jval, bcScale
+
+      N = CHF_UBOUND[region; 1] + 1
+
+      ! Asserts
+#ifndef NDEBUG
+      if (CHF_LBOUND[region; 1] .ne. 0) then
+        print*, 'PoissonOp_DefineVertLineRelaxBCs_2D: region must have a lower bound of zero in the vertical, not ', CHF_LBOUND[region; 1]
+        call MAYDAYERROR()
+      endif
+#endif
+
+      do comp = 0, CHF_NCOMP[loBC] - 1
+            do i = CHF_LBOUND[region; 0], CHF_UBOUND[region; 0]
+                ! Lower vertical boundary
+                k = 0
+                MzL = Mz(0,k,0)
+                MzR = Mz(0,k,1)
+                Jval = ccJ(i,k)
+
+                bcScale = (loBCalpha(i,k,comp) - two * loBCbeta(i,k,comp) / lodz)
+     &                  / (loBCalpha(i,k,comp) + two * loBCbeta(i,k,comp) / lodz)
+                loBC(i,k,comp) = -beta*Jval*MzL*bcScale
+
+                ! Upper vertical boundary
+                k = CHF_UBOUND[region; 1]
+                MzL = Mz(0,k,0)
+                MzR = Mz(0,k,1)
+                Jval = ccJ(i,k)
+
+                bcScale = (hiBCalpha(i,k+1,comp) - two * hiBCbeta(i,k+1,comp) / hidz)
+     &                  / (hiBCalpha(i,k+1,comp) + two * hiBCbeta(i,k+1,comp) / hidz)
+                hiBC(i,k,comp) = -beta*Jval*MzR*bcScale
+            enddo ! i
+      enddo ! comp
+#endif
+      return
+      end
+
+
+!     ------------------------------------------------------------------------
+      subroutine PoissonOp_DefineVertLineRelaxBCs_3D (
+     &     CHF_CONST_FRA1[ccJ],
+     &     CHF_CONST_FRA[Mz],
+     &     CHF_CONST_REAL[beta],
+     &     CHF_BOX[region],
+     &     CHF_CONST_FRA[loBCalpha],
+     &     CHF_CONST_FRA[loBCbeta],
+     &     CHF_CONST_REAL[lodz],
+     &     CHF_CONST_FRA[hiBCalpha],
+     &     CHF_CONST_FRA[hiBCbeta],
+     &     CHF_CONST_REAL[hidz],
+     &     CHF_FRA[loBC],
+     &     CHF_FRA[hiBC])
+
+#if CH_SPACEDIM < 3
+      print*, 'PoissonOp_DefineVertLineRelaxBCs_3D can only be called in 3D.'
+      call MAYDAYERROR()
+#else
+      integer CHF_DDECL[i; j; k]
+      integer N, comp
+      REAL_T  MzL, MzR, Jval, bcScale
+
+      N = CHF_UBOUND[region; 2] + 1
+
+      ! Asserts
+#ifndef NDEBUG
+      if (CHF_LBOUND[region; 2] .ne. 0) then
+        print*, 'PoissonOp_DefineVertLineRelaxBCs_3D: region must have a lower bound of zero in the vertical, not ', CHF_LBOUND[region; 2]
+        call MAYDAYERROR()
+      endif
+#endif
+
+      do comp = 0, CHF_NCOMP[loBC] - 1
+        do j = CHF_LBOUND[region; 1], CHF_UBOUND[region; 1]
+            do i = CHF_LBOUND[region; 0], CHF_UBOUND[region; 0]
+                ! Lower vertical boundary
+                k = 0
+                MzL = Mz(CHF_IX[0;0;k],0)
+                MzR = Mz(CHF_IX[0;0;k],1)
+                Jval = ccJ(CHF_IX[i;j;k])
+
+                bcScale = (loBCalpha(CHF_IX[i;j;k],comp) - two * loBCbeta(CHF_IX[i;j;k],comp) / lodz)
+     &                  / (loBCalpha(CHF_IX[i;j;k],comp) + two * loBCbeta(CHF_IX[i;j;k],comp) / lodz)
+                loBC(CHF_IX[i;j;k],comp) = -beta*Jval*MzL*bcScale
+
+                ! Upper vertical boundary
+                k = CHF_UBOUND[region; 2]
+                MzL = Mz(CHF_IX[0;0;k],0)
+                MzR = Mz(CHF_IX[0;0;k],1)
+                Jval = ccJ(CHF_IX[i;j;k])
+
+                bcScale = (hiBCalpha(CHF_IX[i;j;k+1],comp) - two * hiBCbeta(CHF_IX[i;j;k+1],comp) / hidz)
+     &                  / (hiBCalpha(CHF_IX[i;j;k+1],comp) + two * hiBCbeta(CHF_IX[i;j;k+1],comp) / hidz)
+                hiBC(CHF_IX[i;j;k],comp) = -beta*Jval*MzR*bcScale
+            enddo ! i
+        enddo ! j
+      enddo ! comp
+#endif
+      return
+      end
+
+!     ------------------------------------------------------------------------
+!     Line relaxation with GSRB.
+!     ------------------------------------------------------------------------
+      subroutine PoissonOp_VertLineGSRB_2D (
+        &     CHF_FRA1[phi],
+        &     CHF_CONST_FRA1[rhs],
+        &     CHF_CONST_FRA1[ccJ],
+        &     CHF_CONST_FRA[Mx],
+        &     CHF_CONST_FRA[Mz],
+        &     CHF_CONST_FRA1[Dinv],
+        &     CHF_CONST_REAL[beta],
+        &     CHF_BOX[region],
+        &     CHF_CONST_INT[redBlack],
+        &     CHF_CONST_FRA1[loBC],
+        &     CHF_CONST_FRA1[hiBC],
+        &     CHF_FRA1[DU], ! Empty work space, dimensions 2..N
+        &     CHF_FRA1[D],  ! Empty work space, dimensions 1..N
+        &     CHF_FRA1[DL], ! Empty work space, dimensions 1..N-1
+        &     CHF_FRA1[B])  ! Empty work space, dimensions 1..N=LDB
+
+#if CH_SPACEDIM > 2
+         print*, 'PoissonOp_VertLineGSRB_2D can only be called in 2D.'
+         call MAYDAYERROR()
+#else
+         integer i, k
+         integer imin, indtot
+         integer N, NRHS, LDB, INFO
+         REAL_T  lphi
+         REAL_T  MxL, MxR, MzL, MzR, Jval
+
+         N = CHF_UBOUND[region; 1] + 1
+         NRHS = 1
+         LDB = N
+
+         ! Asserts
+#ifndef NDEBUG
+         if (CHF_LBOUND[region; 1] .ne. 0) then
+           print*, 'PoissonOp_VertLineGSRB_2D: region must have a lower bound of zero in the vertical, not ', CHF_LBOUND[region; 1]
+           call MAYDAYERROR()
+         endif
+#endif
+
+         if (N.gt.1) then
+           ! Main loop
+               imin = CHF_LBOUND[region; 0]
+               indtot = imin
+               imin = imin + abs(mod(indtot + redBlack, 2))
+
+               do i = imin, CHF_UBOUND[region; 0], 2
+                   MxL = Mx(i,0,0)
+                   MxR = Mx(i,0,1)
+
+
+                   ! Lower vertical boundary
+                   k = 0
+                   MzL = Mz(0,k,0)
+                   MzR = Mz(0,k,1)
+                   Jval = ccJ(i,k)
+
+                   lphi = MxL * phi(i-1,k)
+     &                  + MxR * phi(i+1,k)
+
+                   B (ARRAYIDX(k+1)) = rhs(i,k) - Jval * beta * lphi
+                   D (ARRAYIDX(k+1)) = one / Dinv(i,k) + loBC(i,k)
+                   DU(ARRAYIDX(k+2)) = beta * Jval * MzR
+
+
+                   ! Interior
+                   do k = 1, CHF_UBOUND[region; 1] - 1
+                       MzL = Mz(0,k,0)
+                       MzR = Mz(0,k,1)
+                       Jval = ccJ(i,k)
+
+                       lphi = MxL * phi(i-1,k)
+     &                      + MxR * phi(i+1,k)
+
+                       B (ARRAYIDX(k+1)) = rhs(i,k) - Jval * beta * lphi
+                       DL(ARRAYIDX(k  )) = beta * Jval * MzL
+                       D (ARRAYIDX(k+1)) = one / Dinv(i,k)
+                       DU(ARRAYIDX(k+2)) = beta * Jval * MzR
+                   enddo ! k
+
+
+                   ! Upper vertical boundary
+                   k = CHF_UBOUND[region; 1]
+                   MzL = Mz(0,k,0)
+                   MzR = Mz(0,k,1)
+                   Jval = ccJ(i,k)
+
+                   lphi = MxL * phi(i-1,k)
+     &                  + MxR * phi(i+1,k)
+
+                   B (ARRAYIDX(k+1)) = rhs(i,k) - Jval * beta * lphi
+                   DL(ARRAYIDX(k  )) = beta * Jval * MzL
+                   D (ARRAYIDX(k+1)) = one / Dinv(i,k) + hiBC(i,k)
+
+
+                   ! Solve the tridiagonal problem
+                   call dgtsv(N, NRHS, DL, D, DU, B, LDB, INFO)
+
+                   ! Check INFO
+                   if ((INFO .ne. 0) .and. (INFO .ne. N)) then
+                       print*, 'PoissonOp_VertLineGSRB_2D: INFO = ', INFO
+                       call MAYDAYERROR()
+                   endif
+
+                   ! Put solution in user's holder
+                   do k = 0, CHF_UBOUND[region; 1]
+                       phi(i,k) = B(ARRAYIDX(k+1))
+                   enddo
+               enddo ! i
+
+         else
+           ! Main loop for N = 1
+               imin = CHF_LBOUND[region; 0]
+               indtot = imin
+               imin = imin + abs(mod(indtot + redBlack, 2))
+
+               do i = imin, CHF_UBOUND[region; 0], 2
+                   MxL = Mx(i,0,0)
+                   MxR = Mx(i,0,1)
+
+                   k = 0
+                   MzL = Mz(0,k,0)
+                   MzR = Mz(0,k,1)
+                   Jval = ccJ(i,k)
+
+                   lphi = MxL * phi(i-1,k)
+     &                  + MxR * phi(i+1,k)
+
+                   B (ARRAYIDX(k+1)) = rhs(i,k) - Jval * beta * lphi
+                   D (ARRAYIDX(k+1)) = one / Dinv(i,k)
+     &                               + loBC(i,k) + hiBC(i,k)
+
+                   ! Solve the tridiagonal problem
+                   call dgtsv(N, NRHS, DL, D, DU, B, LDB, INFO)
+
+                   ! Check INFO
+                   if ((INFO .ne. 0) .and. (INFO .ne. N)) then
+                       print*, 'PoissonOp_VertLineGSRB_2D: INFO = ', INFO
+                       call MAYDAYERROR()
+                   endif
+
+                   ! Put solution in user's holder
+                   do k = 0, CHF_UBOUND[region; 1]
+                       phi(i,k) = B(ARRAYIDX(k+1))
+                   enddo
+               enddo ! i
+         endif
+   #endif
+         return
+         end
+
+
+! ------------------------------------------------------------------------------
+      subroutine PoissonOp_VertLineGSRB_3D (
+     &     CHF_FRA1[phi],
+     &     CHF_CONST_FRA1[rhs],
+     &     CHF_CONST_FRA1[ccJ],
+     &     CHF_CONST_FRA[Mx],
+     &     CHF_CONST_FRA[My],
+     &     CHF_CONST_FRA[Mz],
+     &     CHF_CONST_FRA1[Dinv],
+     &     CHF_CONST_REAL[beta],
+     &     CHF_BOX[region],
+     &     CHF_CONST_INT[redBlack],
+     &     CHF_CONST_FRA1[loBC],
+     &     CHF_CONST_FRA1[hiBC],
+     &     CHF_FRA1[DU], ! Empty work space, dimensions 2..N
+     &     CHF_FRA1[D],  ! Empty work space, dimensions 1..N
+     &     CHF_FRA1[DL], ! Empty work space, dimensions 1..N-1
+     &     CHF_FRA1[B])  ! Empty work space, dimensions 1..N=LDB
+
+#if CH_SPACEDIM < 3
+      print*, 'PoissonOp_VertLineGSRB_3D can only be called in 3D.'
+      call MAYDAYERROR()
+#else
+      integer CHF_DDECL[i; j; k]
+      integer imin, indtot
+      integer N, NRHS, LDB, INFO
+      REAL_T  lphi
+      REAL_T  MxL, MxR, MyL, MyR, MzL, MzR, Jval
+
+      N = CHF_UBOUND[region; 2] + 1
+      NRHS = 1
+      LDB = N
+
+      ! Asserts
+#ifndef NDEBUG
+      if (CHF_LBOUND[region; 2] .ne. 0) then
+        print*, 'PoissonOp_VertLineGSRB_3D: region must have a lower bound of zero in the vertical, not ', CHF_LBOUND[region; 2]
+        call MAYDAYERROR()
+      endif
+#endif
+
+      if (N.gt.1) then
+        ! Main loop
+        do j = CHF_LBOUND[region; 1], CHF_UBOUND[region; 1]
+            MyL = My(CHF_IX[0;j;0],0)
+            MyR = My(CHF_IX[0;j;0],1)
+
+            imin = CHF_LBOUND[region; 0]
+            CHF_DTERM[indtot = imin; + 0 ; + j ]
+            imin = imin + abs(mod(indtot + redBlack, 2))
+
+            do i = imin, CHF_UBOUND[region; 0], 2
+                MxL = Mx(CHF_IX[i;0;0],0)
+                MxR = Mx(CHF_IX[i;0;0],1)
+
+
+                ! Lower vertical boundary
+                k = 0
+                MzL = Mz(CHF_IX[0;0;k],0)
+                MzR = Mz(CHF_IX[0;0;k],1)
+                Jval = ccJ(CHF_IX[i;j;k])
+
+                lphi = MxL * phi(CHF_IX[i-1;j;k])
+     &               + MxR * phi(CHF_IX[i+1;j;k])
+     &               + MyL * phi(CHF_IX[i;j-1;k])
+     &               + MyR * phi(CHF_IX[i;j+1;k])
+
+                B (ARRAYIDX(k+1)) = rhs(CHF_IX[i;j;k]) - Jval * beta * lphi
+                D (ARRAYIDX(k+1)) = one / Dinv(CHF_IX[i;j;k]) + loBC(CHF_IX[i;j;k])
+                DU(ARRAYIDX(k+2)) = beta * Jval * MzR
+
+
+                ! Interior
+                do k = 1, CHF_UBOUND[region; 2] - 1
+                    MzL = Mz(CHF_IX[0;0;k],0)
+                    MzR = Mz(CHF_IX[0;0;k],1)
+                    Jval = ccJ(CHF_IX[i;j;k])
+
+                    lphi = MxL * phi(CHF_IX[i-1;j;k])
+     &                   + MxR * phi(CHF_IX[i+1;j;k])
+     &                   + MyL * phi(CHF_IX[i;j-1;k])
+     &                   + MyR * phi(CHF_IX[i;j+1;k])
+
+                    B (ARRAYIDX(k+1)) = rhs(CHF_IX[i;j;k]) - Jval * beta * lphi
+                    DL(ARRAYIDX(k  )) = beta * Jval * MzL
+                    D (ARRAYIDX(k+1)) = one / Dinv(CHF_IX[i;j;k])
+                    DU(ARRAYIDX(k+2)) = beta * Jval * MzR
+                enddo ! k
+
+
+                ! Upper vertical boundary
+                k = CHF_UBOUND[region; 2]
+                MzL = Mz(CHF_IX[0;0;k],0)
+                MzR = Mz(CHF_IX[0;0;k],1)
+                Jval = ccJ(CHF_IX[i;j;k])
+
+                lphi = MxL * phi(CHF_IX[i-1;j;k])
+     &               + MxR * phi(CHF_IX[i+1;j;k])
+     &               + MyL * phi(CHF_IX[i;j-1;k])
+     &               + MyR * phi(CHF_IX[i;j+1;k])
+
+                B (ARRAYIDX(k+1)) = rhs(CHF_IX[i;j;k]) - Jval * beta * lphi
+                DL(ARRAYIDX(k  )) = beta * Jval * MzL
+                D (ARRAYIDX(k+1)) = one / Dinv(CHF_IX[i;j;k]) + hiBC(CHF_IX[i;j;k])
+
+
+                ! Solve the tridiagonal problem
+                call dgtsv(N, NRHS, DL, D, DU, B, LDB, INFO)
+
+                ! Check INFO
+                if ((INFO .ne. 0) .and. (INFO .ne. N)) then
+                    print*, 'PoissonOp_VertLineGSRB_3D: INFO = ', INFO
+                    call MAYDAYERROR()
+                endif
+
+                ! Put solution in user's holder
+                do k = 0, CHF_UBOUND[region; 2]
+                    phi(CHF_IX[i;j;k]) = B(ARRAYIDX(k+1))
+                enddo
+            enddo ! i
+        enddo ! j
+
+      else
+
+        ! Main loop for N = 1
+        do j = CHF_LBOUND[region; 1], CHF_UBOUND[region; 1]
+            MyL = My(CHF_IX[0;j;0],0)
+            MyR = My(CHF_IX[0;j;0],1)
+
+            imin = CHF_LBOUND[region; 0]
+            CHF_DTERM[indtot = imin; + 0 ; + j ]
+            imin = imin + abs(mod(indtot + redBlack, 2))
+
+            do i = imin, CHF_UBOUND[region; 0], 2
+                MxL = Mx(CHF_IX[i;0;0],0)
+                MxR = Mx(CHF_IX[i;0;0],1)
+
+                k = 0
+                MzL = Mz(CHF_IX[0;0;k],0)
+                MzR = Mz(CHF_IX[0;0;k],1)
+                Jval = ccJ(CHF_IX[i;j;k])
+
+                lphi = MxL * phi(CHF_IX[i-1;j;k])
+     &               + MxR * phi(CHF_IX[i+1;j;k])
+     &               + MyL * phi(CHF_IX[i;j-1;k])
+     &               + MyR * phi(CHF_IX[i;j+1;k])
+
+                B (ARRAYIDX(k+1)) = rhs(CHF_IX[i;j;k]) - Jval * beta * lphi
+                D (ARRAYIDX(k+1)) = one / Dinv(CHF_IX[i;j;k])
+     &                            + loBC(CHF_IX[i;j;k]) + hiBC(CHF_IX[i;j;k])
+
+                ! Solve the tridiagonal problem
+                call dgtsv(N, NRHS, DL, D, DU, B, LDB, INFO)
+
+                ! Check INFO
+                if ((INFO .ne. 0) .and. (INFO .ne. N)) then
+                    print*, 'PoissonOp_VertLineGSRB_3D: INFO = ', INFO
+                    call MAYDAYERROR()
+                endif
+
+                ! Put solution in user's holder
+                do k = 0, CHF_UBOUND[region; 2]
+                    phi(CHF_IX[i;j;k]) = B(ARRAYIDX(k+1))
+                enddo
+            enddo ! i
+        enddo ! j
+      endif
+#endif
+      return
+      end
+
+
+
+!     -----------------------------------------------------------------
+!     Computes prolongation of correction to finer level by
+!     adding coarse cell values directly to all overlying fine cells.
+!       fine[h] += I[mh->h](coarse[mh])
+!
+!     Warning: fine, coarse must have the same number
+!     of components and span fineRegion.
+!     ------------------------------------------------------------------
+      subroutine MGOperator_Prolong_Constant (
+     &    CHF_FRA[fine],
+     &    CHF_CONST_FRA[coarse],
+     &    CHF_BOX[fineRegion],
+     &    CHF_CONST_INTVECT[m])
+
+      INTEGER ncomp, n
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[ii;jj;kk]
+
+      ncomp = CHF_NCOMP[fine]
+
+      do n = 0, ncomp-1
+#if CH_SPACEDIM > 2
+        do k=CHF_LBOUND[fineRegion; 2], CHF_UBOUND[fineRegion; 2]
+          kk = k / m(2)
+#endif
+          do j=CHF_LBOUND[fineRegion; 1], CHF_UBOUND[fineRegion; 1]
+            jj = j / m(1)
+            do i=CHF_LBOUND[fineRegion; 0], CHF_UBOUND[fineRegion; 0]
+              ii = i / m(0)
+
+              fine(CHF_IX[i;j;k],n) = fine(CHF_IX[i;j;k],n)
+     &                              + coarse(CHF_IX[ii;jj;kk],n)
+            enddo
+          enddo
+#if CH_SPACEDIM > 2
+        enddo
+#endif
+      enddo
+
+      return
+      end
+
+
+
+!     -----------------------------------------------------------------
+!     Computes prolongation of correction to finer level by
+!     adding coarse cell values directly to all overlying fine cells.
+!       fine[h] += I[mh->h](coarse[mh])
+!     This also computes the total sum and volume.
+!
+!     Warning: fine, coarse must have the same number
+!     of components and span fineRegion.
+!     ------------------------------------------------------------------
+      subroutine MGOperator_Prolong_ConstantWithAvg (
+     &    CHF_FRA[fine],
+     &    CHF_CONST_FRA[coarse],
+     &    CHF_BOX[fineRegion],
+     &    CHF_CONST_INTVECT[m],
+     &    CHF_CONST_FRA1[Jinv],
+     &    CHF_CONST_REAL[dxProduct],
+     &    CHF_REAL[vol],
+     &    CHF_REAL[sum])
+
+      INTEGER ncomp, n
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[ii;jj;kk]
+      REAL_T dvol
+
+      ncomp = CHF_NCOMP[fine]
+
+      n = 0
+#if CH_SPACEDIM > 2
+        do k=CHF_LBOUND[fineRegion; 2], CHF_UBOUND[fineRegion; 2]
+          kk = k / m(2)
+#endif
+          do j=CHF_LBOUND[fineRegion; 1], CHF_UBOUND[fineRegion; 1]
+            jj = j / m(1)
+            do i=CHF_LBOUND[fineRegion; 0], CHF_UBOUND[fineRegion; 0]
+              ii = i / m(0)
+
+              fine(CHF_IX[i;j;k],n) = fine(CHF_IX[i;j;k],n)
+     &                              + coarse(CHF_IX[ii;jj;kk],n)
+
+              dvol = dxProduct / Jinv(CHF_IX[i;j;k])
+              sum = sum + dvol * fine(CHF_IX[i;j;k],n)
+              vol = vol + dvol
+            enddo
+          enddo
+#if CH_SPACEDIM > 2
+        enddo
+#endif
+
+      ! Don't recompute vol
+      do n = 1, ncomp-1
+#if CH_SPACEDIM > 2
+        do k=CHF_LBOUND[fineRegion; 2], CHF_UBOUND[fineRegion; 2]
+          kk = k / m(2)
+#endif
+          do j=CHF_LBOUND[fineRegion; 1], CHF_UBOUND[fineRegion; 1]
+            jj = j / m(1)
+            do i=CHF_LBOUND[fineRegion; 0], CHF_UBOUND[fineRegion; 0]
+              ii = i / m(0)
+
+              fine(CHF_IX[i;j;k],n) = fine(CHF_IX[i;j;k],n)
+     &                              + coarse(CHF_IX[ii;jj;kk],n)
+
+              dvol = dxProduct / Jinv(CHF_IX[i;j;k])
+              sum = sum + dvol * fine(CHF_IX[i;j;k],n)
+            enddo
+          enddo
+#if CH_SPACEDIM > 2
+        enddo
+#endif
+      enddo
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!      MG functions.
+!      These should really be in LDFABOps
+!     ------------------------------------------------------------------
+
+!     ------------------------------------------------------------------
+      subroutine MGOperator_Prolong_LinearUpgrade (
+     &    CHF_FRA[fine],
+     &    CHF_CONST_FRA[crse],
+     &    CHF_BOX[crseRegion],
+     &    CHF_BOX[refBox],
+     &    CHF_CONST_INTVECT[refRatio])
+
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[if]
+      integer CHF_AUTODECL[ii]
+      integer var
+      REAL_T CHF_AUTODECL[m]
+      REAL_T CHF_AUTODECL[dxf]
+
+      REAL_T , dimension(0:CH_SPACEDIM-1) :: refScale
+      integer, dimension(0:CH_SPACEDIM-1) :: s
+
+      do var = 0, CH_SPACEDIM - 1    ! Use var as dir
+        if (refRatio(var) .eq. 1) then
+            s(var) = 0
+            refScale(var) = zero
+        else
+            s(var) = 1
+            refScale(var) = one / refRatio(var)
+        endif
+      enddo
+
+      do var = 0, CHF_NCOMP[fine] - 1
+          CHF_AUTOMULTIDO[ crseRegion; ic ]
+            CHF_DTERM[
+            m0 = half * (crse(CHF_IX[ic0+s(0);ic1;ic2],var) - crse(CHF_IX[ic0-s(0);ic1;ic2],var));
+            m1 = half * (crse(CHF_IX[ic0;ic1+s(1);ic2],var) - crse(CHF_IX[ic0;ic1-s(1);ic2],var));
+            m2 = half * (crse(CHF_IX[ic0;ic1;ic2+s(2)],var) - crse(CHF_IX[ic0;ic1;ic2-s(2)],var))]
+
+            CHF_AUTOMULTIDO[ refBox; ii ]
+              CHF_DTERM[
+              if0 = ic0*refRatio(0) + ii0;
+              if1 = ic1*refRatio(1) + ii1;
+              if2 = ic2*refRatio(2) + ii2]
+
+              CHF_DTERM[
+              dxf0 = -half + ( (ii0 + half) * refScale(0) );
+              dxf1 = -half + ( (ii1 + half) * refScale(1) );
+              dxf2 = -half + ( (ii2 + half) * refScale(2) )]
+
+              fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+     &            CHF_DTERM[ + dxf0 * m0; + dxf1 * m1; + dxf2 * m2 ]
+            CHF_ENDDO
+          CHF_ENDDO
+      end do
+
+      return
+      end
+
+!     ------------------------------------------------------------------
+      subroutine MGOperator_Prolong_QuadUpgrade1 (
+     &    CHF_FRA[fine],
+     &    CHF_CONST_FRA[crse],
+     &    CHF_BOX[crseRegion],
+     &    CHF_BOX[refBox],
+     &    CHF_CONST_INTVECT[refRatio])
+
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[if]
+      integer CHF_AUTODECL[ii]
+      integer var
+      REAL_T CHF_AUTODECL[mm]
+      REAL_T CHF_AUTODECL[dxf]
+      REAL_T mid
+
+      do var = 0, CHF_NCOMP[fine] - 1
+          CHF_AUTOMULTIDO[ crseRegion; ic ]
+          mid = -two * crse(CHF_IX[ic0;ic1;ic2],var)
+            ! The extra factor of 0.5 is the Taylor series coeff.
+            CHF_DTERM[
+            mm0 = fourth * (crse(CHF_IX[ic0+1;ic1;ic2],var) + mid + crse(CHF_IX[ic0-1;ic1;ic2],var));
+            mm1 = fourth * (crse(CHF_IX[ic0;ic1+1;ic2],var) + mid + crse(CHF_IX[ic0;ic1-1;ic2],var));
+            mm2 = fourth * (crse(CHF_IX[ic0;ic1;ic2+1],var) + mid + crse(CHF_IX[ic0;ic1;ic2-1],var))]
+
+            CHF_AUTOMULTIDO[ refBox; ii ]
+              CHF_DTERM[
+              if0 = ic0*refRatio(0) + ii0;
+              if1 = ic1*refRatio(1) + ii1;
+              if2 = ic2*refRatio(2) + ii2]
+
+              CHF_DTERM[
+              dxf0 = -half + ( (ii0 + half) / refRatio(0) );
+              dxf1 = -half + ( (ii1 + half) / refRatio(1) );
+              dxf2 = -half + ( (ii2 + half) / refRatio(2) )]
+
+              fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+     &            CHF_DTERM[ + dxf0*dxf0 * mm0; + dxf1*dxf1 * mm1; + dxf2*dxf2 * mm2 ]
+            CHF_ENDDO
+          CHF_ENDDO
+      end do
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+      subroutine MGOperator_Prolong_QuadUpgrade2 (
+     &    CHF_FRA[fine],
+     &    CHF_CONST_FRA[crse],
+     &    CHF_BOX[crseRegion],
+     &    CHF_BOX[refBox],
+     &    CHF_CONST_INTVECT[refRatio])
+
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[if]
+      integer CHF_AUTODECL[ii]
+      integer var
+      REAL_T CHF_AUTODECL[mm]
+      REAL_T CHF_AUTODECL[dxf]
+
+#if CH_SPACEDIM == 2
+
+      do var = 0, CHF_NCOMP[fine] - 1
+          CHF_AUTOMULTIDO[ crseRegion; ic ]
+            mm0 = fourth * (  crse(CHF_IX[ic0+1;ic1+1;ic2],var)
+     &                      + crse(CHF_IX[ic0+1;ic1-1;ic2],var)
+     &                      - crse(CHF_IX[ic0-1;ic1+1;ic2],var)
+     &                      - crse(CHF_IX[ic0-1;ic1-1;ic2],var)  )
+
+            CHF_AUTOMULTIDO[ refBox; ii ]
+              if0 = ic0*refRatio(0) + ii0
+              if1 = ic1*refRatio(1) + ii1
+
+              dxf0 = -half + ( (ii0 + half) / refRatio(0) )
+              dxf1 = -half + ( (ii1 + half) / refRatio(1) )
+
+              fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+     &            + dxf0*dxf1 * mm0
+            CHF_ENDDO
+          CHF_ENDDO
+      end do
+
+#else
+
+      do var = 0, CHF_NCOMP[fine] - 1
+          CHF_AUTOMULTIDO[ crseRegion; ic ]
+            mm0 = fourth * (  crse(CHF_IX[ic0;ic1+1;ic2+1],var)
+     &                      - crse(CHF_IX[ic0;ic1+1;ic2-1],var)
+     &                      - crse(CHF_IX[ic0;ic1-1;ic2+1],var)
+     &                      + crse(CHF_IX[ic0;ic1-1;ic2-1],var)  )
+
+            mm1 = fourth * (  crse(CHF_IX[ic0+1;ic1;ic2+1],var)
+     &                      - crse(CHF_IX[ic0+1;ic1;ic2-1],var)
+     &                      - crse(CHF_IX[ic0-1;ic1;ic2+1],var)
+     &                      + crse(CHF_IX[ic0-1;ic1;ic2-1],var)  )
+
+            mm2 = fourth * (  crse(CHF_IX[ic0+1;ic1+1;ic2],var)
+     &                      + crse(CHF_IX[ic0+1;ic1-1;ic2],var)
+     &                      - crse(CHF_IX[ic0-1;ic1+1;ic2],var)
+     &                      - crse(CHF_IX[ic0-1;ic1-1;ic2],var)  )
+
+            CHF_AUTOMULTIDO[ refBox; ii ]
+              if0 = ic0*refRatio(0) + ii0
+              if1 = ic1*refRatio(1) + ii1
+              if2 = ic2*refRatio(2) + ii2
+
+              dxf0 = -half + ( (ii0 + half) / refRatio(0) )
+              dxf1 = -half + ( (ii1 + half) / refRatio(1) )
+              dxf2 = -half + ( (ii2 + half) / refRatio(2) )
+
+              fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+     &            + dxf1*dxf2 * mm0 + dxf2*dxf0 * mm1 + dxf0*dxf1 * mm2
+            CHF_ENDDO
+          CHF_ENDDO
+      end do
+
+#endif
+
+      return
+      end
+
+
+c ------------------------------------------------------------------------------
+c This is a simple utility that is the same as calling TriDiagPoissonNN1D along
+c every line in phi, but MUCH faster.
+c ------------------------------------------------------------------------------
+      subroutine TriDiagPoissonNN1DFAB (
+     &     CHF_FRA[phi],
+     &     CHF_CONST_FRA[rhs],
+     &     CHF_CONST_FRA[upperBC],
+     &     CHF_CONST_FRA1[sigma],
+     &     CHF_BOX[bottomBox],
+     &     CHF_CONST_INT[Nx],
+     &     CHF_CONST_REAL[dx],
+     &     CHF_CONST_INT[dir])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer n, r
+      REAL_T dxsq, bet, avg
+      REAL_T x(0:Nx-1)   ! rhs & solution
+      REAL_T c(0:Nx-2)   ! Superdiagonal [0 ... Nx-2]
+      REAL_T b(0:Nx-1)   ! Diagonal      [0 ... Nx-1]
+      REAL_T a(0:Nx-1)   ! Subdiagonal   [1 ... Nx-1]
+      REAL_T gam(0:Nx-2)
+
+      CHF_AUTOID[ii;dir]
+      dxsq = dx * dx
+
+      do n = 0, CHF_NCOMP[phi]-1
+        CHF_AUTOMULTIDO[bottomBox;i]
+
+          ! Fill matrix elements...
+          c(0) = sigma(CHF_OFFSETIX[i;+ii])
+          a(0) = 1.2345e10
+          b(0) = -c(0);
+          x(0) = rhs(CHF_AUTOIX[i],n) * dxsq !+ lowerBC(CHF_AUTOIX[i],n) * dx
+
+          do r = 1, Nx-2
+            a(r) =  sigma(CHF_OFFSETIX[i;+r*ii]);
+            c(r) =  sigma(CHF_OFFSETIX[i;+(r+1)*ii]);
+            b(r) = -(a(r)+c(r));
+            x(r) = rhs(CHF_OFFSETIX[i;+r*ii],n) * dxsq;
+          enddo
+
+          CH_assert(r .eq. Nx-1)
+          a(Nx-1) = sigma(CHF_OFFSETIX[i;+r*ii]);
+          b(Nx-1) = -a(Nx-1);
+          x(Nx-1) = rhs(CHF_OFFSETIX[i;+r*ii],n) * dxsq - upperBC(CHF_OFFSETIX[i;+(r+1)*ii],n) * dx
+
+
+          ! Begin decomposition and forward substitution.
+          bet = b(0)
+          CH_assert(bet .ne. zero)
+          x(0) = x(0) / bet;
+          gam(0) = c(0) / bet;
+
+          do r = 1, Nx-2
+            bet = b(r) - a(r)*gam(r-1);
+            CH_assert(bet .ne. zero);
+            x(r) = (x(r) - a(r)*x(r-1)) / bet;
+            gam(r) = c(r) / bet;
+          enddo
+
+          ! Last index is a special case
+          CH_assert(r .eq. Nx-1);
+          x(r) = (x(r) - a(r-1)*x(r-1)) / b(r);
+          avg = x(r);
+
+          ! Backsubstitution.
+          do r = Nx-2, 0, -1
+            x(r) = x(r) - gam(r)*x(r+1);
+            avg = avg + x(r);
+          enddo
+
+          ! Set the average of the solution to zero.
+          ! This puts the solution in its final holder
+          avg = avg / DBLE(Nx)
+          do r = 0, Nx-1
+            phi(CHF_OFFSETIX[i;+r*ii],n) = x(r) - avg
+          enddo
+
+        CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+      subroutine TriDiagPoissonNN1DFAB_BCsRolledIn (
+        &     CHF_FRA[phi],
+        &     CHF_CONST_FRA[rhs],
+        &     CHF_CONST_FRA1[sigma],
+        &     CHF_BOX[bottomBox],
+        &     CHF_CONST_INT[Nx],
+        &     CHF_CONST_REAL[dx],
+        &     CHF_CONST_INT[dir])
+
+         integer CHF_AUTODECL[i]
+         integer CHF_AUTODECL[ii]
+         integer n, r
+         REAL_T dxsq, bet, avg
+         REAL_T x(0:Nx-1)   ! rhs & solution
+         REAL_T c(0:Nx-2)   ! Superdiagonal [0 ... Nx-2]
+         REAL_T b(0:Nx-1)   ! Diagonal      [0 ... Nx-1]
+         REAL_T a(0:Nx-1)   ! Subdiagonal   [1 ... Nx-1]
+         REAL_T gam(0:Nx-2)
+
+         CHF_AUTOID[ii;dir]
+         dxsq = dx * dx
+
+         do n = 0, CHF_NCOMP[phi]-1
+           CHF_AUTOMULTIDO[bottomBox;i]
+
+             ! Fill matrix elements...
+             c(0) = sigma(CHF_OFFSETIX[i;+ii])
+             a(0) = 1.2345e10
+             b(0) = -c(0);
+             x(0) = rhs(CHF_AUTOIX[i],n) * dxsq
+
+             do r = 1, Nx-2
+               a(r) =  sigma(CHF_OFFSETIX[i;+r*ii]);
+               c(r) =  sigma(CHF_OFFSETIX[i;+(r+1)*ii]);
+               b(r) = -(a(r)+c(r));
+               x(r) = rhs(CHF_OFFSETIX[i;+r*ii],n) * dxsq;
+             enddo
+
+             CH_assert(r .eq. Nx-1)
+             a(Nx-1) = sigma(CHF_OFFSETIX[i;+r*ii]);
+             b(Nx-1) = -a(Nx-1);
+             x(Nx-1) = rhs(CHF_OFFSETIX[i;+r*ii],n) * dxsq
+
+
+             ! Begin decomposition and forward substitution.
+             bet = b(0)
+             CH_assert(bet .ne. zero)
+             x(0) = x(0) / bet;
+             gam(0) = c(0) / bet;
+
+             do r = 1, Nx-2
+               bet = b(r) - a(r)*gam(r-1);
+               CH_assert(bet .ne. zero);
+               x(r) = (x(r) - a(r)*x(r-1)) / bet;
+               gam(r) = c(r) / bet;
+             enddo
+
+             ! Last index is a special case
+             CH_assert(r .eq. Nx-1);
+             x(r) = (x(r) - a(r-1)*x(r-1)) / b(r);
+             avg = x(r);
+
+             ! Backsubstitution.
+             do r = Nx-2, 0, -1
+               x(r) = x(r) - gam(r)*x(r+1);
+               avg = avg + x(r);
+             enddo
+
+             ! Set the average of the solution to zero.
+             ! This puts the solution in its final holder
+             avg = avg / DBLE(Nx)
+             do r = 0, Nx-1
+               phi(CHF_OFFSETIX[i;+r*ii],n) = x(r) - avg
+             enddo
+
+           CHF_ENDDO
+         enddo
+
+         return
+         end
+
+! ! ! This will remove some of the clutter in the tridiagonal solver.
+! ! #ifdef IDX
+! ! #  error IDX needs to be renamed
+! ! #endif
+
+! #ifdef HORIZONTALLOOP
+! #  error HORIZONTALLOOP needs to be renamed
+! #endif
+
+! #if CH_SPACEDIM == 2
+! ! #  define IDX(j) i,(j)
+! ! #  define ARRAYIDX(i) (i),1
+! #  define BEGIN_HORIZONTALLOOP                              \
+!       do i = CHF_LBOUND[region;0], CHF_UBOUND[region;0];
+! #  define END_HORIZONTALLOOP                                \
+!       enddo;
+
+! #elif CH_SPACEDIM == 3
+! ! #  define IDX(k) i,j,(k)
+! ! #  define ARRAYIDX(i) (i),1,1
+! #  define BEGIN_HORIZONTALLOOP                              \
+!       do j = CHF_LBOUND[region;1], CHF_UBOUND[region;1];    \
+!         do i = CHF_LBOUND[region;0], CHF_UBOUND[region;0];
+! #  define END_HORIZONTALLOOP                                \
+!         enddo;                                              \
+!       enddo;
+
+! #else
+! #  error Bad SpaceDim
+! #endif
+
+! c ------------------------------------------------------------------------------
+! c Homogeneous 1-D Poisson solver.
+! c
+! c NOTE: In this function, kmax+1 is used instead of N. In the comments, the two
+! c are interchangeable.
+! c
+! c This uses Lapack's DPTSV tridiagonal solver. From the Lapack docs...
+! c
+! c  DPTSV computes the solution to a real system of linear equations
+! c  A*X = B, where A is an N-by-N symmetric positive definite tridiagonal
+! c  matrix, and X and B are N-by-NRHS matrices.
+! c
+! c  N       (input) INTEGER
+! c          The order of the matrix A.  N >= 0.
+! c
+! c  NRHS    (input) INTEGER
+! c          The number of right hand sides, i.e., the number of columns
+! c          of the matrix B.  NRHS >= 0.
+! c
+! c  LDB     (input) INTEGER
+! c          The leading dimension of the array B.  LDB >= max(1,N).
+! c
+! c  DL      (input/output) DOUBLE PRECISION array, dimension (N-1)
+! c          On entry, DL must contain the (n-1) sub-diagonal elements of
+! c          A. On exit, DL is overwritten by the (n-2) elements of the
+! c          second super-diagonal of the upper triangular matrix U from
+! c          the LU factorization of A, in DL(1), ..., DL(n-2).
+! c
+! c  D       (input/output) DOUBLE PRECISION array, dimension (N)
+! c          On entry, D must contain the diagonal elements of A.
+! c          On exit, D is overwritten by the n diagonal elements of U.
+! c
+! c  DU      (input/output) DOUBLE PRECISION array, dimension (N-1)
+! c          On entry, DU must contain the (n-1) super-diagonal elements
+! c          of A.
+! c
+! c  B       (input/output) DOUBLE PRECISION array, dimension (LDB,NRHS)
+! c          On entry, the N-by-NRHS right hand side matrix B.
+! c          On exit, if INFO = 0, the N-by-NRHS solution matrix X.
+! c
+! c  INFO    (output) INTEGER
+! c          = 0:  successful exit
+! c          < 0:  if INFO = -i, the i-th argument had an illegal value
+! c          > 0:  if INFO = i, the leading minor of order i is not
+! c                positive definite, and the solution has not been
+! c                computed.  The factorization has not been completed
+! c                unless i = N.
+! c ------------------------------------------------------------------------------
+!       subroutine LepticLapackVerticalSolver (
+!      &     CHF_FRA1[phi],
+!      &     CHF_CONST_FRA1[rhs],
+!      &     CHF_CONST_FRA1[Jgzz],
+!      &     CHF_BOX[region],
+!      &     CHF_CONST_REAL[dz],
+!      &     CHF_CONST_REAL[dzCrse],
+!      &     CHF_FRA1[DU], ! Empty work space, dimensions 1..N-1
+!      &     CHF_FRA1[D],  ! Empty work space, dimensions 1..N
+!      &     CHF_FRA1[DL], ! Empty work space, dimensions 1..N-1
+!      &     CHF_FRA1[B],  ! Empty work space, dimensions 1..N=LDB
+!      &     CHF_CONST_INT[loBCType],
+!      &     CHF_CONST_INT[hiBCType])
+
+!       integer i,j,k
+!       integer kmax
+!       REAL_T invdz, invdzsq, avg, alpha, beta
+
+!       integer NRHS, LDB, INFO
+
+!       integer, parameter :: BCType_Neum     = 0
+!       integer, parameter :: BCType_Diri     = 1
+!       integer, parameter :: BCType_Periodic = 2
+!       integer, parameter :: BCType_CF       = 3
+
+! #ifndef NDEBUG
+! #if CH_SPACEDIM == 2
+!       if (CHF_LBOUND[region;1] .ne. 0) then
+!         print*, 'LepticLapackVerticalSolver: region must have a vertical lower bound of zero'
+!         call MAYDAYERROR()
+!       endif
+! #else
+!       if (CHF_LBOUND[region;2] .ne. 0) then
+!         print*, 'LepticLapackVerticalSolver: region must have a vertical lower bound of zero'
+!         call MAYDAYERROR()
+!       endif
+! #endif
+! #endif
+
+! #if CH_SPACEDIM == 2
+!       kmax = CHF_UBOUND[region; 1] + 1
+! #else
+!       kmax = CHF_UBOUND[region; 2] + 1
+! #endif
+!       invdz = one / dz
+!       invdzsq = one / (dz * dz)
+
+!       NRHS = 1
+!       LDB = kmax
+
+!       BEGIN_HORIZONTALLOOP
+!         ! Set up matrix equation. (Array indices are the column number.)
+!         D (ARRAYIDX(1)) = (Jgzz(IDX(0)) + Jgzz(IDX(1))) * invdzsq
+!         DL(ARRAYIDX(1)) = -Jgzz(IDX(1)) * invdzsq
+!         B (ARRAYIDX(1)) = -rhs(IDX(0))
+!         do k = 2, kmax-1
+!           DU(ARRAYIDX(k)) = -Jgzz(IDX(k-1)) * invdzsq
+!           D (ARRAYIDX(k)) = (Jgzz(IDX(k-1)) + Jgzz(IDX(k))) * invdzsq
+!           DL(ARRAYIDX(k)) = -Jgzz(IDX(k)) * invdzsq
+!           B (ARRAYIDX(k)) = -rhs(IDX(k-1))
+!         enddo
+!         DU(ARRAYIDX(kmax)) = -Jgzz(IDX(kmax-1)) * invdzsq
+!         D (ARRAYIDX(kmax)) = (Jgzz(IDX(kmax-1)) + Jgzz(IDX(kmax))) * invdzsq
+!         B (ARRAYIDX(kmax)) = -rhs(IDX(kmax-1))
+
+!         ! Lower BCs
+!         if (loBCType .eq. BCType_Neum) then
+!           ! Neumann BC
+!           D(ARRAYIDX(1)) = Jgzz(IDX(1)) * invdzsq
+!         else if (loBCType .eq. BCType_Diri) then
+!           ! Dirichlet BC
+!           D(ARRAYIDX(1)) = (two*Jgzz(IDX(0)) + Jgzz(IDX(1))) * invdzsq
+!         else if (loBCType .eq. BCType_CF) then
+!           ! CF-BC (linear interp)
+!           alpha = 1.0 - 2.0*dz/(dzCrse+dz)
+!           beta  = 0.0
+!           D(ARRAYIDX(1)) = ((1.0-alpha)*Jgzz(IDX(0)) + Jgzz(IDX(1))) * invdzsq
+
+! !           ! CF-BC (quadratic interp)
+! !           alpha = 2.0*(dzCrse-dz)/(dzCrse+dz)
+! !           beta  = (dz-dzCrse)/(dzCrse+3.0*dz)
+! !           DU(ARRAYIDX(2)) = -(beta*Jgzz(IDX(0)) + Jgzz(IDX(1))) * invdzsq
+! !           D (ARRAYIDX(1)) = ((1.0-alpha)*Jgzz(IDX(0)) + Jgzz(IDX(1))) * invdzsq
+!         else
+!           print*,'LepticLapackVerticalSolver: Unforseen vertical BC!!!'
+!           call MAYDAYERROR()
+!         endif
+
+!         ! Upper BCs
+!         if (hiBCType .eq. BCType_Neum) then
+!           ! Neumann BC
+!           D(ARRAYIDX(kmax)) = Jgzz(IDX(kmax-1)) * invdzsq
+!         else if (hiBCType .eq. BCType_Diri) then
+!           ! Dirichlet BC
+!           D(ARRAYIDX(kmax)) = (Jgzz(IDX(kmax-1)) + two*Jgzz(IDX(kmax))) * invdzsq
+!         else if (hiBCType .eq. BCType_CF) then
+!           ! CF-BC (linear interp)
+!           alpha = 1.0 - 2.0*dz/(dzCrse+dz)
+!           beta  = 0.0
+!           D(ARRAYIDX(kmax)) = (Jgzz(IDX(kmax-1)) + (1.0-alpha)*Jgzz(IDX(kmax))) * invdzsq
+
+! !           ! CF-BC (quadratic interp)
+! !           alpha = 2.0*(dzCrse-dz)/(dzCrse+dz)
+! !           beta  = (dz-dzCrse)/(dzCrse+3.0*dz)
+! !           D (ARRAYIDX(kmax)) = (Jgzz(IDX(kmax-1)) + (1.0-alpha)*Jgzz(IDX(kmax))) * invdzsq
+! !           DL(ARRAYIDX(kmax-1)) = -(beta*Jgzz(IDX(kmax)) + Jgzz(IDX(kmax-1))) * invdzsq
+!         else
+!           print*,'LepticLapackVerticalSolver: Unforseen vertical BC!!!'
+!           call MAYDAYERROR()
+!         endif
+
+!         ! Call the lapack tridiagonal solver
+!         call dptsv(kmax, NRHS, D, DL, B, LDB, INFO)
+! !         call dgtsv(kmax, NRHS, DL, D, DU, B, LDB, INFO)
+
+!         ! Check INFO
+!         if ((INFO .ne. 0) .and. (INFO .ne. kmax)) then
+!           print*, 'LepticLapackVerticalSolver: INFO = ', INFO
+!           call MAYDAYERROR()
+!         endif
+
+!         ! Put solution in user's holder
+!         do k = 0, kmax-1
+!           phi(IDX(k)) = B(ARRAYIDX(k+1))
+!         enddo
+!       END_HORIZONTALLOOP
+
+!       return
+!       end
+
+

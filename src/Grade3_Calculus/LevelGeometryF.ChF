@@ -1,0 +1,264 @@
+c*******************************************************************************
+c  SOMAR - Stratified Ocean Model with Adaptive Refinement
+c  Developed by Ed Santilli & Alberto Scotti
+C  Copyright (C) 2017
+C    Jefferson (Philadelphia University + Thomas Jefferson University) and
+C    University of North Carolina at Chapel Hill
+c
+c  This library is free software; you can redistribute it and/or
+c  modify it under the terms of the GNU Lesser General Public
+c  License as published by the Free Software Foundation; either
+c  version 2.1 of the License, or (at your option) any later version.
+c
+c  This library is distributed in the hope that it will be useful,
+c  but WITHOUT ANY WARRANTY; without even the implied warranty of
+c  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+c  Lesser General Public License for more details.
+c
+c  You should have received a copy of the GNU Lesser General Public
+c  License along with this library; if not, write to the Free Software
+c  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+c  USA
+c
+c  For up-to-date contact information, please visit the repository homepage,
+c  https://github.com/somarhub.
+c*******************************************************************************
+#include "CONSTANTS.H"
+#include "TensorComp.H"
+
+
+C ----------------------------------------------------------------
+C LevelGeometry_FillDisplacement
+C   Fills disp with each cell's/node's displacement from where it
+C   would be if we were using Cartesian coordinates. In other
+C   words, this function thinks of the Curvilinear grid as a
+C   Cartesian grid whose cells/nodes have been shifted by disp.
+C ----------------------------------------------------------------
+      subroutine LevelGeometry_FillDisplacement (
+     &    CHF_FRA[disp],
+     &    CHF_CONST_FRA[pos],
+     &    CHF_CONST_REALVECT[dXi],
+     &    CHF_BOX[region],
+     &    CHF_CONST_INTVECT[boxType])
+
+      integer CHF_AUTOIX[i]
+      REAL_T CHF_AUTOIX[offset]
+
+#ifndef NDEBUG
+      if (CHF_NCOMP[disp] .ne. CH_SPACEDIM) then
+        print*, 'LevelGeometry_FillDisplacement: disp must have SpaceDim comps, not ', CHF_NCOMP[disp]
+        call MAYDAYERROR()
+      endif
+
+      if (CHF_NCOMP[pos] .ne. CH_SPACEDIM) then
+        print*, 'LevelGeometry_FillDisplacement: pos must have SpaceDim comps, not ', CHF_NCOMP[disp]
+        call MAYDAYERROR()
+      endif
+
+      CHF_DTERM[
+      if ((boxType(0) .ne. 0) .and. (boxType(0) .ne. 1)) then
+        print*, 'LevelGeometry_FillDisplacement: Bad boxType(0) = ', boxType(0)
+        call MAYDAYERROR()
+      endif;
+
+      if ((boxType(1) .ne. 0) .and. (boxType(1) .ne. 1)) then
+        print*, 'LevelGeometry_FillDisplacement: Bad boxType(1) = ', boxType(1)
+        call MAYDAYERROR()
+      endif;
+
+      if ((boxType(2) .ne. 0) .and. (boxType(2) .ne. 1)) then
+        print*, 'LevelGeometry_FillDisplacement: Bad boxType(2) = ', boxType(2)
+        call MAYDAYERROR()
+      endif]
+#endif
+
+      CHF_DTERM[
+      offset0 = half * DBLE(1 - boxType(0));
+      offset1 = half * DBLE(1 - boxType(1));
+      offset2 = half * DBLE(1 - boxType(2))]
+
+      CHF_AUTOMULTIDO[region;i]
+        CHF_DTERM[
+        disp(CHF_AUTOIX[i],0) = pos(CHF_AUTOIX[i],0) - (DBLE(i0) + offset0) * dXi(0);
+        disp(CHF_AUTOIX[i],1) = pos(CHF_AUTOIX[i],1) - (DBLE(i1) + offset1) * dXi(1);
+        disp(CHF_AUTOIX[i],2) = pos(CHF_AUTOIX[i],2) - (DBLE(i2) + offset2) * dXi(2)]
+      CHF_ENDDO
+
+      return
+      end
+
+
+! c ----------------------------------------------------------------------
+! c LevelGeometry_ContractWithMetric
+! c Contract a vector/one-form with the covariant/contravariant metric.
+! c ----------------------------------------------------------------------
+!       subroutine LevelGeometry_ContractWithMetric (
+!      &      CHF_FRA[dest],
+!      &      CHF_CONST_FRA[src],
+!      &      CHF_BOX[region],
+!      &      CHF_CONST_FRA[metric])
+
+!       ! Declare variables
+!       integer CHF_DDECL[i; j; k]
+!       REAL_T CHF_AUTODECL[src]
+
+!       ! Sanity checks
+!       if (CHF_NCOMP[dest] .ne. CH_SPACEDIM) then
+!         write(*,*) 'LevelGeometry_ContractWithMetric: dest has bad number of comps ', CHF_NCOMP[dest]
+!         call MAYDAYERROR()
+!       endif
+
+!       if (CHF_NCOMP[src] .ne. CH_SPACEDIM) then
+!         write(*,*) 'LevelGeometry_ContractWithMetric: src has bad number of comps ', CHF_NCOMP[src]
+!         call MAYDAYERROR()
+!       endif
+
+!       ! Loop through this grid and do calculation
+!       CHF_MULTIDO[region; i; j; k]
+! #       if CH_SPACEDIM == 2
+
+!             ! 2D version
+!             src0 = src(CHF_IX[i;j;k],0)
+!             src1 = src(CHF_IX[i;j;k],1)
+
+!             dest(CHF_IX[i;j;k],0) = metric(CHF_IX[i;j;k],xxSymComp) * src0
+!      &                            + metric(CHF_IX[i;j;k],xySymComp) * src1
+
+!             dest(CHF_IX[i;j;k],1) = metric(CHF_IX[i;j;k],yxSymComp) * src0
+!      &                            + metric(CHF_IX[i;j;k],yySymComp) * src1
+
+! #       elif CH_SPACEDIM == 3
+
+!             ! 3D version
+!             src0 = src(CHF_IX[i;j;k],0)
+!             src1 = src(CHF_IX[i;j;k],1)
+!             src2 = src(CHF_IX[i;j;k],2)
+
+!             dest(CHF_IX[i;j;k],0) = metric(CHF_IX[i;j;k],xxSymComp) * src0
+!      &                            + metric(CHF_IX[i;j;k],xySymComp) * src1
+!      &                            + metric(CHF_IX[i;j;k],xzSymComp) * src2
+
+!             dest(CHF_IX[i;j;k],1) = metric(CHF_IX[i;j;k],yxSymComp) * src0
+!      &                            + metric(CHF_IX[i;j;k],yySymComp) * src1
+!      &                            + metric(CHF_IX[i;j;k],yzSymComp) * src2
+
+!             dest(CHF_IX[i;j;k],2) = metric(CHF_IX[i;j;k],zxSymComp) * src0
+!      &                            + metric(CHF_IX[i;j;k],zySymComp) * src1
+!      &                            + metric(CHF_IX[i;j;k],zzSymComp) * src2
+
+! #       else
+! #           error Bad CH_SPACEDIM
+! #       endif
+!       CHF_ENDDO
+
+!       return
+!       end
+
+
+
+! c ----------------------------------------------------------------
+! c LevelGeometry_ContractVectors
+! c Contracts two contravariant vectors.
+! c ----------------------------------------------------------------
+!       subroutine LevelGeometry_ContractVectors (
+!      &      CHF_FRA1[res],
+!      &      CHF_CONST_FRA[vec1],
+!      &      CHF_CONST_FRA[vec2],
+!      &      CHF_BOX[region],
+!      &      CHF_CONST_FRA[gdn])
+
+!       ! Declare variables
+!       integer CHF_DDECL[i; j; k]
+
+!       ! Sanity checks
+!       if (CHF_NCOMP[vec1] .ne. CH_SPACEDIM) then
+!         write(*,*) 'LevelGeometry_ContractVectors: vec1 has bad number of comps ', CHF_NCOMP[vec1]
+!         call MAYDAYERROR()
+!       endif
+
+!       if (CHF_NCOMP[vec2] .ne. CH_SPACEDIM) then
+!         write(*,*) 'LevelGeometry_ContractVectors: vec2 has bad number of comps ', CHF_NCOMP[vec2]
+!         call MAYDAYERROR()
+!       endif
+
+!       ! Loop through this grid and do calculation
+!       CHF_MULTIDO[region; i; j; k]
+! #       if CH_SPACEDIM == 2
+
+!             ! 2D version
+!             res(CHF_IX[i;j;k]) = gdn(CHF_IX[i;j;k],xxSymComp) * vec1(CHF_IX[i;j;k],0) * vec2(CHF_IX[i;j;k],0)
+!      &                         + gdn(CHF_IX[i;j;k],xySymComp) * vec1(CHF_IX[i;j;k],0) * vec2(CHF_IX[i;j;k],1)
+
+!      &                         + gdn(CHF_IX[i;j;k],yxSymComp) * vec1(CHF_IX[i;j;k],1) * vec2(CHF_IX[i;j;k],0)
+!      &                         + gdn(CHF_IX[i;j;k],yySymComp) * vec1(CHF_IX[i;j;k],1) * vec2(CHF_IX[i;j;k],1)
+
+! #       elif CH_SPACEDIM == 3
+
+!             ! 3D version
+!             res(CHF_IX[i;j;k]) = gdn(CHF_IX[i;j;k],xxSymComp) * vec1(CHF_IX[i;j;k],0) * vec2(CHF_IX[i;j;k],0)
+!      &                         + gdn(CHF_IX[i;j;k],xySymComp) * vec1(CHF_IX[i;j;k],0) * vec2(CHF_IX[i;j;k],1)
+!      &                         + gdn(CHF_IX[i;j;k],xzSymComp) * vec1(CHF_IX[i;j;k],0) * vec2(CHF_IX[i;j;k],2)
+
+!      &                         + gdn(CHF_IX[i;j;k],yxSymComp) * vec1(CHF_IX[i;j;k],1) * vec2(CHF_IX[i;j;k],0)
+!      &                         + gdn(CHF_IX[i;j;k],yySymComp) * vec1(CHF_IX[i;j;k],1) * vec2(CHF_IX[i;j;k],1)
+!      &                         + gdn(CHF_IX[i;j;k],yzSymComp) * vec1(CHF_IX[i;j;k],1) * vec2(CHF_IX[i;j;k],2)
+
+!      &                         + gdn(CHF_IX[i;j;k],zxSymComp) * vec1(CHF_IX[i;j;k],2) * vec2(CHF_IX[i;j;k],0)
+!      &                         + gdn(CHF_IX[i;j;k],zySymComp) * vec1(CHF_IX[i;j;k],2) * vec2(CHF_IX[i;j;k],1)
+!      &                         + gdn(CHF_IX[i;j;k],zzSymComp) * vec1(CHF_IX[i;j;k],2) * vec2(CHF_IX[i;j;k],2)
+
+! #       else
+! #           error Bad CH_SPACEDIM
+! #       endif
+!       CHF_ENDDO
+
+!       return
+!       end
+
+
+c ----------------------------------------------------------------
+c LevelGeometry_ContractCartesianVectors
+c Contracts two vectors in the Cartesian basis.
+c ----------------------------------------------------------------
+      subroutine LevelGeometry_ContractCartesianVectors (
+     &      CHF_FRA1[res],
+     &      CHF_CONST_FRA[vec1],
+     &      CHF_CONST_FRA[vec2],
+     &      CHF_BOX[region])
+
+      ! Declare variables
+      integer CHF_DDECL[i; j; k]
+
+      ! Sanity checks
+      if (CHF_NCOMP[vec1] .ne. CH_SPACEDIM) then
+        write(*,*) 'LevelGeometry_ContractCartesianVectors: vec1 has bad number of comps ', CHF_NCOMP[vec1]
+        call MAYDAYERROR()
+      endif
+
+      if (CHF_NCOMP[vec2] .ne. CH_SPACEDIM) then
+        write(*,*) 'LevelGeometry_ContractCartesianVectors: vec2 has bad number of comps ', CHF_NCOMP[vec2]
+        call MAYDAYERROR()
+      endif
+
+      ! Loop through this grid and do calculation
+      CHF_MULTIDO[region; i; j; k]
+#       if CH_SPACEDIM == 2
+
+            ! 2D version
+            res(CHF_IX[i;j;k]) = vec1(CHF_IX[i;j;k],0) * vec2(CHF_IX[i;j;k],0)
+     &                         + vec1(CHF_IX[i;j;k],1) * vec2(CHF_IX[i;j;k],1)
+
+#       elif CH_SPACEDIM == 3
+
+            ! 3D version
+            res(CHF_IX[i;j;k]) = vec1(CHF_IX[i;j;k],0) * vec2(CHF_IX[i;j;k],0)
+     &                         + vec1(CHF_IX[i;j;k],1) * vec2(CHF_IX[i;j;k],1)
+     &                         + vec1(CHF_IX[i;j;k],2) * vec2(CHF_IX[i;j;k],2)
+
+#       else
+#           error Bad CH_SPACEDIM
+#       endif
+      CHF_ENDDO
+
+      return
+      end

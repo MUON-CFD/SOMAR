@@ -1,0 +1,857 @@
+!*******************************************************************************
+!     SOMAR - Stratified Ocean Model with Adaptive Refinement
+!     Developed by Ed Santilli & Alberto Scotti
+!     Copyright (C) 2019 Jefferson University and Arizona State University
+!
+!     This library is free software; you can redistribute it and/or
+!     modify it under the terms of the GNU Lesser General Public
+!     License as published by the Free Software Foundation; either
+!     version 2.1 of the License, or (at your option) any later version.
+!
+!     This library is distributed in the hope that it will be useful,
+!     but WITHOUT ANY WARRANTY; without even the implied warranty of
+!     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+!     Lesser General Public License for more details.
+!
+!     You should have received a copy of the GNU Lesser General Public
+!     License along with this library; if not, write to the Free Software
+!     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+!     USA
+!
+!     For up-to-date contact information, please visit the repository homepage,
+!     https://github.com/somarhub.
+!*******************************************************************************
+#include "CONSTANTS.H"
+#include "AddlFortranMacros.H"
+
+
+#if CH_SPACEDIM == 2
+#   define DO_RBPASS(destBox, i, whichPass)                            \
+          do i##1 = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1];    \
+            imin = CHF_LBOUND[destBox; 0];                             \
+            CHF_DTERM[indtot = imin; + i##1 ; + i##2 ];                \
+            imin = imin + abs(mod(indtot + whichPass, 2));             \
+            imax = CHF_UBOUND[destBox; 0];                             \
+            do i##0 = imin, imax, 2
+#else
+#   define DO_RBPASS(destBox, i, whichPass)                            \
+      do i##2 = CHF_LBOUND[destBox; 2], CHF_UBOUND[destBox; 2];        \
+          do i##1 = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1];    \
+            imin = CHF_LBOUND[destBox; 0];                             \
+            CHF_DTERM[indtot = imin; + i##1 ; + i##2 ];                \
+            imin = imin + abs(mod(indtot + whichPass, 2));             \
+            imax = CHF_UBOUND[destBox; 0];                             \
+            do i##0 = imin, imax, 2
+#endif
+
+
+
+!     ------------------------------------------------------------------
+!     This computes the diagonals of L[u], where u is any FC velocity comp.
+!     ------------------------------------------------------------------
+      subroutine ViscousOp_ComputeDiags (
+     &      CHF_FRA1[diags],
+     &      CHF_CONST_INT[velComp],
+     &      CHF_CONST_FRA1[nuJgup0],
+     &      CHF_CONST_FRA1[nuJgup1],
+     &      CHF_CONST_FRA1[nuJgup2],
+     &      CHF_CONST_FRA1[J],
+     &      CHF_CONST_REALVECT[dXi],
+     &      CHF_BOX[destBox],
+     &      CHF_CONST_REAL[alpha],
+     &      CHF_CONST_REAL[beta])
+
+      integer CHF_AUTODECL[i]
+
+      REAL_T Lu
+
+      integer d0, CHF_AUTODECL[e0]
+      REAL_T idx0
+
+      integer d1, CHF_AUTODECL[e1]
+      REAL_T idx1
+
+#if CH_SPACEDIM > 2
+      integer d2, CHF_AUTODECL[e2]
+      REAL_T idx2
+#endif
+
+      d0 = velComp
+      CHF_AUTOID[e0; d0]
+      idx0 = one / (dXi(d0) * dXi(d0))
+
+      d1 = mod(velComp + 1, CH_SPACEDIM)
+      CHF_AUTOID[e1; d1]
+      idx1 = one / (dXi(d1) * dXi(d1))
+
+#if CH_SPACEDIM > 2
+      d2 = mod(velComp + 2, CH_SPACEDIM)
+      CHF_AUTOID[e2; d2]
+      idx2 = one / (dXi(d2) * dXi(d2))
+#endif
+
+      CHF_AUTOMULTIDO[destBox; i]
+        Lu =    - (nuJgup0(CHF_AUTOIX[i]) + nuJgup0(CHF_OFFSETIX[i;-e0])) * idx0
+        Lu = Lu - (nuJgup1(CHF_OFFSETIX[i;+e1]) + nuJgup1(CHF_AUTOIX[i])) * idx1
+#if CH_SPACEDIM > 2
+        Lu = Lu - (nuJgup2(CHF_OFFSETIX[i;+e2]) + nuJgup2(CHF_AUTOIX[i])) * idx2
+#endif
+        diags(CHF_AUTOIX[i]) = alpha * J(CHF_AUTOIX[i]) + beta * Lu
+      CHF_ENDDO
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+      subroutine ViscousOp_ApplyOp (
+     &      CHF_FRA1[lhs],
+     &      CHF_CONST_FRA1[u],
+     &      CHF_CONST_INT[velComp],
+     &      CHF_CONST_FRA1[nuJgup0],
+     &      CHF_CONST_FRA1[nuJgup1],
+     &      CHF_CONST_FRA1[nuJgup2],
+     &      CHF_CONST_REALVECT[dXi],
+     &      CHF_BOX[destBox],
+     &      CHF_CONST_FRA1[invDiags],
+     &      CHF_CONST_REAL[beta])
+
+      integer CHF_AUTODECL[i]
+
+      REAL_T Lu
+
+      integer d0, CHF_AUTODECL[e0]
+      REAL_T idx0
+
+      integer d1, CHF_AUTODECL[e1]
+      REAL_T idx1
+
+#if CH_SPACEDIM > 2
+      integer d2, CHF_AUTODECL[e2]
+      REAL_T idx2
+#endif
+
+      d0 = velComp
+      CHF_AUTOID[e0; d0]
+      idx0 = one / (dXi(d0) * dXi(d0))
+
+      d1 = mod(velComp + 1, CH_SPACEDIM)
+      CHF_AUTOID[e1; d1]
+      idx1 = one / (dXi(d1) * dXi(d1))
+
+#if CH_SPACEDIM > 2
+      d2 = mod(velComp + 2, CH_SPACEDIM)
+      CHF_AUTOID[e2; d2]
+      idx2 = one / (dXi(d2) * dXi(d2))
+#endif
+
+      CHF_AUTOMULTIDO[destBox; i]
+        Lu = (nuJgup0(CHF_AUTOIX[i]      ) * u(CHF_OFFSETIX[i;+e0])
+     &     +  nuJgup0(CHF_OFFSETIX[i;-e0]) * u(CHF_OFFSETIX[i;-e0])) * idx0
+        Lu = Lu
+     &     + (nuJgup1(CHF_OFFSETIX[i;+e1]) * u(CHF_OFFSETIX[i;+e1])
+     &     +  nuJgup1(CHF_AUTOIX[i]      ) * u(CHF_OFFSETIX[i;-e1])) * idx1
+#if CH_SPACEDIM > 2
+        Lu = Lu
+     &     + (nuJgup2(CHF_OFFSETIX[i;+e2]) * u(CHF_OFFSETIX[i;+e2])
+     &     +  nuJgup2(CHF_AUTOIX[i]      ) * u(CHF_OFFSETIX[i;-e2])) * idx2
+#endif
+        lhs(CHF_AUTOIX[i]) = beta * Lu
+     &                     + u(CHF_AUTOIX[i]) / invDiags(CHF_AUTOIX[i])
+      CHF_ENDDO
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     Jacobi relaxation in 2D.
+!      Want to solve M[u] = r, where M[u] = (D + L + U)[u]
+!      by iterating u^{k+1} = u^{k} + (r - M[u^{k}]) / D
+!     ------------------------------------------------------------------
+      subroutine ViscousOp_Jacobi (
+     &      CHF_FRA1[u],
+     &      CHF_CONST_FRA1[res],
+     &      CHF_CONST_FRA1[invDiags],
+     &      CHF_BOX[destBox])
+
+      integer CHF_AUTODECL[i]
+
+      CHF_AUTOMULTIDO[destBox;i]
+        u(CHF_AUTOIX[i]) = u(CHF_AUTOIX[i])
+     &    + invDiags(CHF_AUTOIX[i]) * res(CHF_AUTOIX[i])
+      CHF_ENDDO
+
+      return
+      end
+
+!     ------------------------------------------------------------------
+!     Red-Black Gauss Seidel relaxation.
+!      Want to solve M[u] = r, where M[u] = (D + L + U)[u]
+!      by iterating u^{k+1} = (r - U[u^k] - L[u^{k+1}]) / D
+!     ------------------------------------------------------------------
+      subroutine ViscousOp_GSRB (
+     &      CHF_FRA1[u],
+     &      CHF_CONST_FRA1[res],
+     &      CHF_CONST_INT[velComp],
+     &      CHF_CONST_FRA1[nuJgup0],
+     &      CHF_CONST_FRA1[nuJgup1],
+     &      CHF_CONST_FRA1[nuJgup2],
+     &      CHF_CONST_REALVECT[dXi],
+     &      CHF_BOX[destBox],
+     &      CHF_CONST_FRA1[invDiags],
+     &      CHF_CONST_REAL[beta],
+     &      CHF_CONST_INT[whichPass])
+
+         integer CHF_AUTODECL[i]
+         integer imin, indtot, imax
+         REAL_T Lu
+
+         integer d0, CHF_AUTODECL[e0]
+         REAL_T idx0
+
+         integer d1, CHF_AUTODECL[e1]
+         REAL_T idx1
+
+#if CH_SPACEDIM > 2
+         integer d2, CHF_AUTODECL[e2]
+         REAL_T idx2
+#endif
+
+         d0 = velComp
+         CHF_AUTOID[e0; d0]
+         idx0 = one / (dXi(d0) * dXi(d0))
+
+         d1 = mod(velComp + 1, CH_SPACEDIM)
+         CHF_AUTOID[e1; d1]
+         idx1 = one / (dXi(d1) * dXi(d1))
+
+#if CH_SPACEDIM > 2
+         d2 = mod(velComp + 2, CH_SPACEDIM)
+         CHF_AUTOID[e2; d2]
+         idx2 = one / (dXi(d2) * dXi(d2))
+#endif
+
+         DO_RBPASS(destBox, i, whichPass)
+           Lu = (  nuJgup0(CHF_AUTOIX[i]      ) * u(CHF_OFFSETIX[i;+e0])
+     &           + nuJgup0(CHF_OFFSETIX[i;-e0]) * u(CHF_OFFSETIX[i;-e0])) * idx0
+
+           Lu = Lu
+     &        + (  nuJgup1(CHF_OFFSETIX[i;+e1]) * u(CHF_OFFSETIX[i;+e1])
+     &           + nuJgup1(CHF_AUTOIX[i]      ) * u(CHF_OFFSETIX[i;-e1])) * idx1
+
+#if CH_SPACEDIM > 2
+           Lu = Lu
+     &        + (  nuJgup2(CHF_OFFSETIX[i;+e2]) * u(CHF_OFFSETIX[i;+e2])
+     &           + nuJgup2(CHF_AUTOIX[i]      ) * u(CHF_OFFSETIX[i;-e2])) * idx2
+#endif
+
+           u(CHF_AUTOIX[i]) = invDiags(CHF_AUTOIX[i])
+     &                      * (res(CHF_AUTOIX[i]) - beta * Lu)
+         CHF_ENDDO
+
+         return
+         end
+
+
+
+! ==============================================================================
+! MGRestrict...
+! ==============================================================================
+
+! --------------------------------------------------------------
+      subroutine ViscousOp_MGRestrict_ParentAverage (
+     &      CHF_FRA1[coarse],
+     &      CHF_CONST_FRA1[fine],
+     &      CHF_BOX[fcCrseBox],
+     &      CHF_CONST_INT[fcDir],
+     &      CHF_CONST_INTVECT[refRatio],
+     &      CHF_BOX[refBox])
+
+         integer CHF_AUTODECL[ic]
+         integer CHF_AUTODECL[if]
+         integer CHF_AUTODECL[iref]
+         REAL_T coarseSumC, refScale
+
+         refScale = refRatio(fcDir) / DBLE(CHF_DTERM[refRatio(0);
+     &                                             * refRatio(1);
+     &                                             * refRatio(2)])
+
+         CHF_AUTOMULTIDO[fcCrseBox;ic]
+            CHF_DTERM[
+            if0 = ic0 * refRatio(0);
+            if1 = ic1 * refRatio(1);
+            if2 = ic2 * refRatio(2)]
+
+            coarseSumC = zero
+
+            CHF_AUTOMULTIDO[refBox;iref]
+                coarseSumC = coarseSumC + fine(OFFSET1(if,+iref))
+            CHF_ENDDO
+
+            coarse(OFFSET0(ic)) = coarseSumC * refScale
+         CHF_ENDDO
+
+         return
+         end
+
+
+         ! --------------------------------------------------------------
+      subroutine ViscousOp_MGRestrict_FullWeighting (
+     &      CHF_FRA1[coarse],
+     &      CHF_CONST_FRA1[fine],
+     &      CHF_BOX[crseBox],
+     &      CHF_CONST_INT[fcDir],
+     &      CHF_CONST_INTVECT[refRatio],
+     &      CHF_BOX[refBox])
+
+         ! local variables
+         integer CHF_AUTODECL[ic]
+         integer CHF_AUTODECL[if]
+         integer CHF_AUTODECL[iref]
+         integer CHF_AUTODECL[idir]
+         REAL_T coarseSumL, coarseSumC, coarseSumR
+         REAL_T refScale
+
+         refScale = refRatio(fcDir) / DBLE(CHF_DTERM[refRatio(0);
+     &                                             * refRatio(1);
+     &                                             * refRatio(2)])
+
+         CHF_AUTOID[idir; fcDir]
+
+         if (refRatio(fcDir).eq.2) then
+            CHF_AUTOMULTIDO[crseBox;ic]
+                CHF_DTERM[
+                if0 = ic0 * refRatio(0);
+                if1 = ic1 * refRatio(1);
+                if2 = ic2 * refRatio(2)]
+
+                coarseSumL  = zero
+                coarseSumC  = zero
+                coarseSumR  = zero
+
+                CHF_AUTOMULTIDO[refBox;iref]
+                    coarseSumL  = coarseSumL + fine(OFFSET2(if,+iref,-idir))
+                    coarseSumC  = coarseSumC + fine(OFFSET1(if,+iref))
+                    coarseSumR  = coarseSumR + fine(OFFSET2(if,+iref,+idir))
+                CHF_ENDDO
+
+                coarse(OFFSET0(ic)) = fourth*(coarseSumL + two*coarseSumC + coarseSumR) * refScale
+            CHF_ENDDO
+
+         else
+            CHF_AUTOMULTIDO[crseBox;ic]
+                CHF_DTERM[
+                if0 = ic0 * refRatio(0);
+                if1 = ic1 * refRatio(1);
+                if2 = ic2 * refRatio(2)]
+
+                coarseSumC  = zero
+
+                CHF_AUTOMULTIDO[refBox;iref]
+                    coarseSumC = coarseSumC + fine(OFFSET1(if,+iref))
+                CHF_ENDDO
+
+                coarse(OFFSET0(ic)) = coarseSumC * refScale
+            CHF_ENDDO
+         endif
+
+         return
+         end
+
+
+! ==============================================================================
+! MGProlong...
+! ==============================================================================
+
+c ------------------------------------------------------------------------------
+      subroutine ViscousOp_MGProlong_ParentInjection(
+     &     CHF_FRA1[fine],
+     &     CHF_CONST_FRA1[crse],
+     &     CHF_BOX[coarseBox],
+     &     CHF_CONST_INTVECT[refRatio],
+     &     CHF_BOX[refBox],
+     &     CHF_CONST_INT[dir]
+     &     )
+
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[if]
+      integer CHF_AUTODECL[iref]
+
+      CHF_AUTOMULTIDO[coarseBox; ic]
+        CHF_AUTOMULTIDO[refBox; iref]
+            CHF_DTERM[
+            if0 = ic0*refRatio(0) + iref0;
+            if1 = ic1*refRatio(1) + iref1;
+            if2 = ic2*refRatio(2) + iref2]
+
+            fine(CHF_AUTOIX[if]) = fine(CHF_AUTOIX[if]) + crse(CHF_AUTOIX[ic])
+        CHF_ENDDO
+      CHF_ENDDO
+
+      return
+      end
+
+
+c ------------------------------------------------------------------------------
+      subroutine ViscousOp_MGProlong_ParentLinearUpgrade(
+     &     CHF_FRA1[fine],
+     &     CHF_CONST_FRA1[crse],
+     &     CHF_BOX[coarseBox],
+     &     CHF_CONST_INTVECT[refRatio],
+     &     CHF_BOX[refBox],
+     &     CHF_CONST_INT[fcDir]
+     &     )
+
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[if]
+      integer CHF_AUTODECL[iref]
+
+      integer CHF_AUTODECL[itransx]
+      integer CHF_AUTODECL[itransy]
+      integer CHF_AUTODECL[itransz]
+      REAL_T CHF_AUTODECL[m]
+      REAL_T CHF_AUTODECL[dxf]
+
+      CHF_AUTOID[itransx; 0]
+      CHF_AUTOID[itransy; 1]
+      CHF_AUTOID[itransz; 2]
+      CHF_DTERM[
+      if (fcDir .eq. 0) then
+        itransx0 = 0;
+      else if (fcDir .eq. 1) then
+        itransy1 = 0;
+      else
+        itransz2 = 0]
+      endif
+
+      CHF_AUTOMULTIDO[coarseBox; ic]
+        CHF_DTERM[
+        m0 = half * (crse(OFFSET1(ic,+itransx)) - crse(OFFSET1(ic,-itransx)));
+        m1 = half * (crse(OFFSET1(ic,+itransy)) - crse(OFFSET1(ic,-itransy)));
+        m2 = half * (crse(OFFSET1(ic,+itransz)) - crse(OFFSET1(ic,-itransz)))]
+
+        CHF_AUTOMULTIDO[refBox; iref]
+            CHF_DTERM[
+            if0 = ic0*refRatio(0) + iref0;
+            if1 = ic1*refRatio(1) + iref1;
+            if2 = ic2*refRatio(2) + iref2]
+
+            CHF_DTERM[
+            dxf0 = -half + ( (iref0 + half) / refRatio(0) );
+            dxf1 = -half + ( (iref1 + half) / refRatio(1) );
+            dxf2 = -half + ( (iref2 + half) / refRatio(2) )]
+
+            fine(CHF_AUTOIX[if]) = fine(CHF_AUTOIX[if])
+     &            CHF_DTERM[ + dxf0 * m0; + dxf1 * m1; + dxf2 * m2 ]
+        CHF_ENDDO
+      CHF_ENDDO
+
+      return
+      end
+
+
+c ------------------------------------------------------------------------------
+      subroutine ViscousOp_MGProlong_LinearInteriorFace(
+     &    CHF_FRA1[fine],
+     &    CHF_BOX[bcoarse],
+     &    CHF_CONST_INTVECT[ref_ratio],
+     &    CHF_CONST_INT[facedir],
+     &    CHF_BOX[interiorrefbox]
+     &    )
+
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[ifine]
+      integer CHF_AUTODECL[ii]
+      integer CHF_AUTODECL[iloface]
+      integer CHF_AUTODECL[ihiface]
+      integer var, id
+
+      REAL_T dxf, diff
+      REAL_T loval, hival
+
+      CHF_AUTOMULTIDO[bcoarse; ic]
+            CHF_AUTOMULTIDO[interiorrefbox; ii]
+
+              CHF_DTERM[
+              ifine0 = ic0*ref_ratio(0) + ii0;
+              ifine1 = ic1*ref_ratio(1) + ii1;
+              ifine2 = ic2*ref_ratio(2) + ii2]
+
+
+c             this will be the coordinates of the low "exterior" face
+              CHF_DTERM[
+              iloface0 = ic0*ref_ratio(0) + (1-CHF_ID(0,facedir))*ii0;
+              iloface1 = ic1*ref_ratio(1) + (1-CHF_ID(1,facedir))*ii1;
+              iloface2 = ic2*ref_ratio(2) + (1-CHF_ID(2,facedir))*ii2]
+
+
+c             this will be the coordinates of the hi "exterior" face
+              CHF_DTERM[
+              ihiface0 = iloface0 + ref_ratio(0)*CHF_ID(0,facedir);
+              ihiface1 = iloface1 + ref_ratio(1)*CHF_ID(1,facedir);
+              ihiface2 = iloface2 + ref_ratio(2)*CHF_ID(2,facedir)]
+
+              CHF_DTERM[
+              if (facedir .eq. 0) then
+                 id = ii0;
+              else if (facedir .eq. 1) then
+                 id = ii1;
+              else if (facedir .eq. 2) then
+                 id = ii2]
+              endif
+
+              dxf = dble(id)/dble(ref_ratio(facedir))
+              diff = fine(CHF_AUTOIX[ihiface])
+     &             - fine(CHF_AUTOIX[iloface])
+
+              fine(CHF_AUTOIX[ifine]) = fine(CHF_AUTOIX[ifine])
+     &                                + fine(CHF_AUTOIX[iloface])
+     &                                + dxf * diff
+            CHF_ENDDO
+       CHF_ENDDO
+
+       return
+       end
+
+
+
+!     ------------------------------------------------------------------
+      subroutine ViscousOp_MGProlong_ParentQuadUpgrade1 (
+     &    CHF_FRA[fine],
+     &    CHF_CONST_FRA[crse],
+     &    CHF_BOX[crseRegion],
+     &    CHF_BOX[refBox],
+     &    CHF_CONST_INTVECT[refRatio],
+     &    CHF_CONST_INT[fcDir])
+
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[if]
+      integer CHF_AUTODECL[ii]
+      integer var
+      REAL_T CHF_AUTODECL[mm]
+      REAL_T CHF_AUTODECL[dxf]
+      REAL_T mid
+
+      if (fcDir .eq. 0) then
+        do var = 0, CHF_NCOMP[fine] - 1
+            CHF_AUTOMULTIDO[ crseRegion; ic ]
+              mid = -two * crse(CHF_IX[ic0;ic1;ic2],var)
+              ! The extra factor of 0.5 is the Taylor series coeff.
+              CHF_DTERM[
+              ;
+              mm1 = fourth * (crse(CHF_IX[ic0;ic1+1;ic2],var) + mid + crse(CHF_IX[ic0;ic1-1;ic2],var));
+              mm2 = fourth * (crse(CHF_IX[ic0;ic1;ic2+1],var) + mid + crse(CHF_IX[ic0;ic1;ic2-1],var))]
+
+              CHF_AUTOMULTIDO[ refBox; ii ]
+                CHF_DTERM[
+                if0 = ic0*refRatio(0) + ii0;
+                if1 = ic1*refRatio(1) + ii1;
+                if2 = ic2*refRatio(2) + ii2]
+
+                CHF_DTERM[
+                ;
+                dxf1 = -half + ( (ii1 + half) / refRatio(1) );
+                dxf2 = -half + ( (ii2 + half) / refRatio(2) )]
+
+                fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+     &            CHF_DTERM[ ; + dxf1*dxf1 * mm1; + dxf2*dxf2 * mm2 ]
+              CHF_ENDDO
+            CHF_ENDDO
+        end do
+      elseif (fcDir .eq. 1) then
+        do var = 0, CHF_NCOMP[fine] - 1
+            CHF_AUTOMULTIDO[ crseRegion; ic ]
+              mid = -two * crse(CHF_IX[ic0;ic1;ic2],var)
+              ! The extra factor of 0.5 is the Taylor series coeff.
+              CHF_DTERM[
+              mm0 = fourth * (crse(CHF_IX[ic0+1;ic1;ic2],var) + mid + crse(CHF_IX[ic0-1;ic1;ic2],var));
+              ;
+              mm2 = fourth * (crse(CHF_IX[ic0;ic1;ic2+1],var) + mid + crse(CHF_IX[ic0;ic1;ic2-1],var))]
+
+              CHF_AUTOMULTIDO[ refBox; ii ]
+                CHF_DTERM[
+                if0 = ic0*refRatio(0) + ii0;
+                if1 = ic1*refRatio(1) + ii1;
+                if2 = ic2*refRatio(2) + ii2]
+
+                CHF_DTERM[
+                dxf0 = -half + ( (ii0 + half) / refRatio(0) );
+                ;
+                dxf2 = -half + ( (ii2 + half) / refRatio(2) )]
+
+                fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+     &            CHF_DTERM[ + dxf0*dxf0 * mm0; ; + dxf2*dxf2 * mm2 ]
+                CHF_ENDDO
+            CHF_ENDDO
+        end do
+
+      else
+        do var = 0, CHF_NCOMP[fine] - 1
+            CHF_AUTOMULTIDO[ crseRegion; ic ]
+              mid = -two * crse(CHF_IX[ic0;ic1;ic2],var)
+              ! The extra factor of 0.5 is the Taylor series coeff.
+              CHF_DTERM[
+              mm0 = fourth * (crse(CHF_IX[ic0+1;ic1;ic2],var) + mid + crse(CHF_IX[ic0-1;ic1;ic2],var));
+              mm1 = fourth * (crse(CHF_IX[ic0;ic1+1;ic2],var) + mid + crse(CHF_IX[ic0;ic1-1;ic2],var));
+              ]
+
+              CHF_AUTOMULTIDO[ refBox; ii ]
+                CHF_DTERM[
+                if0 = ic0*refRatio(0) + ii0;
+                if1 = ic1*refRatio(1) + ii1;
+                if2 = ic2*refRatio(2) + ii2]
+
+                CHF_DTERM[
+                dxf0 = -half + ( (ii0 + half) / refRatio(0) );
+                dxf1 = -half + ( (ii1 + half) / refRatio(1) );
+                ]
+
+                fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+     &            CHF_DTERM[ + dxf0*dxf0 * mm0; + dxf1*dxf1 * mm1; ]
+                CHF_ENDDO
+            CHF_ENDDO
+        end do
+      endif
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+      subroutine ViscousOp_MGProlong_ParentQuadUpgrade2 (
+     &    CHF_FRA[fine],
+     &    CHF_CONST_FRA[crse],
+     &    CHF_BOX[crseRegion],
+     &    CHF_BOX[refBox],
+     &    CHF_CONST_INTVECT[refRatio],
+     &    CHF_CONST_INT[fcDir])
+
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[if]
+      integer CHF_AUTODECL[ii]
+      integer var
+      REAL_T CHF_AUTODECL[mm]
+      REAL_T CHF_AUTODECL[dxf]
+
+#if CH_SPACEDIM == 2
+
+      do var = 0, CHF_NCOMP[fine] - 1
+          CHF_AUTOMULTIDO[ crseRegion; ic ]
+            mm0 = fourth * (  crse(CHF_IX[ic0+1;ic1+1;ic2],var)
+     &                      + crse(CHF_IX[ic0+1;ic1-1;ic2],var)
+     &                      - crse(CHF_IX[ic0-1;ic1+1;ic2],var)
+     &                      - crse(CHF_IX[ic0-1;ic1-1;ic2],var)  )
+
+            CHF_AUTOMULTIDO[ refBox; ii ]
+              if0 = ic0*refRatio(0) + ii0
+              if1 = ic1*refRatio(1) + ii1
+
+              dxf0 = -half + ( (ii0 + half) / refRatio(0) )
+              dxf1 = -half + ( (ii1 + half) / refRatio(1) )
+
+              fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+     &            + dxf0*dxf1 * mm0
+            CHF_ENDDO
+          CHF_ENDDO
+      end do
+
+#else
+
+      if (fcDir .eq. 0) then
+        do var = 0, CHF_NCOMP[fine] - 1
+          CHF_AUTOMULTIDO[ crseRegion; ic ]
+            mm0 = fourth * (  crse(CHF_IX[ic0;ic1+1;ic2+1],var)
+     &                      - crse(CHF_IX[ic0;ic1+1;ic2-1],var)
+     &                      - crse(CHF_IX[ic0;ic1-1;ic2+1],var)
+     &                      + crse(CHF_IX[ic0;ic1-1;ic2-1],var)  )
+
+            CHF_AUTOMULTIDO[ refBox; ii ]
+              if0 = ic0*refRatio(0) + ii0
+              if1 = ic1*refRatio(1) + ii1
+              if2 = ic2*refRatio(2) + ii2
+
+              dxf1 = -half + ( (ii1 + half) / refRatio(1) )
+              dxf2 = -half + ( (ii2 + half) / refRatio(2) )
+
+              fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+     &            + dxf1*dxf2 * mm0
+            CHF_ENDDO
+          CHF_ENDDO
+        end do
+
+      else if (fcDir .eq. 1) then
+        do var = 0, CHF_NCOMP[fine] - 1
+          CHF_AUTOMULTIDO[ crseRegion; ic ]
+            mm1 = fourth * (  crse(CHF_IX[ic0+1;ic1;ic2+1],var)
+     &                      - crse(CHF_IX[ic0+1;ic1;ic2-1],var)
+     &                      - crse(CHF_IX[ic0-1;ic1;ic2+1],var)
+     &                      + crse(CHF_IX[ic0-1;ic1;ic2-1],var)  )
+
+            CHF_AUTOMULTIDO[ refBox; ii ]
+              if0 = ic0*refRatio(0) + ii0
+              if1 = ic1*refRatio(1) + ii1
+              if2 = ic2*refRatio(2) + ii2
+
+              dxf0 = -half + ( (ii0 + half) / refRatio(0) )
+              dxf2 = -half + ( (ii2 + half) / refRatio(2) )
+
+              fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+     &            + dxf2*dxf0 * mm1
+            CHF_ENDDO
+          CHF_ENDDO
+        end do
+
+      else
+        do var = 0, CHF_NCOMP[fine] - 1
+          CHF_AUTOMULTIDO[ crseRegion; ic ]
+            mm2 = fourth * (  crse(CHF_IX[ic0+1;ic1+1;ic2],var)
+     &                      + crse(CHF_IX[ic0+1;ic1-1;ic2],var)
+     &                      - crse(CHF_IX[ic0-1;ic1+1;ic2],var)
+     &                      - crse(CHF_IX[ic0-1;ic1-1;ic2],var)  )
+
+            CHF_AUTOMULTIDO[ refBox; ii ]
+              if0 = ic0*refRatio(0) + ii0
+              if1 = ic1*refRatio(1) + ii1
+              if2 = ic2*refRatio(2) + ii2
+
+              dxf0 = -half + ( (ii0 + half) / refRatio(0) )
+              dxf1 = -half + ( (ii1 + half) / refRatio(1) )
+
+              fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+     &            + dxf0*dxf1 * mm2
+            CHF_ENDDO
+          CHF_ENDDO
+        end do
+
+      endif
+#endif
+
+      return
+      end
+
+
+
+!       !     ------------------------------------------------------------------
+!       subroutine ViscousOp_MGProlong_InteriorQuadUpgrade1 (
+!      &    CHF_FRA[fine],
+!      &    CHF_CONST_FRA[crse],
+!      &    CHF_BOX[crseRegion],
+!      &    CHF_BOX[refBox],
+!      &    CHF_CONST_INTVECT[refRatio],
+!      &    CHF_CONST_INT[fcDir])
+
+!       integer CHF_AUTODECL[ic]
+!       integer CHF_AUTODECL[if]
+!       integer CHF_AUTODECL[ii]
+!       integer var
+!       REAL_T CHF_AUTODECL[mm]
+!       REAL_T CHF_AUTODECL[dxf]
+!       REAL_T mid
+
+
+!       do var = 0, CHF_NCOMP[fine] - 1
+!           CHF_AUTOMULTIDO[ crseRegion; ic ]
+!           mid = -two * crse(CHF_IX[ic0;ic1;ic2],var)
+!             ! The extra factor of 0.5 is the Taylor series coeff.
+!             CHF_DTERM[
+!             mm0 = fourth * (crse(CHF_IX[ic0+1;ic1;ic2],var) + mid + crse(CHF_IX[ic0-1;ic1;ic2],var));
+!             mm1 = fourth * (crse(CHF_IX[ic0;ic1+1;ic2],var) + mid + crse(CHF_IX[ic0;ic1-1;ic2],var));
+!             mm2 = fourth * (crse(CHF_IX[ic0;ic1;ic2+1],var) + mid + crse(CHF_IX[ic0;ic1;ic2-1],var))]
+
+!             CHF_AUTOMULTIDO[ refBox; ii ]
+!               CHF_DTERM[
+!               if0 = ic0*refRatio(0) + ii0;
+!               if1 = ic1*refRatio(1) + ii1;
+!               if2 = ic2*refRatio(2) + ii2]
+
+!               CHF_DTERM[
+!               dxf0 = -half + ( (ii0 + half) / refRatio(0) );
+!               dxf1 = -half + ( (ii1 + half) / refRatio(1) );
+!               dxf2 = -half + ( (ii2 + half) / refRatio(2) )]
+
+!               fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+!      &            CHF_DTERM[ + dxf0*dxf0 * mm0; + dxf1*dxf1 * mm1; + dxf2*dxf2 * mm2 ]
+!             CHF_ENDDO
+!           CHF_ENDDO
+!       end do
+
+!       return
+!       end
+
+
+! !     ------------------------------------------------------------------
+!       subroutine MGOperator_Prolong_QuadUpgrade2 (
+!      &    CHF_FRA[fine],
+!      &    CHF_CONST_FRA[crse],
+!      &    CHF_BOX[crseRegion],
+!      &    CHF_BOX[refBox],
+!      &    CHF_CONST_INTVECT[refRatio])
+
+!       integer CHF_AUTODECL[ic]
+!       integer CHF_AUTODECL[if]
+!       integer CHF_AUTODECL[ii]
+!       integer var
+!       REAL_T CHF_AUTODECL[mm]
+!       REAL_T CHF_AUTODECL[dxf]
+
+! #if CH_SPACEDIM == 2
+
+!       do var = 0, CHF_NCOMP[fine] - 1
+!           CHF_AUTOMULTIDO[ crseRegion; ic ]
+!             mm0 = fourth * (  crse(CHF_IX[ic0+1;ic1+1;ic2],var)
+!      &                      + crse(CHF_IX[ic0+1;ic1-1;ic2],var)
+!      &                      - crse(CHF_IX[ic0-1;ic1+1;ic2],var)
+!      &                      - crse(CHF_IX[ic0-1;ic1-1;ic2],var)  )
+
+!             CHF_AUTOMULTIDO[ refBox; ii ]
+!               if0 = ic0*refRatio(0) + ii0
+!               if1 = ic1*refRatio(1) + ii1
+
+!               dxf0 = -half + ( (ii0 + half) / refRatio(0) )
+!               dxf1 = -half + ( (ii1 + half) / refRatio(1) )
+
+!               fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+!      &            + dxf0*dxf1 * mm0
+!             CHF_ENDDO
+!           CHF_ENDDO
+!       end do
+
+! #else
+
+!       do var = 0, CHF_NCOMP[fine] - 1
+!           CHF_AUTOMULTIDO[ crseRegion; ic ]
+!             mm0 = fourth * (  crse(CHF_IX[ic0;ic1+1;ic2+1],var)
+!      &                      - crse(CHF_IX[ic0;ic1+1;ic2-1],var)
+!      &                      - crse(CHF_IX[ic0;ic1-1;ic2+1],var)
+!      &                      + crse(CHF_IX[ic0;ic1-1;ic2-1],var)  )
+
+!             mm1 = fourth * (  crse(CHF_IX[ic0+1;ic1;ic2+1],var)
+!      &                      - crse(CHF_IX[ic0+1;ic1;ic2-1],var)
+!      &                      - crse(CHF_IX[ic0-1;ic1;ic2+1],var)
+!      &                      + crse(CHF_IX[ic0-1;ic1;ic2-1],var)  )
+
+!             mm2 = fourth * (  crse(CHF_IX[ic0+1;ic1+1;ic2],var)
+!      &                      + crse(CHF_IX[ic0+1;ic1-1;ic2],var)
+!      &                      - crse(CHF_IX[ic0-1;ic1+1;ic2],var)
+!      &                      - crse(CHF_IX[ic0-1;ic1-1;ic2],var)  )
+
+!             CHF_AUTOMULTIDO[ refBox; ii ]
+!               if0 = ic0*refRatio(0) + ii0
+!               if1 = ic1*refRatio(1) + ii1
+!               if2 = ic2*refRatio(2) + ii2
+
+!               dxf0 = -half + ( (ii0 + half) / refRatio(0) )
+!               dxf1 = -half + ( (ii1 + half) / refRatio(1) )
+!               dxf2 = -half + ( (ii2 + half) / refRatio(2) )
+
+!               fine(CHF_AUTOIX[if],var) = fine(CHF_AUTOIX[if],var)
+!      &            + dxf1*dxf2 * mm0 + dxf2*dxf0 * mm1 + dxf0*dxf1 * mm2
+!             CHF_ENDDO
+!           CHF_ENDDO
+!       end do
+
+! #endif
+
+!       return
+!       end

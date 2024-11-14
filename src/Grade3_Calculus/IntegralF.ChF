@@ -1,0 +1,107 @@
+#include "CONSTANTS.H"
+
+
+
+C C     ------------------------------------------------------------------
+C C     Adds Sum[phi*dxScale/Jinv] to sum and adds
+C C     Sum[dxScale/Jinv] to vol.
+C C     ------------------------------------------------------------------
+C       subroutine Integral_SumWithJinv (
+C      &     CHF_REAL[sum],
+C      &     CHF_REAL[vol],
+C      &     CHF_CONST_FRA1[phi],
+C      &     CHF_CONST_FRA1[Jinv],
+C      &     CHF_CONST_FIA1[mask],
+C      &     CHF_BOX[stateBox],
+C      &     CHF_CONST_REAL[dxScale])
+
+C       integer CHF_AUTODECL[i]
+C       REAL_T scaleVal
+
+C       CHF_AUTOMULTIDO[stateBox;i]
+C         if (mask(CHF_AUTOIX[i]) .eq. 1) then
+C           scaleVal = dxScale / Jinv(CHF_AUTOIX[i])
+C           sum = sum + scaleVal * phi(CHF_AUTOIX[i])
+C           vol = vol + scaleVal
+C         endif
+C       CHF_ENDDO
+
+C       return
+C       end
+
+
+
+C     ------------------------------------------------------------------
+C     Adds Sum[phi*J*dxScale] to sum and adds Sum[J*dxScale] to vol.
+C     ------------------------------------------------------------------
+      subroutine Integral_MappedSum (
+     &     CHF_REAL[sum],
+     &     CHF_REAL[vol],
+     &     CHF_CONST_FRA1[phi],
+     &     CHF_CONST_FRA1[J],
+     &     CHF_CONST_FIA1[mask],
+     &     CHF_BOX[stateBox],
+     &     CHF_CONST_REAL[dxScale])
+
+      integer CHF_AUTODECL[i]
+      REAL_T scaleVal
+
+      CHF_AUTOMULTIDO[stateBox;i]
+        if (mask(CHF_AUTOIX[i]) .eq. 1) then
+          scaleVal = J(CHF_AUTOIX[i]) * dxScale
+          sum = sum + scaleVal * phi(CHF_AUTOIX[i])
+          vol = vol + scaleVal
+        endif
+      CHF_ENDDO
+
+      return
+      end
+
+
+C     ------------------------------------------------------------------
+C     Adds Sum[phi*dxScale] to sum and adds Sum[J*dxScale] to vol.
+C     ------------------------------------------------------------------
+      subroutine Integral_UnmappedSum1 (
+     &     CHF_REAL[sum],
+     &     CHF_REAL[vol],
+     &     CHF_CONST_FRA1[phi],
+     &     CHF_CONST_FRA1[J],
+     &     CHF_CONST_FIA1[mask],
+     &     CHF_BOX[stateBox],
+     &     CHF_CONST_REAL[dxScale])
+
+      integer CHF_AUTODECL[i]
+
+      CHF_AUTOMULTIDO[stateBox;i]
+        if (mask(CHF_AUTOIX[i]) .eq. 1) then
+          sum = sum + dxScale * phi(CHF_AUTOIX[i])
+          vol = vol + dxScale * J(CHF_AUTOIX[i])
+        endif
+      CHF_ENDDO
+
+      return
+      end
+
+
+C     ------------------------------------------------------------------
+C     Adds Sum[phi*dxScale] to sum and adds Sum[dxScale] to vol.
+C     ------------------------------------------------------------------
+      subroutine Integral_UnmappedSum2 (
+     &     CHF_REAL[sum],
+     &     CHF_REAL[vol],
+     &     CHF_CONST_FRA1[phi],
+     &     CHF_CONST_FIA1[mask],
+     &     CHF_BOX[stateBox],
+     &     CHF_CONST_REAL[dxScale])
+
+      integer CHF_AUTODECL[i]
+
+      CHF_AUTOMULTIDO[stateBox;i]
+        if (mask(CHF_AUTOIX[i]) .eq. 1) then
+          sum = sum + dxScale * phi(CHF_AUTOIX[i])
+          vol = vol + dxScale
+        endif
+      CHF_ENDDO
+
+      return
+      end

@@ -1,0 +1,439 @@
+c*******************************************************************************
+c  SOMAR - Stratified Ocean Model with Adaptive Refinement
+c  Developed by Ed Santilli & Alberto Scotti
+c  Copyright (C) 2014 University of North Carolina at Chapel Hill
+c
+c  This library is free software; you can redistribute it and/or
+c  modify it under the terms of the GNU Lesser General Public
+c  License as published by the Free Software Foundation; either
+c  version 2.1 of the License, or (at your option) any later version.
+c
+c  This library is distributed in the hope that it will be useful,
+c  but WITHOUT ANY WARRANTY; without even the implied warranty of
+c  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+c  Lesser General Public License for more details.
+c
+c  You should have received a copy of the GNU Lesser General Public
+c  License along with this library; if not, write to the Free Software
+c  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+c  USA
+c
+c  For up-to-date contact information, please visit the repository homepage,
+c  https://github.com/somarhub.
+c*******************************************************************************
+
+
+c ----------------------------------------------------------------        Front      Back
+c The nodes will be labeled as A, B, C, D, E, F, G and H in this order:   C---D      G---H
+c                                                                         |   |      |   |
+c                                                                         A---B      E---F
+c u = (x - x_{i}) / {x{i+1} - x_{i}}
+c v = (y - y_{j}) / {y{j+1} - y_{j}}
+c w = (z - z_{k}) / {z{k+1} - z_{k}}
+c
+c f_{ABCDEFGH}(u,v,w) = f_{A}*(1-u)*(1-v)*(1-w)+f_{B}*u*(1-v)*(1-w)+F_{C}*(1-u)*(1-v)*w+F_{D}*u*(1-v)*w
+c                       +f_{E}*(1-u)*v*(1-w)+f_{F}*u*v*(1-w)+f_{G}*(1-u)*v*w+f_{H}*u*v*w
+c ----------------------------------------------------------------
+      subroutine TrilinearInterp3DF (
+     &      CHF_FRA[fInterp],
+     &      CHF_CONST_FRA1[xInterp],
+     &      CHF_CONST_FRA1[yInterp],
+     &      CHF_CONST_FRA1[zInterp],
+     &      CHF_BOX[interpBox],
+     &      CHF_CONST_INT[xdir],
+     &      CHF_CONST_INT[ydir],
+     &      CHF_CONST_INT[zdir],
+     &      CHF_CONST_VR[x],
+     &      CHF_CONST_VR[y],
+     &      CHF_CONST_VR[z],
+     &      CHF_CONST_FRA[f])
+
+      integer fn, fncomp
+      integer CHF_AUTODECL[i]
+      integer ilo, ihi, jlo, jhi, klo, khi, i, j, k
+      REAL_T xi, xlo, xhi        ! x at the interp point, A/C, and B/D
+      REAL_T yj, ylo, yhi        ! y at the interp point, A/B, and C/D
+      REAL_T zk, zlo, zhi        ! z at the interp point
+      REAL_T u, v, w             ! x, y and z, each normalized to [0,1] within the interp cell
+      REAL_T iu, iv, iw          ! 1-x, etc...
+      REAL_T vw, ivw, viw, iviw
+      REAL_T fA, fB, fC, fD, fE, fF, fG, fH      ! Function values at nodes
+
+      fncomp = CHF_NCOMP[fInterp]
+
+        do fn = 0, fncomp-1
+          ilo = 0     ! Must equal CHF_LBOUND[f;xdir]
+          ihi = ixhi0 ! Must equal CHF_UBOUND[f;xdir]
+
+          jlo = 0     ! Must equal CHF_LBOUND[f;ydir]
+          jhi = iyhi0 ! Must equal CHF_UBOUND[f;ydir]
+
+          klo = 0     ! Must equal CHF_LBOUND[f;zdir]
+          khi = izhi0 ! Must equal CHF_UBOUND[f;zdir]
+
+
+#if CH_SPACEDIM > 2
+          ! Use bisection to find the starting zk
+          zk = zInterp(CHF_IX[iinterpBoxlo0;iinterpBoxlo1;iinterpBoxlo2])
+          klo = 0     ! Must equal CHF_LBOUND[f;zdir]
+          khi = izhi0 ! Must equal CHF_UBOUND[f;zdir]
+
+          do
+            if (khi-klo .le. 1) exit
+            k = (khi+klo)/2
+            if (z(k) .gt. zk) then
+              khi = k
+            else
+              klo = k
+            endif
+          enddo
+
+
+          ! i2 loop...
+          do i2 = iinterpBoxlo2, iinterpBoxhi2
+#endif
+
+            ! Use bisection to find the starting yj
+            yj = yInterp(CHF_IX[iinterpBoxlo0;iinterpBoxlo1;i2])
+            jlo = 0     ! Must equal CHF_LBOUND[f;ydir]
+            jhi = iyhi0 ! Must equal CHF_UBOUND[f;ydir]
+
+            do
+              if (jhi-jlo .le. 1) exit
+              j = (jhi+jlo)/2
+              if (y(j) .gt. yj) then
+                jhi = j
+              else
+                jlo = j
+              endif
+            enddo
+
+
+            ! i1 loop...
+            do i1 = iinterpBoxlo1, iinterpBoxhi1
+              ! Use bisection to find the starting xi
+              xi = xInterp(CHF_IX[iinterpBoxlo0;i1;i2])
+              ilo = 0     ! Must equal CHF_LBOUND[f;xdir]
+              ihi = ixhi0 ! Must equal CHF_UBOUND[f;xdir]
+
+              do
+                if (ihi-ilo .le. 1) exit
+                i = (ihi+ilo)/2
+                if (x(i) .gt. xi) then
+                  ihi = i
+                else
+                  ilo = i
+                endif
+              enddo
+
+
+              ! i0 loop...
+              do i0 = iinterpBoxlo0, iinterpBoxhi0
+                ! Search for xi...
+                xi = xInterp(CHF_AUTOIX[i])
+                ! Check that the old x(ilo) is still <= xi
+                if (x(ilo) .gt. xi) ilo = 0
+                ! Move forward looking for ihi
+                do ihi = ilo + 1, ixhi0
+                  if (x(ihi) .ge. xi) exit
+                enddo
+                ! If that failed, start over with bisection
+                if (ihi .gt. ixhi0) then
+                  ilo = 0
+                  ihi = ixhi0
+                endif
+                do
+                  if (ihi-ilo .le. 1) exit
+                  i = (ihi+ilo)/2
+                  if (x(i) .gt. xi) then
+                    ihi = i
+                  else
+                    ilo = i
+                  endif
+                enddo
+
+                ! Search for yj...
+                yj = yInterp(CHF_IX[iinterpBoxlo0;i1;i2])
+                ! Check that the old y(jlo) is still <= yj
+                if (y(jlo) .gt. yj) jlo = 0
+                ! Move forward looking for jhi
+                do jhi = jlo + 1, iyhi0
+                  if (y(jhi) .ge. yj) exit
+                enddo
+                ! If that failed, start over with bisection
+                if (jhi .gt. iyhi0) then
+                  jlo = 0
+                  jhi = iyhi0
+                endif
+                do
+                  if (jhi-jlo .le. 1) exit
+                  j = (jhi+jlo)/2
+                  if (y(j) .gt. yj) then
+                    jhi = j
+                  else
+                    jlo = j
+                  endif
+                enddo
+
+                ! Search for zk...
+                zk = zInterp(CHF_IX[iinterpBoxlo0;iinterpBoxlo1;i2])
+                ! Check that the old z(klo) is still <= zk
+                if (z(klo) .gt. zk) klo = 0
+                ! Move forward looking for khi
+                do khi = klo + 1, izhi0
+                  if (z(khi) .ge. zk) exit
+                enddo
+                ! If that failed, start over with bisection
+                if (khi .gt. izhi0) then
+                  klo = 0
+                  khi = izhi0
+                endif
+                do
+                  if (khi-klo .le. 1) exit
+                  k = (khi+klo)/2
+                  if (z(k) .gt. zk) then
+                    khi = k
+                  else
+                    klo = k
+                  endif
+                enddo
+
+                ! Sanity check
+                ! Make sure we found the cell properly.
+                CH_assert((0 .le. ilo) .and. (ilo .lt. ixhi0))
+                CH_assert(ihi .le. ixhi0)
+                CH_assert((0 .le. jlo) .and. (jlo .lt. iyhi0))
+                CH_assert(jhi .le. iyhi0)
+                CH_assert((0 .le. jlo) .and. (jlo .lt. izhi0))
+                CH_assert(khi .le. izhi0)
+
+                ! Compute the physical coordinates surrounding the
+                ! point to be interpolated.
+                xlo = x(ilo)
+                xhi = x(ihi)
+                ylo = y(jlo)
+                yhi = y(jhi)
+                zlo = z(klo)
+                zhi = z(khi)
+
+                ! Compute some quantities that will be needed by the
+                ! interpolant.
+                if (xlo .eq. xhi) then
+                    u = xi - xlo
+                else
+                    u = (xi - xlo) / (xhi - xlo)
+                endif
+
+                if (ylo .eq. yhi) then
+                    v = yj - ylo
+                else
+                    v = (yj - ylo) / (yhi - ylo)
+                endif
+
+                if (zlo .eq. zhi) then
+                    w = zk - zlo
+                else
+                    w = (zk - zlo) / (zhi - zlo)
+                endif
+
+                iu = one - u
+                iv = one - v
+                iw = one - w
+                vw = v*w
+                viw = v*iw
+                ivw = iv*w
+                iviw = iv*iw
+
+                CH_assert((xhi.ge.xlo))
+                CH_assert(((zero.le.u).or.(u.le.one)))
+                CH_assert((yhi.ge.ylo))
+                CH_assert(((zero.le.v).or.(v.le.one)))
+                CH_assert((zhi.ge.zlo))
+                CH_assert(((zero.le.w).or.(w.le.one)))
+
+
+                ! Evaluate the function at points surrounding the
+                ! interpolation point.
+                !
+                ! This is not very efficient. Every combination should
+                ! be have its own nest. Hopefully the x86 heuristic
+                ! should catch this.
+                if ((xdir .eq. 0) .and. (ydir .eq. 1) .and. (zdir .eq. 2)) then
+                  fA = f(CHF_DDECL[ilo;jlo;klo],fn)
+                  fB = f(CHF_DDECL[ihi;jlo;klo],fn)
+                  fC = f(CHF_DDECL[ilo;jlo;khi],fn)
+                  fD = f(CHF_DDECL[ihi;jlo;khi],fn)
+                  fE = f(CHF_DDECL[ilo;jhi;klo],fn)
+                  fF = f(CHF_DDECL[ihi;jhi;klo],fn)
+                  fG = f(CHF_DDECL[ilo;jhi;khi],fn)
+                  fH = f(CHF_DDECL[ihi;jhi;khi],fn)
+                else
+                  call MAYDAYERROR()
+                endif
+
+                ! Compute trilinear interpolation.
+                fInterp(CHF_AUTOIX[i],fn)
+     &            = (fA*iu + fB*u)*iviw + (fC*iu + fD*u)*ivw
+     &            + (fE*iu + fF*u)* viw + (fG*iu + fH*u)* vw;
+
+              enddo ! i
+            enddo ! j
+#if CH_SPACEDIM > 2
+          enddo ! k
+#endif
+        enddo !fn
+
+      return
+      end
+
+
+
+
+c ----------------------------------------------------------------        Front      Back
+c The nodes will be labeled as A, B, C, D, E, F, G and H in this order:   C---D      G---H
+c                                                                         |   |      |   |
+c                                                                         A---B      E---F
+c u = (x - x_{i}) / {x{i+1} - x_{i}}
+c v = (y - y_{j}) / {y{j+1} - y_{j}}
+c w = (z - z_{k}) / {z{k+1} - z_{k}}
+c
+c f_{ABCDEFGH}(u,v,w) = f_{A}*(1-u)*(1-v)*(1-w)+f_{B}*u*(1-v)*(1-w)+F_{C}*(1-u)*(1-v)*w+F_{D}*u*(1-v)*w
+c                       +f_{E}*(1-u)*v*(1-w)+f_{F}*u*v*(1-w)+f_{G}*(1-u)*v*w+f_{H}*u*v*w
+c ----------------------------------------------------------------
+      subroutine TrilinearInterp3DOldF (
+     &      CHF_FRA[fInterp],
+     &      CHF_CONST_FRA1[xInterp],
+     &      CHF_CONST_FRA1[yInterp],
+     &      CHF_CONST_FRA1[zInterp],
+     &      CHF_BOX[interpBox],
+     &      CHF_CONST_INT[xdir],
+     &      CHF_CONST_INT[ydir],
+     &      CHF_CONST_INT[zdir],
+     &      CHF_CONST_VR[x],
+     &      CHF_CONST_VR[y],
+     &      CHF_CONST_VR[z],
+     &      CHF_CONST_FRA[f])
+
+      integer fn, fncomp
+      integer CHF_AUTODECL[i]
+      integer ilo, ihi, jlo, jhi, klo, khi, i, j, k
+      REAL_T xi, xlo, xhi        ! x at the interp point, A/C, and B/D
+      REAL_T yj, ylo, yhi        ! y at the interp point, A/B, and C/D
+      REAL_T zk, zlo, zhi        ! z at the interp point
+      REAL_T u, v, w             ! x, y and z, each normalized to [0,1] within the interp cell
+      REAL_T fA, fB, fC, fD, fE, fF, fG, fH      ! Function values at nodes
+
+      fncomp = CHF_NCOMP[fInterp]
+
+        do fn = 0, fncomp-1
+          CHF_AUTOMULTIDO[interpBox; i]
+
+            ! Search for xi -- This is a VERY naive implementation.
+            xi = xInterp(CHF_AUTOIX[i])
+            ilo = 0     ! Must equal CHF_LBOUND[f;xdir]
+            ihi = ixhi0 ! Must equal CHF_UBOUND[f;xdir]
+
+10          if (ihi-ilo .gt. 1) then
+              i = (ihi+ilo)/2
+              if (x(i) .gt. xi) then
+                ihi = i
+              else
+                ilo = i
+              endif
+              goto 10
+            endif
+
+            ! Search for yj -- This is a VERY naive implementation.
+            yj = yInterp(CHF_AUTOIX[i])
+            jlo = 0     ! Must equal CHF_LBOUND[f;ydir]
+            jhi = iyhi0 ! Must equal CHF_UBOUND[f;ydir]
+
+11          if (jhi-jlo .gt. 1) then
+              j = (jhi+jlo)/2
+              if (y(j) .gt. yj) then
+                jhi = j
+              else
+                jlo = j
+              endif
+              goto 11
+            endif
+
+
+            ! Search for zk -- This is a VERY naive implementation.
+            zk = zInterp(CHF_AUTOIX[i])
+            klo = 0     ! Must equal CHF_LBOUND[f;zdir]
+            khi = izhi0 ! Must equal CHF_UBOUND[f;zdir]
+
+12          if (khi-klo .gt. 1) then
+              k = (khi+klo)/2
+              if (z(k) .gt. zk) then
+                khi = k
+              else
+                klo = k
+              endif
+              goto 12
+            endif
+
+            ! Gather needed values
+            xlo = x(ilo)
+            xhi = x(ihi)
+
+            ylo = y(jlo)
+            yhi = y(jhi)
+
+            zlo = z(klo)
+            zhi = z(khi)
+
+c This is not very efficient. Every combination should be have its own nest
+c Hopefully the x86 heuristic should catch this
+            if ((xdir .eq. 0) .and. (ydir .eq. 1) .and. (zdir .eq. 2)) then
+              fA = f(CHF_DDECL[ilo;jlo;klo],fn)
+              fB = f(CHF_DDECL[ihi;jlo;klo],fn)
+              fC = f(CHF_DDECL[ilo;jlo;khi],fn)
+              fD = f(CHF_DDECL[ihi;jlo;khi],fn)
+              fE = f(CHF_DDECL[ilo;jhi;klo],fn)
+              fF = f(CHF_DDECL[ihi;jhi;klo],fn)
+              fG = f(CHF_DDECL[ilo;jhi;khi],fn)
+              fH = f(CHF_DDECL[ihi;jhi;khi],fn)
+            else
+                  call MAYDAYERROR()
+            endif
+
+            ! Compute interpolating polynomials
+            if (xlo .eq. xhi) then
+                u = xi - xlo
+            else
+                u = (xi - xlo) / (xhi - xlo)
+            endif
+            CH_assert((xhi.ge.xlo))
+            CH_assert(((zero.le.u).or.(u.le.one)))
+
+
+            if (ylo .eq. yhi) then
+                v = yj - ylo
+            else
+                v = (yj - ylo) / (yhi - ylo)
+            endif
+            CH_assert((yhi.ge.ylo))
+            CH_assert(((zero.le.v).or.(v.le.one)))
+
+
+            if (zlo .eq. zhi) then
+                w = zk - zlo
+            else
+                w = (zk - zlo) / (zhi - zlo)
+            endif
+            CH_assert((zhi.ge.zlo))
+            CH_assert(((zero.le.w).or.(w.le.one)))
+
+
+            ! Compute trilinear interpolation
+            fInterp(CHF_AUTOIX[i],fn)
+     &           = fA*(1-u)*(1-v)*(1-w) + fB*u*(1-v)*(1-w) + fC*(1-u)*(1-v)*w + fD*u*(1-v)*w
+     &           + fE*(1-u)*v*(1-w) + fF*u*v*(1-w) + fG*(1-u)*v*w + fH*u*v*w;
+
+          CHF_ENDDO
+        enddo !fn
+
+      return
+      end

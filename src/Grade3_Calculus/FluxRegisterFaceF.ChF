@@ -1,0 +1,126 @@
+#include "CONSTANTS.H"
+
+
+c ----------------------------------------------------------------------------
+c     Adds to the fine side of an cell-centered flux register.
+c
+c     fineFlux    [in   ] The fine fluxes.
+c     fluxReg     [inout] The flux register at coarse resolution.
+c     crseCellBox [in   ] The destination box at coarse resolution.
+c     nRef        [in   ] The refinement ratio.
+c     refBox      [in   ] Box of offsets. See standard interp functions.
+c     scale       [in   ] fluxReg = fluxReg + scale * Av[fineFlux]
+c     srcStart    [in   ] Starting FAB component of fineFlux.
+c     destStart   [in   ] Starting FAB component of fluxReg.
+c     ncomp       [in   ] Number of components to update.
+c ----------------------------------------------------------------------------
+      subroutine FRF_IncrementFineCellFlux (
+     &     CHF_CONST_FRA[fineFlux],
+     &     CHF_FRA[fluxReg],
+     &     CHF_BOX[crseCellBox],
+     &     CHF_CONST_INTVECT[nRef],
+     &     CHF_BOX[refBox],
+     &     CHF_CONST_REAL[scale],
+     &     CHF_CONST_INT[srcStart],
+     &     CHF_CONST_INT[destStart],
+     &     CHF_CONST_INT[ncomp])
+
+      integer CHF_AUTODECL[ci]
+      integer CHF_AUTODECL[fi]
+      integer CHF_AUTODECL[dfi]
+      integer var, srcComp, destComp
+
+#if CH_SPACEDIM == 2
+      do var=0, ncomp-1
+         srcComp = srcStart + var
+         destComp = destStart + var
+
+         CHF_AUTOMULTIDO[crseCellBox;ci]
+            CHF_DTERM[
+            fi0 = ci0 * nRef(0);
+            fi1 = ci1 * nRef(1);
+            fi2 = ci2 * nRef(2)]
+
+            CHF_AUTOMULTIDO[refBox;dfi]
+              fluxReg(CHF_AUTOIX[ci],destComp) =
+     &           fluxReg(CHF_AUTOIX[ci], destComp) +
+     &           scale * fineFlux(CHF_OFFSETIX[fi;+dfi], srcComp)
+            CHF_ENDDO
+         CHF_ENDDO
+      enddo
+#else
+#      error Not yet written.
+#endif
+
+      return
+      end
+
+
+
+
+c ----------------------------------------------------------------------------
+c     Adds to the fine side of an edge-centered flux register.
+c
+c     At the moment, we just use injection. It may be better to use
+c     full weighting. For example, in 2D full weighting would look like...
+c
+c     The fluxes are at the numbered points.
+c              0                           1                           2
+c     fluxReg  |---------------------------|---------------------------|
+c     fineFlux |------|------|------|------|------|------|------|------|
+c              0      1      2      3      4      5      6      7      8
+c
+c     fluxReg[1] = (  1*fineFlux[1] + 2*fineFlux[2] + 3*fineFlux[3]
+c                   + 4*fineFlux[4]
+c                   + 3*fineFlux[5] + 2*fineFlux[6] + 1*fineFlux[7]  ) / 16.
+c
+c
+c     fineFlux    [in   ] The fine fluxes.
+c     fluxReg     [inout] The flux register at coarse resolution.
+c     crseEdgeBox [in   ] The destination box at coarse resolution.
+c     bdryDir     [in   ] The CFI boundary-normal direction.
+c     faceDir     [in   ] The FC dir of the momentum component to be refluxed.
+c     scale       [in   ] fluxReg = fluxReg + scale * Av[fineFlux]
+c     srcStart    [in   ] Starting FAB component of fineFlux.
+c     destStart   [in   ] Starting FAB component of fluxReg.
+c     ncomp       [in   ] Number of components to update.
+c ----------------------------------------------------------------------------
+      subroutine FRF_IncrementFineEdgeFlux (
+     &     CHF_CONST_FRA[fineFlux],
+     &     CHF_FRA[fluxReg],
+     &     CHF_BOX[crseEdgeBox],
+     &     CHF_CONST_INT[bdryDir],
+     &     CHF_CONST_INT[faceDir],
+     &     CHF_CONST_INTVECT[nRef],
+     &     CHF_CONST_REAL[scale],
+     &     CHF_CONST_INT[srcStart],
+     &     CHF_CONST_INT[destStart],
+     &     CHF_CONST_INT[ncomp])
+
+      integer CHF_AUTODECL[ci]
+      integer CHF_AUTODECL[fi]
+      integer var, srcComp, destComp
+
+#if CH_SPACEDIM == 2
+      do var=0, ncomp-1
+         srcComp = srcStart + var
+         destComp = destStart + var
+
+        ! Injection
+         CHF_AUTOMULTIDO[crseEdgeBox;ci]
+            CHF_DTERM[
+            fi0 = ci0 * nRef(0);
+            fi1 = ci1 * nRef(1);
+            fi2 = ci2 * nRef(2)]
+
+            fluxReg(CHF_AUTOIX[ci],destComp) =
+     &           fluxReg(CHF_AUTOIX[ci], destComp) +
+     &           scale * fineFlux(CHF_AUTOIX[fi], srcComp)
+         CHF_ENDDO
+      enddo
+#else
+#      error Not yet written.
+#endif
+
+      return
+      end

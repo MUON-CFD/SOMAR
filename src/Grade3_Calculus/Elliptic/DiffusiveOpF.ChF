@@ -1,0 +1,234 @@
+!*******************************************************************************
+!     SOMAR - Stratified Ocean Model with Adaptive Refinement
+!     Developed by Ed Santilli & Alberto Scotti
+!     Copyright (C) 2019 Jefferson University and Arizona State University
+!
+!     This library is free software; you can redistribute it and/or
+!     modify it under the terms of the GNU Lesser General Public
+!     License as published by the Free Software Foundation; either
+!     version 2.1 of the License, or (at your option) any later version.
+!
+!     This library is distributed in the hope that it will be useful,
+!     but WITHOUT ANY WARRANTY; without even the implied warranty of
+!     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+!     Lesser General Public License for more details.
+!
+!     You should have received a copy of the GNU Lesser General Public
+!     License along with this library; if not, write to the Free Software
+!     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+!     USA
+!
+!     For up-to-date contact information, please visit the repository homepage,
+!     https://github.com/somarhub.
+!*******************************************************************************
+#include "CONSTANTS.H"
+#include "AddlFortranMacros.H"
+
+#if CH_SPACEDIM == 2
+#   define DO_RBPASS(destBox, i, whichPass)                            \
+          do i##1 = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1];    \
+            imin = CHF_LBOUND[destBox; 0];                             \
+            CHF_DTERM[indtot = imin; + i##1 ; + i##2 ];                \
+            imin = imin + abs(mod(indtot + whichPass, 2));             \
+            imax = CHF_UBOUND[destBox; 0];                             \
+            do i##0 = imin, imax, 2
+#else
+#   define DO_RBPASS(destBox, i, whichPass)                            \
+      do i##2 = CHF_LBOUND[destBox; 2], CHF_UBOUND[destBox; 2];        \
+          do i##1 = CHF_LBOUND[destBox; 1], CHF_UBOUND[destBox; 1];    \
+            imin = CHF_LBOUND[destBox; 0];                             \
+            CHF_DTERM[indtot = imin; + i##1 ; + i##2 ];                \
+            imin = imin + abs(mod(indtot + whichPass, 2));             \
+            imax = CHF_UBOUND[destBox; 0];                             \
+            do i##0 = imin, imax, 2
+#endif
+
+
+!     ------------------------------------------------------------------
+!     This computes the diagonals of L[phi].
+!     Jgxx = beta * (kappa + eddyKappa) * J * g^{xx}, etc.
+!     ------------------------------------------------------------------
+      subroutine DiffusiveOp_ComputeDiags (
+     &      CHF_FRA[diags],
+     &      CHF_CONST_FRA[Jgxx],
+     &      CHF_CONST_FRA[Jgyy],
+     &      CHF_CONST_FRA[Jgzz],
+     &      CHF_CONST_FRA1[J],
+     &      CHF_CONST_REALVECT[dXi],
+     &      CHF_BOX[destBox],
+     &      CHF_CONST_REAL[alpha])
+
+      integer comp
+
+      integer CHF_AUTODECL[i]
+      REAL_T lap
+
+      integer CHF_AUTODECL[e0]
+      REAL_T idx0
+
+      integer CHF_AUTODECL[e1]
+      REAL_T idx1
+
+#if CH_SPACEDIM > 2
+      integer CHF_AUTODECL[e2]
+      REAL_T idx2
+#endif
+
+
+      CHF_AUTOID[e0; 0]
+      idx0 = one / (dXi(0) * dXi(0))
+
+      CHF_AUTOID[e1; 1]
+      idx1 = one / (dXi(1) * dXi(1))
+
+#if CH_SPACEDIM > 2
+      CHF_AUTOID[e2; 2]
+      idx2 = one / (dXi(2) * dXi(2))
+#endif
+
+      do comp = 0, CHF_NCOMP[diags] - 1
+        CHF_AUTOMULTIDO[destBox; i]
+          lap =     - (Jgxx(CHF_OFFSETIX[i;+e0],comp) + Jgxx(CHF_AUTOIX[i],comp)) * idx0
+          lap = lap - (Jgyy(CHF_OFFSETIX[i;+e1],comp) + Jgyy(CHF_AUTOIX[i],comp)) * idx1
+#if CH_SPACEDIM > 2
+          lap = lap - (Jgzz(CHF_OFFSETIX[i;+e2],comp) + Jgzz(CHF_AUTOIX[i],comp)) * idx2
+#endif
+          diags(CHF_AUTOIX[i],comp) = alpha * J(CHF_AUTOIX[i]) + lap
+        CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+
+!     ------------------------------------------------------------------
+      subroutine DiffusiveOp_ApplyOp (
+     &      CHF_FRA[lhs],
+     &      CHF_CONST_FRA[phi],
+     &      CHF_CONST_FRA[Jgxx],
+     &      CHF_CONST_FRA[Jgyy],
+     &      CHF_CONST_FRA[Jgzz],
+     &      CHF_CONST_FRA[invDiags],
+     &      CHF_CONST_REALVECT[dXi],
+     &      CHF_BOX[destBox])
+
+      integer comp
+
+      integer CHF_AUTODECL[i]
+      REAL_T lap
+
+      integer CHF_AUTODECL[e0]
+      REAL_T idx0
+
+      integer CHF_AUTODECL[e1]
+      REAL_T idx1
+
+#if CH_SPACEDIM > 2
+      integer CHF_AUTODECL[e2]
+      REAL_T idx2
+#endif
+
+
+      CHF_AUTOID[e0; 0]
+      idx0 = one / (dXi(0) * dXi(0))
+
+      CHF_AUTOID[e1; 1]
+      idx1 = one / (dXi(1) * dXi(1))
+
+#if CH_SPACEDIM > 2
+      CHF_AUTOID[e2; 2]
+      idx2 = one / (dXi(2) * dXi(2))
+#endif
+
+      do comp = 0, CHF_NCOMP[phi] - 1
+        CHF_AUTOMULTIDO[destBox; i]
+          lap =       (Jgxx(CHF_OFFSETIX[i;+e0],comp) * phi(CHF_OFFSETIX[i;+e0],comp) + Jgxx(CHF_AUTOIX[i],comp) * phi(CHF_OFFSETIX[i;-e0],comp)) * idx0
+          lap = lap + (Jgyy(CHF_OFFSETIX[i;+e1],comp) * phi(CHF_OFFSETIX[i;+e1],comp) + Jgyy(CHF_AUTOIX[i],comp) * phi(CHF_OFFSETIX[i;-e1],comp)) * idx1
+#if CH_SPACEDIM > 2
+          lap = lap + (Jgzz(CHF_OFFSETIX[i;+e2],comp) * phi(CHF_OFFSETIX[i;+e2],comp) + Jgzz(CHF_AUTOIX[i],comp) * phi(CHF_OFFSETIX[i;-e2],comp)) * idx2
+#endif
+          lhs(CHF_AUTOIX[i],comp) = lap + phi(CHF_AUTOIX[i],comp) / invDiags(CHF_AUTOIX[i],comp)
+        CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     Jacobi relaxation
+!     ------------------------------------------------------------------
+      subroutine DiffusiveOp_Jacobi (
+     &      CHF_FRA[phi],
+     &      CHF_CONST_FRA[res],
+     &      CHF_CONST_FRA[Dinv],
+     &      CHF_BOX[destBox])
+
+         integer CHF_AUTODECL[i]
+         integer comp
+
+         do comp = 0, CHF_NCOMP[phi] - 1
+           CHF_AUTOMULTIDO[destBox;i]
+             phi(CHF_AUTOIX[i],comp) = phi(CHF_AUTOIX[i],comp)
+     &         + Dinv(CHF_AUTOIX[i],comp) * res(CHF_AUTOIX[i],comp)
+           CHF_ENDDO
+         enddo
+
+         return
+         end
+
+
+!     ------------------------------------------------------------------
+      subroutine DiffusiveOp_GSRB (
+     &      CHF_FRA[phi],
+     &      CHF_CONST_FRA[res],
+     &      CHF_CONST_FRA[Jgxx],
+     &      CHF_CONST_FRA[Jgyy],
+     &      CHF_CONST_FRA[Jgzz],
+     &      CHF_CONST_FRA[invDiags],
+     &      CHF_CONST_REALVECT[dXi],
+     &      CHF_BOX[destBox],
+     &      CHF_CONST_INT[whichPass])
+
+      integer CHF_AUTODECL[i]
+      integer imin, indtot, imax
+      integer comp
+      REAL_T lap
+
+      integer CHF_AUTODECL[e0]
+      REAL_T idx0
+
+      integer CHF_AUTODECL[e1]
+      REAL_T idx1
+
+#if CH_SPACEDIM > 2
+      integer CHF_AUTODECL[e2]
+      REAL_T idx2
+#endif
+
+
+      CHF_AUTOID[e0; 0]
+      idx0 = one / (dXi(0) * dXi(0))
+
+      CHF_AUTOID[e1; 1]
+      idx1 = one / (dXi(1) * dXi(1))
+
+#if CH_SPACEDIM > 2
+      CHF_AUTOID[e2; 2]
+      idx2 = one / (dXi(2) * dXi(2))
+#endif
+
+      do comp = 0, CHF_NCOMP[phi] - 1
+        DO_RBPASS(destBox, i, whichPass)
+          lap =       (Jgxx(CHF_OFFSETIX[i;+e0],comp) * phi(CHF_OFFSETIX[i;+e0],comp) + Jgxx(CHF_AUTOIX[i],comp) * phi(CHF_OFFSETIX[i;-e0],comp)) * idx0
+          lap = lap + (Jgyy(CHF_OFFSETIX[i;+e1],comp) * phi(CHF_OFFSETIX[i;+e1],comp) + Jgyy(CHF_AUTOIX[i],comp) * phi(CHF_OFFSETIX[i;-e1],comp)) * idx1
+#if CH_SPACEDIM > 2
+          lap = lap + (Jgzz(CHF_OFFSETIX[i;+e2],comp) * phi(CHF_OFFSETIX[i;+e2],comp) + Jgzz(CHF_AUTOIX[i],comp) * phi(CHF_OFFSETIX[i;-e2],comp)) * idx2
+#endif
+          phi(CHF_AUTOIX[i],comp) = invDiags(CHF_AUTOIX[i],comp) * (res(CHF_AUTOIX[i],comp) - lap)
+        CHF_ENDDO
+      enddo
+
+      return
+      end

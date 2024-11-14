@@ -1,0 +1,540 @@
+C*******************************************************************************
+C  SOMAR - Stratified Ocean Model with Adaptive Refinement
+C  Developed by Ed Santilli & Alberto Scotti
+C  Copyright (C) 2018
+C    Jefferson (Philadelphia University + Thomas Jefferson University) and
+C    University of North Carolina at Chapel Hill
+C
+C  This library is free software; you can redistribute it and/or
+C  modify it under the terms of the GNU Lesser General Public
+C  License as published by the Free Software Foundation; either
+C  version 2.1 of the License, or (at your option) any later version.
+C
+C  This library is distributed in the hope that it will be useful,
+C  but WITHOUT ANY WARRANTY; without even the implied warranty of
+C  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+C  Lesser General Public License for more details.
+C
+C  You should have received a copy of the GNU Lesser General Public
+C  License along with this library; if not, write to the Free Software
+C  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+C  USA
+C
+C  For up-to-date contact information, please visit the repository homepage,
+C  https://github.com/somarhub.
+C*******************************************************************************
+#include "CONSTANTS.H"
+
+
+C     ------------------------------------------------------------------
+C     Extrapolation BCs for a side, specified component interval
+C     ------------------------------------------------------------------
+      subroutine BCTools_ExtrapSide (
+     &     CHF_FRA[state],
+     &     CHF_BOX[toRegion],
+     &     CHF_CONST_INT[dir],
+     &     CHF_CONST_INT[sidesign],
+     &     CHF_CONST_INT[order])
+
+      integer n,ncomp
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[ii;jj;kk]
+
+      ncomp = CHF_NCOMP[state]
+
+      CHF_DTERM[
+      ii = sidesign * CHF_ID(dir,0) ;
+      jj = sidesign * CHF_ID(dir,1) ;
+      kk = sidesign * CHF_ID(dir,2) ]
+
+      if (order .eq. 0) then
+
+        do n = 0, ncomp-1
+          CHF_MULTIDO[toRegion; i; j; k]
+
+            state(CHF_IX[i;j;k],n)
+     &        = state(CHF_IX[i-ii;j-jj;k-kk],n)
+
+          CHF_ENDDO
+        enddo
+
+      elseif (order .eq. 1) then
+
+        do n = 0, ncomp-1
+          CHF_MULTIDO[toRegion; i; j; k]
+
+            state(CHF_IX[i;j;k],n)
+     &        = two * state(CHF_IX[i-  ii;j-  jj;k-  kk],n)
+     &        -       state(CHF_IX[i-2*ii;j-2*jj;k-2*kk],n)
+
+          CHF_ENDDO
+        enddo
+
+      elseif (order .eq. 2) then
+
+        do n = 0, ncomp-1
+          CHF_MULTIDO[toRegion; i; j; k]
+
+            state(CHF_IX[i;j;k],n)
+     &        = three * (  state(CHF_IX[i-  ii;j-  jj;k-  kk],n)
+     &                   - state(CHF_IX[i-2*ii;j-2*jj;k-2*kk],n)  )
+     &        + state(CHF_IX[i-3*ii;j-3*jj;k-3*kk],n)
+
+          CHF_ENDDO
+        enddo
+
+      elseif (order .eq. 3) then
+
+        do n = 0, ncomp-1
+          CHF_MULTIDO[toRegion; i; j; k]
+
+            state(CHF_IX[i;j;k],n)
+     &        = four * (  state(CHF_IX[i-  ii;j-  jj;k-  kk],n)
+     &                  + state(CHF_IX[i-3*ii;j-3*jj;k-3*kk],n)  )
+     &        - six * state(CHF_IX[i-2*ii;j-2*jj;k-2*kk],n)
+     &        -       state(CHF_IX[i-4*ii;j-4*jj;k-4*kk],n)
+
+          CHF_ENDDO
+        enddo
+
+      elseif (order .eq. 4) then
+
+        do n = 0, ncomp-1
+          CHF_MULTIDO[toRegion; i; j; k]
+
+            state(CHF_IX[i;j;k],n)
+     &        = five * (  state(CHF_IX[i-  ii;j-  jj;k-  kk],n)
+     &                  - state(CHF_IX[i-4*ii;j-4*jj;k-4*kk],n)  )
+     &        + ten  * (  state(CHF_IX[i-3*ii;j-3*jj;k-3*kk],n)
+     &                  - state(CHF_IX[i-2*ii;j-2*jj;k-2*kk],n)  )
+     &        + state(CHF_IX[i-5*ii;j-5*jj;k-5*kk],n)
+
+          CHF_ENDDO
+        enddo
+
+      else
+         print*, 'BCTools_ExtrapSide: order ', order, ' is invalid'
+         call MAYDAYERROR()
+      endif
+
+      return
+      end
+
+
+C     ------------------------------------------------------------------
+      subroutine BCTools_ExtrapEdge (
+     &     CHF_FRA[state],
+     &     CHF_BOX[edgeBox],
+     &     CHF_CONST_INT[adir],
+     &     CHF_CONST_INT[asidesign],
+     &     CHF_CONST_INT[bdir],
+     &     CHF_CONST_INT[bsidesign],
+     &     CHF_CONST_INT[order])
+
+      integer n,ncomp
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[ai;aj;ak]
+      integer CHF_DDECL[bi;bj;bk]
+      REAL_T  aval, bval
+
+      ncomp = CHF_NCOMP[state]
+
+      CHF_DTERM[
+      ai = -asidesign * CHF_ID(adir,0);
+      aj = -asidesign * CHF_ID(adir,1);
+      ak = -asidesign * CHF_ID(adir,2)]
+
+      CHF_DTERM[
+      bi = -bsidesign * CHF_ID(bdir,0);
+      bj = -bsidesign * CHF_ID(bdir,1);
+      bk = -bsidesign * CHF_ID(bdir,2)]
+
+      if (order .eq. 0) then
+
+        do n = 0, ncomp-1
+          CHF_MULTIDO[edgeBox; i; j; k]
+            aval = state(CHF_IX[i+ai;j+aj;k+ak],n)
+            bval = state(CHF_IX[i+bi;j+bj;k+bk],n)
+
+            state(CHF_IX[i;j;k],n) = half * (aval + bval)
+          CHF_ENDDO
+        enddo
+
+      elseif (order .eq. 1) then
+
+        do n = 0, ncomp-1
+          CHF_MULTIDO[edgeBox; i; j; k]
+            aval = two * state(CHF_IX[i+  ai;j+  aj;k+  ak],n)
+     &           -       state(CHF_IX[i+2*ai;j+2*aj;k+2*ak],n)
+
+            bval = two * state(CHF_IX[i+  bi;j+  bj;k+  bk],n)
+     &           -       state(CHF_IX[i+2*bi;j+2*bj;k+2*bk],n)
+
+            state(CHF_IX[i;j;k],n) = half * (aval + bval)
+          CHF_ENDDO
+        enddo
+
+      elseif (order .eq. 2) then
+
+        do n = 0, ncomp-1
+          CHF_MULTIDO[edgeBox; i; j; k]
+            aval = three * state(CHF_IX[i+  ai;j+  aj;k+  ak],n)
+     &           - three * state(CHF_IX[i+2*ai;j+2*aj;k+2*ak],n)
+     &           +         state(CHF_IX[i+3*ai;j+3*aj;k+3*ak],n)
+
+            bval = three * state(CHF_IX[i+  bi;j+  bj;k+  bk],n)
+     &           - three * state(CHF_IX[i+2*bi;j+2*bj;k+2*bk],n)
+     &           +         state(CHF_IX[i+3*bi;j+3*bj;k+3*bk],n)
+
+            state(CHF_IX[i;j;k],n) = half * (aval + bval)
+          CHF_ENDDO
+        enddo
+
+      else
+         print*, 'BCTools_ExtrapSide: order ', order, ' is invalid'
+         call MAYDAYERROR()
+      endif
+
+      return
+      end
+
+
+C     ------------------------------------------------------------------
+C     Uses alpha*phi + beta*dphi/dn = BC to fill ghosts within ghostBox.
+C     Careful, dphi/dn is an outward normal derivative.
+C
+C     Once discretized, the formula used is
+C        Cg * phi_g = Cv * phi_v + Cb
+C     where
+C        phi_g  = the ghost value to be set
+C        phi_v  = the valid data that abuts the ghost
+C        Cg     =  [alpha * dx + 2*beta]
+C        Cv     = -[alpha * dx - 2*beta]
+C        Cb     = 2*dx*BC
+C        dx     = dx/dXi * dXi at the boundary face.
+C
+C     phi, alpha, beta, and BC must have the same number of components.
+C     Although BC and dx contain values centered at the boundary face,
+C       they must be shifted to ghostBox to ease the computation.
+C     alpha and beta must also exist within ghostBox.
+C     bdir = the boundary direction
+C     bsign = +1 for the upper boundary, -1 for the lower boundary.
+C     homogBCs = non-zero for homogeneous BCs, zero for homogeneous BCs.
+C     ------------------------------------------------------------------
+      subroutine BCTools_FillGhostCells_MixedBC_1Cell (
+     &     CHF_FRA[phi],
+     &     CHF_CONST_FRA[alpha],
+     &     CHF_CONST_FRA[beta],
+     &     CHF_CONST_FRA[BC],
+     &     CHF_CONST_FRA1[dx],
+     &     CHF_BOX[ghostBox],
+     &     CHF_CONST_INT[bdir],
+     &     CHF_CONST_INT[bsign],
+     &     CHF_CONST_INT[homogBCs])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer comp, ncomps
+      REAL_T cg, c0
+      REAL_T bcVal, p0
+      REAL_T a, b
+
+      ncomps = CHF_NCOMP[phi]
+      CHF_AUTOID[ii; bdir; bsign]
+
+      if (homogBCs.eq.0) then
+        ! Non-homogeneous BCs.
+        do comp = 0, ncomps - 1
+          CHF_AUTOMULTIDO[ghostBox; i]
+            bcVal = BC(CHF_AUTOIX[i], comp)
+            p0 = phi(CHF_OFFSETIX[i; -1*ii], comp)
+
+            a = alpha(CHF_AUTOIX[i], comp) / 2.0
+            b =  beta(CHF_AUTOIX[i], comp) / dx(CHF_AUTOIX[i])
+
+            cg =  a + b
+            c0 =  a - b
+
+            phi(CHF_AUTOIX[i], comp) = -(c0*p0-bcVal)/cg
+          CHF_ENDDO
+        enddo
+      else
+        ! Homogeneous BCs.
+        do comp = 0, ncomps - 1
+          CHF_AUTOMULTIDO[ghostBox; i]
+            p0 = phi(CHF_OFFSETIX[i; -1*ii], comp)
+
+            a = alpha(CHF_AUTOIX[i], comp) / 2.0
+            b =  beta(CHF_AUTOIX[i], comp) / dx(CHF_AUTOIX[i])
+
+            cg =  a + b
+            c0 =  a - b
+
+            phi(CHF_AUTOIX[i], comp) = -(c0*p0)/cg
+          CHF_ENDDO
+          enddo
+        endif
+
+      return
+      end
+
+C     ------------------------------------------------------------------
+      subroutine BCTools_FillGhostCells_MixedBC_2Cells (
+     &     CHF_FRA[phi],
+     &     CHF_CONST_FRA[alpha],
+     &     CHF_CONST_FRA[beta],
+     &     CHF_CONST_FRA[BC],
+     &     CHF_CONST_FRA1[dx],
+     &     CHF_BOX[ghostBox],
+     &     CHF_CONST_INT[bdir],
+     &     CHF_CONST_INT[bsign],
+     &     CHF_CONST_INT[homogBCs])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer comp, ncomps
+      REAL_T cg, c0, c1
+      REAL_T bcVal, p0, p1
+      REAL_T a, b
+
+      ncomps = CHF_NCOMP[phi]
+      CHF_AUTOID[ii; bdir; bsign]
+
+      if (homogBCs.eq.0) then
+        ! Non-homogeneous BCs.
+        do comp = 0, ncomps - 1
+          CHF_AUTOMULTIDO[ghostBox; i]
+            bcVal = BC(CHF_AUTOIX[i], comp)
+            p0 = phi(CHF_OFFSETIX[i; -1*ii], comp)
+            p1 = phi(CHF_OFFSETIX[i; -2*ii], comp)
+
+            a = alpha(CHF_AUTOIX[i], comp) / 8.0
+            b =  beta(CHF_AUTOIX[i], comp) / dx(CHF_AUTOIX[i])
+
+            cg =  3.0 * a + b
+            c0 =  6.0 * a - b
+            c1 = -1.0 * a
+
+            phi(CHF_AUTOIX[i], comp) = -(c0*p0+c1*p1-bcVal)/cg
+          CHF_ENDDO
+        enddo
+      else
+        ! Homogeneous BCs. TODO: Simplify
+        do comp = 0, ncomps - 1
+            CHF_AUTOMULTIDO[ghostBox; i]
+            p0 = phi(CHF_OFFSETIX[i; -1*ii], comp)
+            p1 = phi(CHF_OFFSETIX[i; -2*ii], comp)
+
+            a = alpha(CHF_AUTOIX[i], comp) / 8.0
+            b =  beta(CHF_AUTOIX[i], comp) / dx(CHF_AUTOIX[i])
+
+            cg =  3.0 * a + b
+            c0 =  6.0 * a - b
+            c1 = -1.0 * a
+
+            phi(CHF_AUTOIX[i], comp) = -(c0*p0+c1*p1)/cg
+            CHF_ENDDO
+          enddo
+        endif
+
+      return
+      end
+
+
+    !   subroutine BCTools_FillGhostCells_MixedBC_4Cells (
+    !  &     CHF_FRA[phi],
+    !  &     CHF_CONST_FRA[alpha],
+    !  &     CHF_CONST_FRA[beta],
+    !  &     CHF_CONST_FRA[BC],
+    !  &     CHF_CONST_FRA1[dx],
+    !  &     CHF_BOX[ghostBox],
+    !  &     CHF_CONST_INT[bdir],
+    !  &     CHF_CONST_INT[bsign],
+    !  &     CHF_CONST_INT[homogBCs])
+
+    !   integer CHF_AUTODECL[i]
+    !   integer CHF_AUTODECL[ii]
+    !   integer comp, ncomps
+    !   REAL_T cg, c0, c1, c2, c3
+    !   REAL_T bcVal, p0, p1, p2, p3
+    !   REAL_T a, b
+
+    !   ncomps = CHF_NCOMP[phi]
+    !   CHF_AUTOID[ii; bdir; bsign]
+
+    !   if (homogBCs.eq.0) then
+    !     ! Non-homogeneous BCs.
+    !     do comp = 0, ncomps - 1
+    !       CHF_AUTOMULTIDO[ghostBox; i]
+    !         bcVal = BC(CHF_AUTOIX[i], comp)
+    !         p0  = phi(CHF_OFFSETIX[i; -1*ii], comp)
+    !         p1  = phi(CHF_OFFSETIX[i; -2*ii], comp)
+    !         p2  = phi(CHF_OFFSETIX[i; -3*ii], comp)
+    !         p3  = phi(CHF_OFFSETIX[i; -4*ii], comp)
+
+    !         a = alpha(CHF_AUTOIX[i], comp) / 128.0
+    !         b = beta(CHF_AUTOIX[i], comp) / (24.0 * dx(CHF_AUTOIX[i]))
+
+    !         cg =  35.0 * a - 22.0 * b
+    !         c0 = 140.0 * a + 17.0 * b
+    !         c1 = -70.0 * a +  9.0 * b
+    !         c2 =  28.0 * a -  5.0 * b
+    !         c3 =  -5.0 * a +  1.0 * b
+
+    !         phi(CHF_AUTOIX[i], comp) = -(c0*p0+c1*p1+c2*p2+c3*p3-bcVal)/cg
+    !       CHF_ENDDO
+    !     enddo
+    !   else
+    !     ! Homogeneous BCs. TODO: Simplify
+    !     do comp = 0, ncomps - 1
+    !         CHF_AUTOMULTIDO[ghostBox; i]
+    !           p0  = phi(CHF_OFFSETIX[i; -1*ii], comp)
+    !           p1  = phi(CHF_OFFSETIX[i; -2*ii], comp)
+    !           p2  = phi(CHF_OFFSETIX[i; -3*ii], comp)
+    !           p3  = phi(CHF_OFFSETIX[i; -4*ii], comp)
+
+    !           a = alpha(CHF_AUTOIX[i], comp) / 128.0
+    !           b = beta(CHF_AUTOIX[i], comp) / (24.0 * dx(CHF_AUTOIX[i]))
+
+    !           cg =  35.0 * a - 22.0 * b
+    !           c0 = 140.0 * a + 17.0 * b
+    !           c1 = -70.0 * a +  9.0 * b
+    !           c2 =  28.0 * a -  5.0 * b
+    !           c3 =  -5.0 * a +  1.0 * b
+
+    !           phi(CHF_AUTOIX[i], comp) = -(c0*p0+c1*p1+c2*p2+c3*p3)/cg
+    !         CHF_ENDDO
+    !       enddo
+    !     endif
+
+    !   return
+    !   end
+
+
+
+C     ------------------------------------------------------------------
+C     Uses alpha*phi + beta*dphi/dn = BC to fill ghosts within bdryFaceBox.
+C     Careful, dphi/dn is an outward normal derivative.
+C
+C     Once discretized, the formula used is
+C        C0 * phi_b = C1 * phi_n + C2 * phi_f + Cb
+C     where
+C        |-------|-------B = physical boundary
+C        2       1       0
+C
+C        phi_0  = phi at the physical boundary
+C        phi_1  = phi data one layer within the valid region (n = near)
+C        phi_2  = phi data two layers within the valid region (f = far)
+C        C0     = [2*dx*alpha - 3*beta]
+C        C1     = 4*beta
+C        C2     = -beta
+C        Cb     = 2*dx*BC
+C        dx     = dx/dXi * dXi at the boundary face.
+C
+C     phi, alpha, beta, and BC must have the same number of components.
+C     alpha, beta, BC, and dx must be centered at the boundary faces.
+C     bdir = the boundary direction
+C     bsign = +1 for the upper boundary, -1 for the lower boundary.
+C     homogBCs = non-zero for homogeneous BCs, zero for homogeneous BCs.
+C     ------------------------------------------------------------------
+      subroutine BCTools_FillBdryFaces_MixedBC_1Cell (
+     &     CHF_FRA[phi],
+     &     CHF_CONST_FRA[alpha],
+     &     CHF_CONST_FRA[beta],
+     &     CHF_CONST_FRA[BC],
+     &     CHF_CONST_FRA1[dx],
+     &     CHF_BOX[bdryFaceBox],
+     &     CHF_CONST_INT[bdir],
+     &     CHF_CONST_INT[bsign],
+     &     CHF_CONST_INT[homogBCs])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer comp, ncomps
+      REAL_T cg, p1
+      REAL_T betaVal, bcVal
+
+      ncomps = CHF_NCOMP[phi]
+      CHF_AUTOID[ii; bdir; bsign]
+
+      if (homogBCs.eq.0) then
+        ! Non-homogeneous BCs.
+        do comp = 0, ncomps - 1
+          CHF_AUTOMULTIDO[bdryFaceBox; i]
+            bcVal   = BC(CHF_AUTOIX[i], comp)
+            p1      = phi(CHF_OFFSETIX[i; -ii], comp)
+            betaVal = beta(CHF_AUTOIX[i], comp) / dx(CHF_AUTOIX[i])
+            cg      = alpha(CHF_AUTOIX[i], comp) + betaVal
+
+            phi(CHF_AUTOIX[i], comp) = (bcVal + betaVal*p1) / cg
+          CHF_ENDDO
+        enddo
+      else
+        ! Homogeneous BCs.
+        do comp = 0, ncomps - 1
+          CHF_AUTOMULTIDO[bdryFaceBox; i]
+            p1      = phi(CHF_OFFSETIX[i; -ii], comp)
+            betaVal = beta(CHF_AUTOIX[i], comp) / dx(CHF_AUTOIX[i])
+            cg      = alpha(CHF_AUTOIX[i], comp) + betaVal
+
+            phi(CHF_AUTOIX[i], comp) = betaVal*p1 / cg
+        CHF_ENDDO
+        enddo
+      endif
+
+      return
+      end
+
+
+C     ------------------------------------------------------------------
+      subroutine BCTools_FillBdryFaces_MixedBC_2Cells (
+     &     CHF_FRA[phi],
+     &     CHF_CONST_FRA[alpha],
+     &     CHF_CONST_FRA[beta],
+     &     CHF_CONST_FRA[BC],
+     &     CHF_CONST_FRA1[dx],
+     &     CHF_BOX[bdryFaceBox],
+     &     CHF_CONST_INT[bdir],
+     &     CHF_CONST_INT[bsign],
+     &     CHF_CONST_INT[homogBCs])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer comp, ncomps
+      REAL_T cg, p1, p2
+      REAL_T betaVal, bcVal
+
+      ncomps = CHF_NCOMP[phi]
+      CHF_AUTOID[ii; bdir; bsign]
+
+      if (homogBCs.eq.0) then
+        ! Non-homogeneous BCs.
+        do comp = 0, ncomps - 1
+          CHF_AUTOMULTIDO[bdryFaceBox; i]
+            bcVal   = BC(CHF_AUTOIX[i], comp)
+            p1      = phi(CHF_OFFSETIX[i; -ii], comp)
+            p2      = phi(CHF_OFFSETIX[i; -2*ii], comp)
+            betaVal = half * beta(CHF_AUTOIX[i], comp) / dx(CHF_AUTOIX[i])
+            cg      = alpha(CHF_AUTOIX[i], comp) + three * betaVal
+
+            phi(CHF_AUTOIX[i], comp) = (bcVal + betaVal*(four*p1-p2)) / cg
+          CHF_ENDDO
+        enddo
+      else
+        ! Homogeneous BCs.
+        do comp = 0, ncomps - 1
+          CHF_AUTOMULTIDO[bdryFaceBox; i]
+            p1      = phi(CHF_OFFSETIX[i; -ii], comp)
+            p2      = phi(CHF_OFFSETIX[i; -2*ii], comp)
+            betaVal = half * beta(CHF_AUTOIX[i], comp) / dx(CHF_AUTOIX[i])
+            cg      = alpha(CHF_AUTOIX[i], comp) + three * betaVal
+
+            phi(CHF_AUTOIX[i], comp) = betaVal*(four*p1-p2) / cg
+        CHF_ENDDO
+        enddo
+      endif
+
+      return
+      end
+
+

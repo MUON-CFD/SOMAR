@@ -1,0 +1,66 @@
+C*******************************************************************************
+C  SOMAR - Stratified Ocean Model with Adaptive Refinement
+C  Developed by Ed Santilli & Alberto Scotti
+C  Copyright (C) 2017
+C    Jefferson (dataladeldataa University + Thomas Jefferson University) and
+C    University of North Carolina at Chapel Hill
+C
+C  This library is free software; you can redistribute it and/or
+C  modify it under the terms of the GNU Lesser General Public
+C  License as published by the Free Software Foundation; either
+C  version 2.1 of the License, or (at your option) any later version.
+C
+C  This library is distributed in the hope that it will be useful,
+C  but WITHOUT ANY WARRANTY; without even the implied warranty of
+C  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+C  Lesser General Public License for more details.
+C
+C  You should have received a copy of the GNU Lesser General Public
+C  License along with this library; if not, write to the Free Software
+C  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+C  USA
+C
+C  For up-to-date contact information, please visit the repository homepage,
+C  https://github.com/somarhub.
+C*******************************************************************************
+#include "CONSTANTS.H"
+
+
+C     ------------------------------------------------------------------
+C     Analysis_pNormAccumulator
+C     Simply adds (data**p)*vol to sum.
+C     ------------------------------------------------------------------
+      subroutine Analysis_pNormAccumulator (
+     &     CHF_REAL[sum],
+     &     CHF_CONST_FRA1[data],
+     &     CHF_CONST_FRA1[J],
+     &     CHF_BOX[region],
+     &     CHF_CONST_INT[p])
+
+      integer CHF_AUTODECL[i]
+      REAL_T dataVal
+
+      if (p .eq. 0) then
+        CHF_AUTOMULTIDO[region;i]
+          sum = max( sum, abs(data(CHF_AUTOIX[i])) )
+        CHF_ENDDO
+
+      else if (p .eq. 1) then
+        CHF_AUTOMULTIDO[region;i]
+          sum = sum + abs( data(CHF_AUTOIX[i]) * J(CHF_AUTOIX[i]) )
+        CHF_ENDDO
+
+      else if (p .eq. 2) then
+        CHF_AUTOMULTIDO[region;i]
+          dataVal = data(CHF_AUTOIX[i])
+          sum = sum + dataVal * dataVal * J(CHF_AUTOIX[i])
+        CHF_ENDDO
+
+      else
+        CHF_AUTOMULTIDO[region;i]
+          sum = sum + abs( data(CHF_AUTOIX[i])**DBLE(p) * J(CHF_AUTOIX[i]) )
+        CHF_ENDDO
+      endif
+
+      return
+      end

@@ -1,0 +1,317 @@
+#include "CONSTANTS.H"
+#include "AddlFortranMacros.H"
+! #include "FiniteDiffStencil.H"
+
+
+! ! ! Second centered, first order biased...
+! ! ! I use these to greatly simplify the derivative stencils. Take a look at
+! ! ! what is in FiniteDiffF.f. I'm not coding that by hand!
+! ! #define CD0(i) (phi(OFFSET1(i,+dd)) - phi(OFFSET1(i,-dd)))
+! ! #define BD0(i) two*( phi(OFFSET0(i)) - phi(OFFSET1(i,-dd)))
+! ! #define FD0(i) two*(-phi(OFFSET0(i)) + phi(OFFSET1(i,+dd)))
+
+! ! #define CD1(i,fo) (phi(OFFSET2(i,+dd,fo)) - phi(OFFSET2(i,-dd,fo)))
+! ! #define BD1(i,fo) two*( phi(OFFSET1(i,fo)) - phi(OFFSET2(i,-dd,fo)))
+! ! #define FD1(i,fo) two*(-phi(OFFSET1(i,fo)) + phi(OFFSET2(i,+dd,fo)))
+
+
+! ! All second order...
+! ! I use these to greatly simplify the derivative stencils. Take a look at
+! ! what is in FiniteDiffF.f. I'm not coding that by hand!
+! #define CD0(i) (phi(OFFSET1(i,+dd)) - phi(OFFSET1(i,-dd)))
+! #define BD0(i) ( three*phi(OFFSET0(i)) - four*phi(OFFSET1(i,-dd)) + phi(OFFSET1(i,-2*dd)))
+! #define FD0(i) (-three*phi(OFFSET0(i)) + four*phi(OFFSET1(i,+dd)) - phi(OFFSET1(i,+2*dd)))
+
+! #define CD1(i,fo) (phi(OFFSET2(i,+dd,fo)) - phi(OFFSET2(i,-dd,fo)))
+! #define BD1(i,fo) ( three*phi(OFFSET1(i,fo)) - four*phi(OFFSET2(i,-dd,fo)) + phi(OFFSET2(i,-2*dd,fo)))
+! #define FD1(i,fo) (-three*phi(OFFSET1(i,fo)) + four*phi(OFFSET2(i,+dd,fo)) - phi(OFFSET2(i,+2*dd,fo)))
+
+
+!     ------------------------------------------------------------------
+!     Computes the divergence of FC fluxes over the CC box ccRegion.
+!     DIV[fluxes] = Sum of fluxes at faces of cell / dXi
+!
+!     This is the 2D version that applies itself to each cell in
+!     ccRegion and computes derivatives in the xi-eta plane.
+!     It can be used in 2D or 3D. In 3D, dXi(2) will be ignored.
+!
+!     Warnings:
+!       1. This function does NOT scale by J or Jinv.
+!       2. This function performs no error checking.
+!     ------------------------------------------------------------------
+      subroutine FiniteDiff_Div2D (
+     &    CHF_FRA[div],
+     &    CHF_CONST_FRA[flux0],
+     &    CHF_CONST_FRA[flux1],
+     &    CHF_BOX[ccRegion],
+     &    CHF_CONST_REALVECT[dXi],
+     &    CHF_CONST_REALVECT[mult])
+
+      REAL_T CHF_AUTODECL[dxinv]
+      integer CHF_DDECL[i;j;k]
+      integer n,ncomp
+
+      ncomp = CHF_NCOMP[div]
+
+      CHF_DTERM[
+      dxinv0 = mult(0) / dXi(0);
+      dxinv1 = mult(1) / dXi(1);]
+
+      do n = 0, ncomp-1
+        CHF_MULTIDO[ccRegion; i; j; k]
+          div(CHF_IX[i;j;k],n) = CHF_DTERM[
+     &        (flux0(CHF_IX[i+1;j  ;k  ],n) - flux0(CHF_IX[i;j;k],n)) * dxinv0;
+     &      + (flux1(CHF_IX[i  ;j+1;k  ],n) - flux1(CHF_IX[i;j;k],n)) * dxinv1;]
+        CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     Computes the divergence of FC fluxes over the CC box ccRegion.
+!     DIV[fluxes] = Sum of fluxes at faces of cell / dXi
+!
+!     This is the 3D version that applies itself to each cell in
+!     ccRegion. This function cannot be called in 2D.
+!
+!     Warnings:
+!       1. This function does NOT scale by J or Jinv.
+!       2. This function performs almost no error checking.
+!     ------------------------------------------------------------------
+      subroutine FiniteDiff_Div3D (
+     &    CHF_FRA[div],
+     &    CHF_CONST_FRA[flux0],
+     &    CHF_CONST_FRA[flux1],
+     &    CHF_CONST_FRA[flux2],
+     &    CHF_BOX[ccRegion],
+     &    CHF_CONST_REALVECT[dXi],
+     &    CHF_CONST_REALVECT[mult])
+
+      REAL_T CHF_AUTODECL[dxinv]
+      integer CHF_DDECL[i;j;k]
+      integer n,ncomp
+
+      ! This function would not make sense in 1D or 2D.
+      CH_assert(CH_SPACEDIM .eq. 3)
+
+      ncomp = CHF_NCOMP[div]
+
+      CHF_DTERM[
+      dxinv0 = mult(0) / dXi(0);
+      dxinv1 = mult(1) / dXi(1);
+      dxinv2 = mult(2) / dXi(2)]
+
+      do n = 0, ncomp-1
+        CHF_MULTIDO[ccRegion; i; j; k]
+          div(CHF_IX[i;j;k],n) = CHF_DTERM[
+     &        (flux0(CHF_IX[i+1;j  ;k  ],n) - flux0(CHF_IX[i;j;k],n)) * dxinv0;
+     &      + (flux1(CHF_IX[i  ;j+1;k  ],n) - flux1(CHF_IX[i;j;k],n)) * dxinv1;
+     &      + (flux2(CHF_IX[i  ;j  ;k+1],n) - flux2(CHF_IX[i;j;k],n)) * dxinv2;]
+        CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     This assumes pd is nodal in the derivDir.
+!     This will just use simple centered differencing.
+!     ------------------------------------------------------------------
+      subroutine FiniteDiff_PartialD_CC2NC (
+     &     CHF_FRA1[pd],
+     &     CHF_CONST_FRA1[phi],
+     &     CHF_CONST_INT[derivDir],
+     &     CHF_CONST_REAL[dx],
+     &     CHF_BOX[pdBox])
+
+      integer CHF_AUTODECL[i]
+      integer d ! The nodal dir, derivDir
+      integer CHF_AUTODECL[dd]
+      REAL_T  oneOnDx
+
+      d = derivDir
+      CHF_AUTOID[dd;d]
+
+      oneOnDx = one / dx
+
+      CHF_AUTOMULTIDO[pdBox;i]
+          pd(CHF_AUTOIX[i]) =
+     &        (phi(OFFSET0(i)) - phi(OFFSET1(i,-dd))) * oneOnDx
+      CHF_ENDDO
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     This version adds to pd.
+!     ------------------------------------------------------------------
+      subroutine FiniteDiff_AddPartialD_CC2NC (
+     &     CHF_FRA1[pd],
+     &     CHF_CONST_FRA1[phi],
+     &     CHF_CONST_INT[derivDir],
+     &     CHF_CONST_REAL[dx],
+     &     CHF_BOX[pdBox])
+
+      integer CHF_AUTODECL[i]
+      integer d ! The nodal dir, derivDir
+      integer CHF_AUTODECL[dd]
+      REAL_T  oneOnDx
+
+      d = derivDir
+      CHF_AUTOID[dd;d]
+
+      oneOnDx = one / dx
+
+      CHF_AUTOMULTIDO[pdBox;i]
+          pd(CHF_AUTOIX[i]) = pd(CHF_AUTOIX[i]) +
+     &        (phi(OFFSET0(i)) - phi(OFFSET1(i,-dd))) * oneOnDx
+      CHF_ENDDO
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     This assumes pd is cell-centered in the derivDir.
+!     This will just use simple centered differencing.
+!     ------------------------------------------------------------------
+      subroutine FiniteDiff_PartialD_NC2CC (
+     &     CHF_FRA1[pd],
+     &     CHF_CONST_FRA1[phi],
+     &     CHF_CONST_INT[derivDir],
+     &     CHF_CONST_REAL[dx],
+     &     CHF_BOX[pdBox])
+
+      integer CHF_AUTODECL[i]
+      integer d ! The FC dir, derivDir
+      integer CHF_AUTODECL[dd]
+      REAL_T  oneOnDx
+
+      d = derivDir
+      CHF_AUTOID[dd;d]
+
+      oneOnDx = one / dx
+
+      CHF_AUTOMULTIDO[pdBox;i]
+          pd(CHF_AUTOIX[i]) =
+     &        (phi(OFFSET1(i,+dd)) - phi(OFFSET0(i))) * oneOnDx
+      CHF_ENDDO
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     This version adds to pd.
+!     ------------------------------------------------------------------
+      subroutine FiniteDiff_AddPartialD_NC2CC (
+     &     CHF_FRA1[pd],
+     &     CHF_CONST_FRA1[phi],
+     &     CHF_CONST_INT[derivDir],
+     &     CHF_CONST_REAL[dx],
+     &     CHF_BOX[pdBox])
+
+      integer CHF_AUTODECL[i]
+      integer d ! The FC dir, derivDir
+      integer CHF_AUTODECL[dd]
+      REAL_T  oneOnDx
+
+      d = derivDir
+      CHF_AUTOID[dd;d]
+
+      oneOnDx = one / dx
+
+      CHF_AUTOMULTIDO[pdBox;i]
+          pd(CHF_AUTOIX[i]) = pd(CHF_AUTOIX[i]) +
+     &        (phi(OFFSET1(i,+dd)) - phi(OFFSET0(i))) * oneOnDx
+      CHF_ENDDO
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+!     Computes pd = \partial_i phi of the CC phi.
+!     pd, phi, and the boxes must be cell-centered (CC).
+!     We will use a biased stencil in loBox and hiBox.
+!     Any of the boxes can be empty.
+!     dXi is the grid spacing in dir.
+!     ------------------------------------------------------------------
+      subroutine FiniteDiff_Slopes (
+     &     CHF_FRA1[pd],
+     &     CHF_CONST_FRA1[phi],
+     &     CHF_CONST_INT[dir],
+     &     CHF_CONST_REAL[dXi],
+     &     CHF_BOX[loBox],
+     &     CHF_BOX[centerBox],
+     &     CHF_BOX[hiBox])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[dd]
+      REAL_T  dXiScale
+
+      CHF_AUTOID[dd;dir]
+
+      dXiScale = half / dXi
+
+      CHF_AUTOMULTIDO[loBox;i]
+        pd(CHF_AUTOIX[i]) = ( - three * phi(OFFSET0(i))
+     &                        + four  * phi(OFFSET1(i,+dd))
+     &                        -         phi(OFFSET1(i,+2*dd)) )
+     &                    * dXiScale
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[centerBox;i]
+        pd(CHF_AUTOIX[i]) = ( + phi(OFFSET1(i,+dd))
+     &                        - phi(OFFSET1(i,-dd)) )
+     &                    * dXiScale
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[hiBox;i]
+        pd(CHF_AUTOIX[i]) = ( + three * phi(OFFSET0(i))
+     &                        - four  * phi(OFFSET1(i,-dd))
+     &                        +         phi(OFFSET1(i,-2*dd)) )
+     &                    * dXiScale
+      CHF_ENDDO
+
+      return
+      end
+
+
+!     ------------------------------------------------------------------
+      subroutine FiniteDiff_AddSecondDifference (
+     &     CHF_FRA1[pd],
+     &     CHF_CONST_FRA1[phi],
+     &     CHF_CONST_INT[dir],
+     &     CHF_BOX[loBox],
+     &     CHF_BOX[centerBox],
+     &     CHF_BOX[hiBox],
+     &     CHF_CONST_REAL[scale])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      Real    lap
+
+      CHF_AUTOID[ii; dir]
+
+      CHF_AUTOMULTIDO[loBox; i]
+          lap = two*phi(CHF_AUTOIX[i]) - five*phi(CHF_OFFSETIX[i;+ii]) + four*phi(CHF_OFFSETIX[i;+2*ii]) - phi(CHF_OFFSETIX[i;+3*ii])
+          pd(CHF_AUTOIX[i]) = pd(CHF_AUTOIX[i]) + scale * lap
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[centerBox; i]
+          lap = phi(CHF_OFFSETIX[i;-ii]) - two*phi(CHF_AUTOIX[i]) + phi(CHF_OFFSETIX[i;+ii])
+          pd(CHF_AUTOIX[i]) = pd(CHF_AUTOIX[i]) + scale * lap
+      CHF_ENDDO
+
+      CHF_AUTOMULTIDO[hiBox; i]
+          lap = two*phi(CHF_AUTOIX[i]) - five*phi(CHF_OFFSETIX[i;-ii]) + four*phi(CHF_OFFSETIX[i;-2*ii]) - phi(CHF_OFFSETIX[i;-3*ii])
+          pd(CHF_AUTOIX[i]) = pd(CHF_AUTOIX[i]) + scale * lap
+      CHF_ENDDO
+
+      return
+      end
