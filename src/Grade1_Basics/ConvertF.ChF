@@ -1,0 +1,157 @@
+C*******************************************************************************
+C  SOMAR - Stratified Ocean Model with Adaptive Refinement
+C  Developed by Ed Santilli & Alberto Scotti
+C  Copyright (C) 2017
+C    Jefferson (Philadelphia University + Thomas Jefferson University) and
+C    University of North Carolina at Chapel Hill
+C
+C  This library is free software; you can redistribute it and/or
+C  modify it under the terms of the GNU Lesser General Public
+C  License as published by the Free Software Foundation; either
+C  version 2.1 of the License, or (at your option) any later version.
+C
+C  This library is distributed in the hope that it will be useful,
+C  but WITHOUT ANY WARRANTY; without even the implied warranty of
+C  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+C  Lesser General Public License for more details.
+C
+C  You should have received a copy of the GNU Lesser General Public
+C  License along with this library; if not, write to the Free Software
+C  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+C  USA
+C
+C  For up-to-date contact information, please visit the repository homepage,
+C  https://github.com/somarhub.
+C*******************************************************************************
+#include "CONSTANTS.H"
+#include "AddlFortranMacros.H"
+
+
+C ----------------------------------------------------------------
+C Convert_Simple
+C Averages src data and sends to dest with a different centering.
+C This function performs no error checking! You should use the
+C Convert class wrapper.
+C ----------------------------------------------------------------
+      subroutine Convert_Simple (
+     &      CHF_FRA1[dest],
+     &      CHF_BOX[destBox],
+     &      CHF_CONST_INTVECT[destBoxType],
+     &      CHF_CONST_FRA1[src],
+     &      CHF_CONST_INTVECT[srcBoxType])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer CHF_AUTODECL[jj]
+      integer srcTypeSum, destTypeSum, numAvgs
+      REAL_T scale
+
+#if CH_SPACEDIM == 3
+      integer CHF_AUTODECL[kk]
+#endif
+
+      destTypeSum = CHF_DTERM[destBoxType(0); +destBoxType(1); +destBoxType(2)]
+      srcTypeSum  = CHF_DTERM[ srcBoxType(0); + srcBoxType(1); + srcBoxType(2)]
+
+      CHF_DTERM[
+      ii0 = srcBoxType(0) - destBoxType(0);
+      ii1 = 0;
+      ii2 = 0]
+
+      CHF_DTERM[
+      jj0 = 0;
+      jj1 = srcBoxType(1) - destBoxType(1);
+      jj2 = 0]
+
+#if CH_SPACEDIM == 3
+      CHF_DTERM[
+      kk0 = 0;
+      kk1 = 0;
+      kk2 = srcBoxType(2) - destBoxType(2)]
+#endif
+
+      numAvgs = CHF_DTERM[abs(ii0); +abs(jj1); +abs(kk2)]
+
+      if (numAvgs .eq. 0) then
+        ! Average in 0 directions
+        CHF_AUTOMULTIDO[destBox;i]
+          dest(CHF_AUTOIX[i]) = src(CHF_AUTOIX[i])
+        CHF_ENDDO
+
+      else if (numAvgs .eq. 1) then
+        CHF_DTERM[
+        if (ii0 .gt. 0) then
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = FAVG1IX0(src,i)
+          CHF_ENDDO
+        else if (ii0 .lt. 0) then
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = BAVG1IX0(src,i)
+          CHF_ENDDO;
+        else if (jj1 .gt. 0) then
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = FAVG1IX1(src,i)
+          CHF_ENDDO
+        else if (jj1 .lt. 0) then
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = BAVG1IX1(src,i)
+          CHF_ENDDO;
+        else if (kk2 .gt. 0) then
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = FAVG1IX2(src,i)
+          CHF_ENDDO
+        else
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = BAVG1IX2(src,i)
+          CHF_ENDDO]
+        endif
+
+#if CH_SPACEDIM == 3
+      else if (numAvgs .eq. 2) then
+        ! Average in 2 directions
+        CHF_DTERM[
+        if (ii0 .eq. 0) then
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = AVG2IX(src,i,jj,kk)
+          CHF_ENDDO;
+        else if (jj1 .eq. 0) then
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = AVG2IX(src,i,kk,ii)
+          CHF_ENDDO;
+        else
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = AVG2IX(src,i,ii,jj)
+          CHF_ENDDO]
+        endif
+#endif
+
+      else
+        ! Average in all directions
+#if CH_SPACEDIM == 3
+        CHF_AUTOMULTIDO[destBox;i]
+          dest(CHF_AUTOIX[i]) = AVG3IX(src,i,ii,jj,kk)
+        CHF_ENDDO
+#else
+        if (ii0 .gt. 0 .and. jj1 .gt. 0) then
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = FFAVG2IX(src,i)
+          CHF_ENDDO
+        else if (ii0 .gt. 0 .and. jj1 .lt. 0) then
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = FBAVG2IX(src,i)
+          CHF_ENDDO
+        else if (ii0 .lt. 0 .and. jj1 .gt. 0) then
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = BFAVG2IX(src,i)
+          CHF_ENDDO
+        else
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = BBAVG2IX(src,i)
+          CHF_ENDDO
+        endif
+#endif
+      endif
+
+      return
+      end
+

@@ -1,0 +1,284 @@
+#include "TensorComp.H"
+
+
+c ----------------------------------------------------------------
+c Contract a matrix with a vector. This is set up to work
+c in-place if vi = vj.
+c ----------------------------------------------------------------
+      subroutine TensorComp_ContractMatrixVectorCC (
+     &      CHF_FRA[vi],
+     &      CHF_CONST_FRA[Mij],
+     &      CHF_CONST_FRA[vj],
+     &      CHF_BOX[region],
+     &      CHF_CONST_INT[jIsFastest])
+
+      integer CHF_AUTODECL[i]
+      REAL_T CHF_AUTODECL[wj]
+
+#     if CH_SPACEDIM == 2
+        if (jIsFastest .ne. 0) then
+          CHF_AUTOMULTIDO[region; i]
+            wj0 = vj(CHF_AUTOIX[i],0)
+            wj1 = vj(CHF_AUTOIX[i],1)
+
+            vi(CHF_AUTOIX[i],0) = Mij(CHF_AUTOIX[i],xxComp) * wj0
+     &                          + Mij(CHF_AUTOIX[i],xyComp) * wj1
+
+            vi(CHF_AUTOIX[i],1) = Mij(CHF_AUTOIX[i],yxComp) * wj0
+     &                          + Mij(CHF_AUTOIX[i],yyComp) * wj1
+          CHF_ENDDO
+        else
+          CHF_AUTOMULTIDO[region; i]
+            wj0 = vj(CHF_AUTOIX[i],0)
+            wj1 = vj(CHF_AUTOIX[i],1)
+
+            vi(CHF_AUTOIX[i],0) = Mij(CHF_AUTOIX[i],xxComp) * wj0
+     &                          + Mij(CHF_AUTOIX[i],yxComp) * wj1
+
+            vi(CHF_AUTOIX[i],1) = Mij(CHF_AUTOIX[i],xyComp) * wj0
+     &                          + Mij(CHF_AUTOIX[i],yyComp) * wj1
+          CHF_ENDDO
+        endif
+
+#     elif CH_SPACEDIM == 3
+
+        if (jIsFastest .ne. 0) then
+          CHF_AUTOMULTIDO[region; i]
+            wj0 = vj(CHF_AUTOIX[i],0)
+            wj1 = vj(CHF_AUTOIX[i],1)
+            wj2 = vj(CHF_AUTOIX[i],2)
+
+            vi(CHF_AUTOIX[i],0) = Mij(CHF_AUTOIX[i],xxComp) * wj0
+     &                          + Mij(CHF_AUTOIX[i],xyComp) * wj1
+     &                          + Mij(CHF_AUTOIX[i],xzComp) * wj2
+
+            vi(CHF_AUTOIX[i],1) = Mij(CHF_AUTOIX[i],yxComp) * wj0
+     &                          + Mij(CHF_AUTOIX[i],yyComp) * wj1
+     &                          + Mij(CHF_AUTOIX[i],yzComp) * wj2
+
+            vi(CHF_AUTOIX[i],2) = Mij(CHF_AUTOIX[i],zxComp) * wj0
+     &                          + Mij(CHF_AUTOIX[i],zyComp) * wj1
+     &                          + Mij(CHF_AUTOIX[i],zzComp) * wj2
+          CHF_ENDDO
+        else
+          CHF_AUTOMULTIDO[region; i]
+            wj0 = vj(CHF_AUTOIX[i],0)
+            wj1 = vj(CHF_AUTOIX[i],1)
+            wj2 = vj(CHF_AUTOIX[i],2)
+
+            vi(CHF_AUTOIX[i],0) = Mij(CHF_AUTOIX[i],xxComp) * wj0
+     &                          + Mij(CHF_AUTOIX[i],yxComp) * wj1
+     &                          + Mij(CHF_AUTOIX[i],zxComp) * wj2
+
+            vi(CHF_AUTOIX[i],1) = Mij(CHF_AUTOIX[i],xyComp) * wj0
+     &                          + Mij(CHF_AUTOIX[i],yyComp) * wj1
+     &                          + Mij(CHF_AUTOIX[i],zyComp) * wj2
+
+            vi(CHF_AUTOIX[i],2) = Mij(CHF_AUTOIX[i],xzComp) * wj0
+     &                          + Mij(CHF_AUTOIX[i],yzComp) * wj1
+     &                          + Mij(CHF_AUTOIX[i],zzComp) * wj2
+          CHF_ENDDO
+        endif
+
+#     else
+#       error Bad CH_SPACEDIM
+#     endif
+
+      return
+      end
+
+
+
+c ----------------------------------------------------------------------
+c Contract two matrices on only one index. This is set up to work
+c in-place if C = A or B. The second indices must be fastest.
+c Notation:
+c   C_ij = Sum_k [A_ik * B_kj]   if mode = 0
+c   C_ij = Sum_k [A_ik * B_jk]   if mode = 1
+c ----------------------------------------------------------------------
+      subroutine TensorComp_ContractMatrixMatrixCC (
+     &      CHF_FRA[C],
+     &      CHF_CONST_FRA[A],
+     &      CHF_CONST_FRA[B],
+     &      CHF_BOX[region],
+     &      CHF_CONST_INT[mode])
+
+      integer CHF_AUTODECL[i]
+
+#     if CH_SPACEDIM == 2
+        REAL_T CHF_AUTODECL[A0]
+        REAL_T CHF_AUTODECL[A1]
+        REAL_T CHF_AUTODECL[B0]
+        REAL_T CHF_AUTODECL[B1]
+
+        if (mode .eq. 0) then
+          ! C_ij = Sum_k [A_ik * B_kj]
+          CHF_AUTOMULTIDO[region; i]
+            A00 = A(CHF_AUTOIX[i],xxComp2D)
+            A10 = A(CHF_AUTOIX[i],yxComp2D)
+            A01 = A(CHF_AUTOIX[i],xyComp2D)
+            A11 = A(CHF_AUTOIX[i],yyComp2D)
+
+            B00 = B(CHF_AUTOIX[i],xxComp2D)
+            B10 = B(CHF_AUTOIX[i],yxComp2D)
+            B01 = B(CHF_AUTOIX[i],xyComp2D)
+            B11 = B(CHF_AUTOIX[i],yyComp2D)
+
+            C(CHF_AUTOIX[i],xxComp2D) = A00*B00 + A01*B10
+            C(CHF_AUTOIX[i],xyComp2D) = A00*B01 + A01*B11
+            C(CHF_AUTOIX[i],yxComp2D) = A10*B00 + A11*B10
+            C(CHF_AUTOIX[i],yyComp2D) = A10*B01 + A11*B11
+          CHF_ENDDO
+        else
+          ! C_ij = Sum_k [A_ik * B_jk]
+          CHF_AUTOMULTIDO[region; i]
+            A00 = A(CHF_AUTOIX[i],xxComp2D)
+            A10 = A(CHF_AUTOIX[i],yxComp2D)
+            A01 = A(CHF_AUTOIX[i],xyComp2D)
+            A11 = A(CHF_AUTOIX[i],yyComp2D)
+
+            B00 = B(CHF_AUTOIX[i],xxComp2D)
+            B10 = B(CHF_AUTOIX[i],yxComp2D)
+            B01 = B(CHF_AUTOIX[i],xyComp2D)
+            B11 = B(CHF_AUTOIX[i],yyComp2D)
+
+            C(CHF_AUTOIX[i],xxComp2D) = A00*B00 + A01*B01
+            C(CHF_AUTOIX[i],xyComp2D) = A00*B10 + A01*B11
+            C(CHF_AUTOIX[i],yxComp2D) = A10*B00 + A11*B01
+            C(CHF_AUTOIX[i],yyComp2D) = A10*B10 + A11*B11
+          CHF_ENDDO
+        endif
+
+#     elif CH_SPACEDIM == 3
+        REAL_T CHF_AUTODECL[A0]
+        REAL_T CHF_AUTODECL[A1]
+        REAL_T CHF_AUTODECL[A2]
+        REAL_T CHF_AUTODECL[B0]
+        REAL_T CHF_AUTODECL[B1]
+        REAL_T CHF_AUTODECL[B2]
+
+        if (mode .eq. 0) then
+          ! C_ij = Sum_k [A_ik * B_kj]
+          CHF_AUTOMULTIDO[region; i]
+            A00 = A(CHF_AUTOIX[i],xxComp3D)
+            A10 = A(CHF_AUTOIX[i],yxComp3D)
+            A20 = A(CHF_AUTOIX[i],zxComp3D)
+            A01 = A(CHF_AUTOIX[i],xyComp3D)
+            A11 = A(CHF_AUTOIX[i],yyComp3D)
+            A21 = A(CHF_AUTOIX[i],zyComp3D)
+            A02 = A(CHF_AUTOIX[i],xzComp3D)
+            A12 = A(CHF_AUTOIX[i],yzComp3D)
+            A22 = A(CHF_AUTOIX[i],zzComp3D)
+
+            B00 = B(CHF_AUTOIX[i],xxComp3D)
+            B10 = B(CHF_AUTOIX[i],yxComp3D)
+            B20 = B(CHF_AUTOIX[i],zxComp3D)
+            B01 = B(CHF_AUTOIX[i],xyComp3D)
+            B11 = B(CHF_AUTOIX[i],yyComp3D)
+            B21 = B(CHF_AUTOIX[i],zyComp3D)
+            B02 = B(CHF_AUTOIX[i],xzComp3D)
+            B12 = B(CHF_AUTOIX[i],yzComp3D)
+            B22 = B(CHF_AUTOIX[i],zzComp3D)
+
+            C(CHF_AUTOIX[i],xxComp3D) = A00*B00 + A01*B10 + A02*B20
+            C(CHF_AUTOIX[i],xyComp3D) = A00*B01 + A01*B11 + A02*B21
+            C(CHF_AUTOIX[i],xzComp3D) = A00*B02 + A01*B12 + A02*B22
+
+            C(CHF_AUTOIX[i],yxComp3D) = A10*B00 + A11*B10 + A12*B20
+            C(CHF_AUTOIX[i],yyComp3D) = A10*B01 + A11*B11 + A12*B21
+            C(CHF_AUTOIX[i],yzComp3D) = A10*B02 + A11*B12 + A12*B22
+
+            C(CHF_AUTOIX[i],zxComp3D) = A20*B00 + A21*B10 + A22*B20
+            C(CHF_AUTOIX[i],zyComp3D) = A20*B01 + A21*B11 + A22*B21
+            C(CHF_AUTOIX[i],zzComp3D) = A20*B02 + A21*B12 + A22*B22
+          CHF_ENDDO
+        else
+          ! C_ij = Sum_k [A_ik * B_jk]
+          CHF_AUTOMULTIDO[region; i]
+            A00 = A(CHF_AUTOIX[i],xxComp3D)
+            A10 = A(CHF_AUTOIX[i],yxComp3D)
+            A20 = A(CHF_AUTOIX[i],zxComp3D)
+            A01 = A(CHF_AUTOIX[i],xyComp3D)
+            A11 = A(CHF_AUTOIX[i],yyComp3D)
+            A21 = A(CHF_AUTOIX[i],zyComp3D)
+            A02 = A(CHF_AUTOIX[i],xzComp3D)
+            A12 = A(CHF_AUTOIX[i],yzComp3D)
+            A22 = A(CHF_AUTOIX[i],zzComp3D)
+
+            B00 = B(CHF_AUTOIX[i],xxComp3D)
+            B10 = B(CHF_AUTOIX[i],yxComp3D)
+            B20 = B(CHF_AUTOIX[i],zxComp3D)
+            B01 = B(CHF_AUTOIX[i],xyComp3D)
+            B11 = B(CHF_AUTOIX[i],yyComp3D)
+            B21 = B(CHF_AUTOIX[i],zyComp3D)
+            B02 = B(CHF_AUTOIX[i],xzComp3D)
+            B12 = B(CHF_AUTOIX[i],yzComp3D)
+            B22 = B(CHF_AUTOIX[i],zzComp3D)
+
+            C(CHF_AUTOIX[i],xxComp3D) = A00*B00 + A01*B01 + A02*B02
+            C(CHF_AUTOIX[i],xyComp3D) = A00*B10 + A01*B11 + A02*B12
+            C(CHF_AUTOIX[i],xzComp3D) = A00*B20 + A01*B21 + A02*B22
+
+            C(CHF_AUTOIX[i],yxComp3D) = A10*B00 + A11*B01 + A12*B02
+            C(CHF_AUTOIX[i],yyComp3D) = A10*B10 + A11*B11 + A12*B12
+            C(CHF_AUTOIX[i],yzComp3D) = A10*B20 + A11*B21 + A12*B22
+
+            C(CHF_AUTOIX[i],zxComp3D) = A20*B00 + A21*B01 + A22*B02
+            C(CHF_AUTOIX[i],zyComp3D) = A20*B10 + A21*B11 + A22*B12
+            C(CHF_AUTOIX[i],zzComp3D) = A20*B20 + A21*B21 + A22*B22
+          CHF_ENDDO
+        endif
+
+#     else
+#       error Bad CH_SPACEDIM
+#     endif
+
+      return
+      end
+
+
+c ----------------------------------------------------------------------
+c Sends M_ij to M_ji.
+c ----------------------------------------------------------------------
+      subroutine TensorComp_Transpose (
+     &      CHF_FRA[M],
+     &      CHF_BOX[region])
+
+      integer CHF_AUTODECL[i]
+
+#     if CH_SPACEDIM == 2
+        REAL_T M01, M10
+
+        CHF_AUTOMULTIDO[region; i]
+          M10 = M(CHF_AUTOIX[i],yxComp2D)
+          M01 = M(CHF_AUTOIX[i],xyComp2D)
+
+          M(CHF_AUTOIX[i],xyComp2D) = M10
+          M(CHF_AUTOIX[i],yxComp2D) = M01
+        CHF_ENDDO
+
+#     elif CH_SPACEDIM == 3
+        REAL_T M01, M10, M02, M20, M12, M21
+
+        CHF_AUTOMULTIDO[region; i]
+          M10 = M(CHF_AUTOIX[i],yxComp3D)
+          M01 = M(CHF_AUTOIX[i],xyComp3D)
+          M20 = M(CHF_AUTOIX[i],zxComp3D)
+          M02 = M(CHF_AUTOIX[i],xzComp3D)
+          M21 = M(CHF_AUTOIX[i],zyComp3D)
+          M12 = M(CHF_AUTOIX[i],yzComp3D)
+
+          M(CHF_AUTOIX[i],xyComp3D) = M10
+          M(CHF_AUTOIX[i],yxComp3D) = M01
+          M(CHF_AUTOIX[i],xzComp3D) = M20
+          M(CHF_AUTOIX[i],zxComp3D) = M02
+          M(CHF_AUTOIX[i],yzComp3D) = M21
+          M(CHF_AUTOIX[i],zyComp3D) = M12
+        CHF_ENDDO
+
+#     else
+#       error Bad CH_SPACEDIM
+#     endif
+
+      return
+      end

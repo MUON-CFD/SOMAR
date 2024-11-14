@@ -1,0 +1,345 @@
+C*******************************************************************************
+C  SOMAR - Stratified Ocean Model with Adaptive Refinement
+C  Developed by Ed Santilli & Alberto Scotti
+C  Copyright (C) 2017
+C    Jefferson (Philadelphia University + Thomas Jefferson University) and
+C    University of North Carolina at Chapel Hill
+C
+C  This library is free software; you can redistribute it and/or
+C  modify it under the terms of the GNU Lesser General Public
+C  License as published by the Free Software Foundation; either
+C  version 2.1 of the License, or (at your option) any later version.
+C
+C  This library is distributed in the hope that it will be useful,
+C  but WITHOUT ANY WARRANTY; without even the implied warranty of
+C  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+C  Lesser General Public License for more details.
+C
+C  You should have received a copy of the GNU Lesser General Public
+C  License along with this library; if not, write to the Free Software
+C  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+C  USA
+C
+C  For up-to-date contact information, please visit the repository homepage,
+C  https://github.com/somarhub.
+C*******************************************************************************
+#include "CONSTANTS.H"
+#include "AddlFortranMacros.H"
+
+
+! I don't see a speed increase in serial using this.
+C #define USE_BLAS_DAXPY_RIPOFF
+
+#ifdef USE_BLAS_DAXPY_RIPOFF
+c ----------------------------------------------------------------
+c AddProd2
+c Calculates dest = dest + p0 * p1
+c ----------------------------------------------------------------
+      subroutine AddProd2 (
+     &      CHF_FRA1[dest],
+     &      CHF_CONST_FRA1[p0],
+     &      CHF_CONST_FRA1[p1],
+     &      CHF_BOX[destBox])
+
+      integer CHF_AUTODECL[i]
+      integer m, n, lim1, lim2
+
+      n = idestBoxhi0 - idestBoxlo0 + 1
+      m = mod(n,4)
+      lim1 = idestBoxlo0 + m - 1
+      lim2 = lim1 + 1
+
+#if CH_SPACEDIM == 2
+      do i1 = idestBoxlo1,idestBoxhi1
+          if (m .ne. 0) then
+              do i0 = idestBoxlo0, lim1
+                dest(i0,i1) = dest(i0,i1) + p0(i0,i1) * p1(i0,i1)
+              enddo
+          end if
+
+          if (n .lt. 4) return
+
+          do i0 = lim2, idestBoxhi0, 4
+            dest(i0  ,i1) = dest(i0  ,i1) + p0(i0  ,i1) * p1(i0  ,i1)
+            dest(i0+1,i1) = dest(i0+1,i1) + p0(i0+1,i1) * p1(i0+1,i1)
+            dest(i0+2,i1) = dest(i0+2,i1) + p0(i0+2,i1) * p1(i0+2,i1)
+            dest(i0+3,i1) = dest(i0+3,i1) + p0(i0+3,i1) * p1(i0+3,i1)
+          enddo
+      enddo
+
+#else
+
+      do i2 = idestBoxlo2,idestBoxhi2
+      do i1 = idestBoxlo1,idestBoxhi1
+          if (m .ne. 0) then
+              do i0 = idestBoxlo0, lim1
+                dest(i0,i1,i2) = dest(i0,i1,i2) + p0(i0,i1,i2) * p1(i0,i1,i2)
+              enddo
+          end if
+
+          if (n .lt. 4) return
+
+          do i0 = lim2, idestBoxhi0, 4
+
+            dest(i0  ,i1,i2)=dest(i0  ,i1,i2)+p0(i0  ,i1,i2)*p1(i0  ,i1,i2)
+            dest(i0+1,i1,i2)=dest(i0+1,i1,i2)+p0(i0+1,i1,i2)*p1(i0+1,i1,i2)
+            dest(i0+2,i1,i2)=dest(i0+2,i1,i2)+p0(i0+2,i1,i2)*p1(i0+2,i1,i2)
+            dest(i0+3,i1,i2)=dest(i0+3,i1,i2)+p0(i0+3,i1,i2)*p1(i0+3,i1,i2)
+          enddo
+      enddo
+      enddo
+#endif
+
+      return
+      end
+
+#else
+
+c ----------------------------------------------------------------
+c AddProd2
+c Calculates dest = dest + p0 * p1
+c ----------------------------------------------------------------
+      subroutine AddProd2 (
+     &      CHF_FRA1[dest],
+     &      CHF_CONST_FRA1[p0],
+     &      CHF_CONST_FRA1[p1],
+     &      CHF_BOX[destBox])
+
+      integer CHF_AUTODECL[i]
+
+      CHF_AUTOMULTIDO[destBox;i]
+        dest(CHF_AUTOIX[i]) = dest(CHF_AUTOIX[i])
+     &                      + p0(CHF_AUTOIX[i]) * p1(CHF_AUTOIX[i])
+      CHF_ENDDO
+
+      return
+      end
+
+#endif
+
+
+c ----------------------------------------------------------------
+c SubProd2
+c Calculates dest = dest - p0 * p1
+c ----------------------------------------------------------------
+      subroutine SubProd2 (
+     &      CHF_FRA1[dest],
+     &      CHF_CONST_FRA1[p0],
+     &      CHF_CONST_FRA1[p1],
+     &      CHF_BOX[destBox])
+
+      integer CHF_AUTODECL[i]
+
+      CHF_AUTOMULTIDO[destBox;i]
+        dest(CHF_AUTOIX[i]) = dest(CHF_AUTOIX[i])
+     &                      - p0(CHF_AUTOIX[i]) * p1(CHF_AUTOIX[i])
+      CHF_ENDDO
+
+      return
+      end
+
+
+c ----------------------------------------------------------------
+c axby
+c Calculates dest = a*x + b*y over region.
+c This function assumes all FABs have the same number of comps.
+c ----------------------------------------------------------------
+      subroutine axby (
+     &      CHF_FRA[dest],
+     &      CHF_CONST_FRA[xx],
+     &      CHF_CONST_FRA[yy],
+     &      CHF_CONST_REAL[aa],
+     &      CHF_CONST_REAL[bb],
+     &      CHF_BOX[region])
+
+      integer CHF_AUTODECL[i]
+      integer comp
+
+      do comp = 0, CHF_NCOMP[dest] - 1
+          CHF_AUTOMULTIDO[region;i]
+            dest(CHF_AUTOIX[i], comp) = aa * xx(CHF_AUTOIX[i], comp)
+     &                                + bb * yy(CHF_AUTOIX[i], comp)
+          CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+c ----------------------------------------------------------------
+c  PowFab
+c  Simply replaces state with state**power
+c ----------------------------------------------------------------
+      subroutine PowFab (
+     &      CHF_FRA[state],
+     &      CHF_BOX[region],
+     &      CHF_CONST_REAL[power])
+
+      integer CHF_AUTODECL[i]
+      integer ncomp, comp
+      REAL_T, parameter :: SMALLVAL = 1.0d-12
+
+      ncomp = CHF_NCOMP[state]
+
+      if (abs(power-half) .le. SMALLVAL) then
+        do comp = 0, ncomp-1
+          CHF_AUTOMULTIDO[region;i]
+            state(CHF_AUTOIX[i],comp) = sqrt(state(CHF_AUTOIX[i],comp))
+          CHF_ENDDO
+        enddo
+      else
+        do comp = 0, ncomp-1
+          CHF_AUTOMULTIDO[region;i]
+            state(CHF_AUTOIX[i],comp) = state(CHF_AUTOIX[i],comp)**power
+          CHF_ENDDO
+        enddo
+      endif
+
+      return
+      end
+
+
+c ----------------------------------------------------------------
+c ECmultCC
+c Computes EC = EC * (alpha + beta*Av[CC])
+c ----------------------------------------------------------------
+      subroutine ECmultCC (
+     &      CHF_FRA1[ECdata],
+     &      CHF_CONST_FRA1[CCdata],
+     &      CHF_CONST_REAL[alpha],
+     &      CHF_CONST_REAL[beta],
+     &      CHF_BOX[ECregion],
+     &      CHF_CONST_INT[ECdir0],
+     &      CHF_CONST_INT[ECdir1])
+
+      integer :: CHF_AUTODECL[i]
+      integer :: CHF_AUTODECL[aa]
+      integer :: CHF_AUTODECL[bb]
+      REAL_T  :: fourthBeta, scale
+
+      CHF_AUTOID[aa; ECdir0]
+      CHF_AUTOID[bb; ECdir1]
+      fourthBeta = beta * fourth
+
+      CHF_AUTOMULTIDO[ECregion; i]
+
+        scale = CCdata(OFFSET0(i          ))
+     &        + CCdata(OFFSET1(i, -aa     ))
+     &        + CCdata(OFFSET1(i,      -bb))
+     &        + CCdata(OFFSET2(i, -aa, -bb))
+
+        scale = alpha + fourthBeta*scale
+
+        ECdata(CHF_AUTOIX[i]) = ECdata(CHF_AUTOIX[i]) * scale
+      CHF_ENDDO
+
+      return
+      end
+
+
+c ----------------------------------------------------------------
+c FCmultCC
+c Computes FC = FC * (alpha + beta*Av[CC])
+c ----------------------------------------------------------------
+      subroutine FCmultCC (
+     &      CHF_FRA1[FCdata],
+     &      CHF_CONST_FRA1[CCdata],
+     &      CHF_CONST_REAL[alpha],
+     &      CHF_CONST_REAL[beta],
+     &      CHF_BOX[FCregion],
+     &      CHF_CONST_INT[FCdir])
+
+      integer :: CHF_AUTODECL[i]
+      integer :: CHF_AUTODECL[ii]
+      REAL_T  :: halfbeta, scale
+
+      CHF_AUTOID[ii; FCdir]
+      halfbeta = beta * half
+
+      CHF_AUTOMULTIDO[FCregion; i]
+        scale = CCdata(CHF_AUTOIX[i]) + CCdata(CHF_OFFSETIX[i;-ii])
+        scale = alpha + halfbeta*scale
+        FCdata(CHF_AUTOIX[i]) = FCdata(CHF_AUTOIX[i]) * scale
+      CHF_ENDDO
+
+      return
+      end
+
+
+c ----------------------------------------------------------------
+c CCmultCC
+c Computes CC1 = CC1 * (alpha + beta*CC2)
+c ----------------------------------------------------------------
+      subroutine CCmultCC (
+     &      CHF_FRA1[CC1data],
+     &      CHF_CONST_FRA1[CC2data],
+     &      CHF_CONST_REAL[alpha],
+     &      CHF_CONST_REAL[beta],
+     &      CHF_BOX[region])
+
+      integer :: CHF_AUTODECL[i]
+      REAL_T  :: scale
+
+      CHF_AUTOMULTIDO[region; i]
+        scale = alpha + beta*CC2data(CHF_AUTOIX[i])
+        CC1data(CHF_AUTOIX[i]) = CC1data(CHF_AUTOIX[i]) * scale
+      CHF_ENDDO
+
+      return
+      end
+
+
+c ----------------------------------------------------------------
+c FCaddCC
+c Computes FC = FC + scale * Av[CC]
+c ----------------------------------------------------------------
+      subroutine FCaddCC (
+     &      CHF_FRA1[FCdata],
+     &      CHF_CONST_FRA1[CCdata],
+     &      CHF_CONST_REAL[scale],
+     &      CHF_BOX[FCregion],
+     &      CHF_CONST_INT[FCdir])
+
+      integer :: CHF_AUTODECL[i]
+      integer :: CHF_AUTODECL[ii]
+      REAL_T  :: halfscale
+
+      CHF_AUTOID[ii; FCdir]
+      halfscale = scale * half
+
+      CHF_AUTOMULTIDO[FCregion; i]
+        FCdata(CHF_AUTOIX[i]) = FCdata(CHF_AUTOIX[i])
+     &      + halfscale * (  CCdata(CHF_AUTOIX[i])
+     &                     + CCdata(CHF_OFFSETIX[i;-ii])  )
+      CHF_ENDDO
+
+      return
+      end
+
+
+c ----------------------------------------------------------------
+c CCaddFC
+c Computes CC = CC + scale * Av[FC]
+c ----------------------------------------------------------------
+      subroutine CCaddFC (
+     &      CHF_FRA1[CCdata],
+     &      CHF_CONST_FRA1[FCdata],
+     &      CHF_CONST_REAL[scale],
+     &      CHF_BOX[CCregion],
+     &      CHF_CONST_INT[FCdir])
+
+      integer :: CHF_AUTODECL[i]
+      integer :: CHF_AUTODECL[ii]
+      REAL_T  :: halfscale
+
+      CHF_AUTOID[ii; FCdir]
+      halfscale = scale * half
+
+      CHF_AUTOMULTIDO[CCregion; i]
+        CCdata(CHF_AUTOIX[i]) = CCdata(CHF_AUTOIX[i])
+     &      + halfscale * (  FCdata(CHF_OFFSETIX[i;+ii])
+     &                     + FCdata(CHF_AUTOIX[i])  )
+      CHF_ENDDO
+
+      return
+      end
