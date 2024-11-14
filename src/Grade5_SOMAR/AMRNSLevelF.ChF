@@ -1,0 +1,1232 @@
+!*******************************************************************************
+!  SOMAR - Stratified Ocean Model with Adaptive Refinement
+!  Developed by Ed Santilli & Alberto Scotti
+!  Copyright (C) 2023
+!    Jefferson (Philadelphia University + Thomas Jefferson University) and
+!    Arizona State University
+!
+!  This library is free software; you can redistribute it and/or
+!  modify it under the terms of the GNU Lesser General Public
+!  License as published by the Free Software Foundation; either
+!  version 2.1 of the License, or (at your option) any later version.
+!
+!  This library is distributed in the hope that it will be useful,
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+!  Lesser General Public License for more details.
+!
+!  You should have received a copy of the GNU Lesser General Public
+!  License along with this library; if not, write to the Free Software
+!  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+!  USA
+!
+!  For up-to-date contact information, please visit the repository homepage,
+!  https://github.com/somarhub.
+!*******************************************************************************
+#include "CONSTANTS.H"
+#include "TensorComp.H"
+#include "AddlFortranMacros.H"
+
+
+! ---------------------------------------------------------------------
+!     In 2D, wFAB will not be used.
+! ---------------------------------------------------------------------
+      subroutine AddKE (
+     &      CHF_FRA1[KEFAB],
+     &      CHF_CONST_FRA1[uFAB],
+     &      CHF_CONST_FRA1[vFAB],
+     &      CHF_CONST_FRA1[wFAB],
+     &      CHF_BOX[ccRegion])
+
+      integer CHF_DDECL[i;j;k]
+      REAL_T CHF_DDECL[ul; vl; wl]
+      REAL_T CHF_DDECL[ur; vr; wr]
+
+      CHF_MULTIDO[ccRegion;i;j;k]
+          ul = uFAB(CHF_IX[i  ;j  ;k  ]);
+          ur = uFAB(CHF_IX[i+1;j  ;k  ]);
+
+          vl = vFAB(CHF_IX[i  ;j  ;k  ]);
+          vr = vFAB(CHF_IX[i  ;j+1;k  ]);
+
+#if CH_SPACEDIM > 2
+          wl = wFAB(CHF_IX[i  ;j  ;k  ]);
+          wr = wFAB(CHF_IX[i  ;j  ;k+1]);
+#endif
+          KEFAB(CHF_IX[i;j;k]) =
+     &          KEFAB(CHF_IX[i;j;k])
+     &        + fourth * (CHF_DTERM[  ul*ul + ur*ur;
+     &                              + vl*vl + vr*vr;
+     &                              + wl*wl + wr*wr  ])
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ---------------------------------------------------------------------
+! ---------------------------------------------------------------------
+      subroutine AddGPE (
+     &      CHF_FRA1[energyFAB],
+     &      CHF_CONST_FRA1[bFAB],
+     &      CHF_CONST_FRA1[zFAB],
+     &      CHF_BOX[ccRegion])
+
+      integer CHF_DDECL[i;j;k]
+      REAL_T z
+
+      VERTDO(ccRegion,i,j,k)
+        z = zFAB(VERTIX(i,j,k))
+
+        HORIZDOY(ccRegion,i,j,k)
+          HORIZDOX(ccRegion,i,j,k)
+            energyFAB(CHF_IX[i;j;k]) = energyFAB(CHF_IX[i;j;k])
+     &                               + z * bFAB(CHF_IX[i;j;k])
+        CHF_ENDDO
+
+      return
+      end
+
+
+! ---------------------------------------------------------------------
+!     Uses APE = 0.5 * (bpert / N)^2
+!     NsqFAB must have horizontal indices = 0
+! ---------------------------------------------------------------------
+      subroutine AddAPE (
+     &      CHF_FRA1[EtotFAB],
+     &      CHF_CONST_FRA1[bpertFAB],
+     &      CHF_CONST_FRA1[NsqFAB],
+     &      CHF_BOX[ccRegion])
+
+      integer CHF_DDECL[i;j;k]
+      REAL_T b, halfOnNsq
+
+      VERTDO(ccRegion,i,j,k)
+        halfOnNsq = half / NsqFAB(VERTIX(i,j,k))
+
+        HORIZDOY(ccRegion,i,j,k)
+          HORIZDOX(ccRegion,i,j,k)
+            b = bpertFAB(CHF_IX[i;j;k])
+            EtotFAB(CHF_IX[i;j;k]) =
+     &          EtotFAB(CHF_IX[i;j;k]) + b * b * halfOnNsq
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ---------------------------------------------------------------------
+!     b = -alpha*g*T + beta*g*S
+! ---------------------------------------------------------------------
+      subroutine DefaultLinearEoS (
+     &      CHF_FRA1[bFAB],
+     &      CHF_CONST_FRA1[TFAB],
+     &      CHF_CONST_FRA1[SFAB],
+     &      CHF_BOX[region],
+     &      CHF_CONST_REAL[alphag],
+     &      CHF_CONST_REAL[betag])
+
+      integer CHF_AUTODECL[i]
+
+      CHF_AUTOMULTIDO[region; i]
+          bFAB(CHF_AUTOIX[i]) = -alphag * TFAB(CHF_AUTOIX[i])
+     &                        + betag * SFAB(CHF_AUTOIX[i])
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ---------------------------------------------------------------------
+! ---------------------------------------------------------------------
+      subroutine LinearStrat (
+     &      CHF_FRA1[qbar],
+     &      CHF_CONST_REAL[q0],
+     &      CHF_CONST_REAL[dqdz],
+     &      CHF_CONST_FRA1[zPos],
+     &      CHF_BOX[region])
+
+      integer :: CHF_DDECL[i; j; k]
+      REAL_T  :: z, qval
+
+      VERTDO(region,i,j,k)
+          qval = q0 + zPos(VERTIX(i,j,k)) * dqdz
+          HORIZDOY(region,i,j,k)
+            HORIZDOX(region,i,j,k)
+              qbar(CHF_IX[i;j;k]) = qval
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ----------------------------------------------------------------------
+! ----------------------------------------------------------------------
+      subroutine ComputeAdvectiveDt (
+     &      CHF_REAL[dt],
+     &      CHF_CONST_FRA1[fcCartU],
+     &      CHF_CONST_FRA1[fcCartV],
+     &      CHF_CONST_FRA1[fcCartW],  ! Not used in 2D
+     &      CHF_CONST_FRA[ccDXidx],
+     &      CHF_BOX[ccRegion],
+     &      CHF_CONST_REALVECT[dXi])
+
+      integer CHF_DDECL[i;j;k]
+      REAL_T CHF_DDECL[u;v;w]
+      REAL_T CHF_DDECL[idx;idy;idz]
+      REAL_T denom, ul, ur
+      REAL_T, parameter :: SMALLVAL = 1.0e-10
+
+      CHF_DTERM[
+      idx = one / dXi(0);
+      idy = one / dXi(1);
+      idz = one / dXi(2)]
+
+      CHF_MULTIDO[ccRegion;i;j;k]
+        denom = SMALLVAL
+
+        CHF_DTERM[
+        ul = abs(fcCartU(CHF_IX[i  ;j;k]))
+        ur = abs(fcCartU(CHF_IX[i+1;j;k]))
+        denom = denom + ccDXidx(CHF_IX[i;j;k],0) * max(ul,ur) * idx;
+
+        ul = abs(fcCartV(CHF_IX[i;j  ;k]))
+        ur = abs(fcCartV(CHF_IX[i;j+1;k]))
+        denom = denom + ccDXidx(CHF_IX[i;j;k],1) * max(ul,ur) * idy;
+
+        ul = abs(fcCartW(CHF_IX[i;j;k  ]))
+        ur = abs(fcCartW(CHF_IX[i;j;k+1]))
+        denom = denom + ccDXidx(CHF_IX[i;j;k],2) * max(ul,ur) * idz]
+
+        dt = min(dt, one/denom)
+      CHF_ENDDO
+
+      return
+      end
+
+! ----------------------------------------------------------------------
+!     Computes delta2 = 1 / (1/dx^2 + 1/dy^2 + 1/dz^2).
+!     delta2FAB and region must be CC.
+!     dxFAB must be CC in the x-dir and flat (j = k = 0) in the other dirs.
+!     dyFAB must be CC in the y-dir and flat (k = i = 0) in the other dirs.
+!     dzFAB must be CC in the z-dir and flat (i = j = 0) in the other dirs.
+!     In 2D, dzFAB will not be used, so send in anything.
+! ----------------------------------------------------------------------
+      subroutine ComputeDelta2ForDiffusiveDtLimit (
+     &      CHF_FRA1[delta2FAB],
+     &      CHF_CONST_FRA1[dxFAB],
+     &      CHF_CONST_FRA1[dyFAB],
+     &      CHF_CONST_FRA1[dzFAB],
+     &      CHF_BOX[region])
+
+      integer CHF_DDECL[i;j;k]
+      REAL_T  invDx2, invDy2, invDz2
+
+#if CH_SPACEDIM > 2
+      do k = CHF_LBOUND[region;2], CHF_UBOUND[region;2]
+        invDz2 = one / dzFAB(CHF_IX[0;0;k])**2
+#else
+        invDz2 = zero
+#endif
+
+        do j = CHF_LBOUND[region;1], CHF_UBOUND[region;1]
+            invDy2 = one / dyFAB(CHF_IX[0;j;0])**2
+
+            do i = CHF_LBOUND[region;0], CHF_UBOUND[region;0]
+                invDx2 = one / dxFAB(CHF_IX[i;0;0])**2
+
+                delta2FAB(CHF_IX[i;j;k]) = one / (invDx2 + invDy2 + invDz2)
+            enddo
+        enddo
+#if CH_SPACEDIM > 2
+      enddo
+#endif
+
+      return
+      end
+
+
+! ----------------------------------------------------------------------
+!     All FABs and region must have the same centering.
+! ----------------------------------------------------------------------
+      subroutine ComputeDiffusiveDt (
+     &      CHF_REAL[dt],
+     &      CHF_CONST_FRA1[delta2FAB],
+     &      CHF_CONST_REAL[kappa],
+     &      CHF_CONST_FRA1[nuTFAB],
+     &      CHF_CONST_REAL[eddyPrandtl],
+     &      CHF_BOX[region])
+
+      integer CHF_DDECL[i;j;k]
+      REAL_T  newDt, oneOnPr
+      REAL_T, parameter :: SMALLVAL = 1.0e-10
+
+      oneOnPr = 1.0 / eddyPrandtl
+
+      CHF_MULTIDO[region;i;j;k]
+        newDt = SMALLVAL + kappa + (nuTFAB(CHF_IX[i;j;k]) * oneOnPr)
+        newDt = fourth * delta2FAB(CHF_IX[i;j;k]) / newDt
+        dt = min(dt, newDt)
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ----------------------------------------------------------------
+!     Computes:
+!     1. c1^i = Max_j[c1 * dXi^i/dx^j)], j = horizontal dirs
+!     2. newMinDt = Min_i[dXi^i / (c1^i + |vel^i|)]
+! ----------------------------------------------------------------
+      subroutine ComputeMinBVDt (
+     &      CHF_REAL[minDt],
+     &      CHF_CONST_FRA[c1i],
+     &      CHF_CONST_FRA[vel],
+     &      CHF_CONST_REALVECT[dXi],
+     &      CHF_BOX[region])
+
+      integer CHF_AUTODECL[i]
+      REAL_T thisVel
+      REAL_T thisC1i
+      REAL_T totalVel(0:CH_SPACEDIM-1)
+      REAL_T, parameter :: SMALLVAL = 1.0e-12
+
+      CH_assert((CHF_NCOMP[c1i] .eq. CH_SPACEDIM))
+      CH_assert((CHF_NCOMP[vel] .eq. CH_SPACEDIM))
+
+      CHF_AUTOMULTIDO[region;i]
+        ! Add the advecting velocity
+        CHF_DTERM[
+        thisVel = vel(CHF_AUTOIX[i],0)
+        thisC1i = c1i(CHF_AUTOIX[i],0)
+        totalVel(0) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i));
+
+        thisVel = vel(CHF_AUTOIX[i],1)
+        thisC1i = c1i(CHF_AUTOIX[i],1)
+        totalVel(1) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i));
+
+        thisVel = vel(CHF_AUTOIX[i],2)
+        thisC1i = c1i(CHF_AUTOIX[i],2)
+        totalVel(2) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i))]
+
+        ! minDt = Min_i[dXi^i / totalVel]
+        CHF_DTERM[
+        if (totalVel(0) .ge. SMALLVAL) then
+          minDt = Min(minDt, dXi(0) / totalVel(0))
+        endif;
+        if (totalVel(1) .ge. SMALLVAL) then
+          minDt = Min(minDt, dXi(1) / totalVel(1))
+        endif;
+        if (totalVel(2) .ge. SMALLVAL) then
+          minDt = Min(minDt, dXi(2) / totalVel(2))
+        endif]
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ----------------------------------------------------------------------
+!     Fba   [  out]: The advective flux. Fab is overwritten.
+!     FbaBx [in   ]: The box on which we will compute Fba.
+!                    If adir == bdir, must be CC with 1 ghost in adir.
+!                    If adir != bdir, must be EC (nodal in adir and bdir)
+!                    with no ghosts.
+!     Jub   [in   ]: J * mapped advecting velocity, b-comp. FC in bdir.
+!     ua    [in   ]: Cartesian advected velocity, a-comp. FC in adir.
+!     J     [in   ]: The metric determinant. Defined on the same box as ua.
+!     bdir  [in   ]: Advecting velocity direction.
+!     adir  [in   ]: Advected velocity direction.
+!     dXib  [in   ]: The grid spacing in bdir.
+! ----------------------------------------------------------------------
+      subroutine momAdvFlux_SecondOrder (
+     &      CHF_FRA1[Fba],
+     &      CHF_BOX[FbaBx],
+     &      CHF_CONST_FRA1[Jub],  ! FC advecting vel
+     &      CHF_CONST_FRA1[ua],   ! FC cart vel
+     &      CHF_CONST_FRA1[J],    ! FC J
+     &      CHF_CONST_INT[bdir],
+     &      CHF_CONST_INT[adir],
+     &      CHF_CONST_REAL[dXib])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[aa]
+      integer CHF_AUTODECL[bb]
+      REAL_T JubVal, uaVal
+      REAL_T idxb, dFdb
+
+      CHF_AUTOID[aa; adir]
+      CHF_AUTOID[bb; bdir]
+
+      idxb = one / dXib
+
+      if (adir .eq. bdir) then
+        ! Compute normal flux -Jub*ua  (b = a)
+        CHF_AUTOMULTIDO[FbaBx; i]
+          JubVal = half * (Jub(OFFSET1(i,+bb)) + Jub(OFFSET0(i)))
+
+          uaVal  = (  J(OFFSET1(i,+aa))*ua(OFFSET1(i,+aa))
+     &              + J(OFFSET0(i    ))*ua(OFFSET0(i    ))  )
+     &             / (J(OFFSET1(i,+aa)) + J(OFFSET0(i)))
+
+          Fba(OFFSET0(i)) = -JubVal * uaVal
+        CHF_ENDDO
+
+      else
+        ! Compute transverse flux -Jub*ua  (b != a)
+        CHF_AUTOMULTIDO[FbaBx; i]
+          JubVal = half * (Jub(OFFSET0(i)) + Jub(OFFSET1(i,-aa)))
+
+          uaVal  = (  J(OFFSET0(i    ))*ua(OFFSET0(i    ))
+     &              + J(OFFSET1(i,-bb))*ua(OFFSET1(i,-bb))  )
+     &             / (J(OFFSET0(i)) + J(OFFSET1(i,-bb)))
+
+          Fba(OFFSET0(i)) = -JubVal * uaVal
+        CHF_ENDDO
+      endif
+
+      return
+      end
+
+
+! ----------------------------------------------------------------------
+!     Fba   [  out]: The advective flux. Fab is overwritten.
+!     FbaBx [in   ]: The box on which we will compute Fba.
+!                    If adir == bdir, must be CC with 1 ghost in adir.
+!                    If adir != bdir, must be EC (nodal in adir and bdir)
+!                    with no ghosts.
+!     Jub   [in   ]: J * mapped advecting velocity, b-comp. FC in bdir.
+!     ua    [in   ]: Cartesian advected velocity, a-comp. FC in adir.
+!     J     [in   ]: The metric determinant. Defined on the same box as ua.
+!     bdir  [in   ]: Advecting velocity direction.
+!     adir  [in   ]: Advected velocity direction.
+!     dXib  [in   ]: The grid spacing in bdir.
+! ----------------------------------------------------------------------
+      subroutine MomAdvFlux_FourthOrder (
+     &      CHF_FRA1[Fba],
+     &      CHF_BOX[FbaBx],
+     &      CHF_CONST_FRA1[Jub],  ! FC advectING vel
+     &      CHF_CONST_FRA1[ua],   ! FC Cartesian, advectED vel
+     &      CHF_CONST_FRA1[J],    ! FC J
+     &      CHF_CONST_INT[bdir],
+     &      CHF_CONST_INT[adir],
+     &      CHF_CONST_REAL[dXib])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[aa]
+      integer CHF_AUTODECL[bb]
+      REAL_T JubVal, uaVal
+      REAL_T idxb, dFdb
+      REAL_T num, den
+      REAL_T, parameter :: C1 = seven / twelve                  ! Cell --> Node
+      REAL_T, parameter :: C2 = -one / twelve
+      REAL_T, parameter :: D1 = (ten + three) / (twenty + four) ! Node --> Cell
+      REAL_T, parameter :: D2 = -one / (twenty + four)
+
+      CHF_AUTOID[aa; adir] ! advectED dir
+      CHF_AUTOID[bb; bdir] ! advectING dir
+
+      idxb = one / dXib
+
+      if (adir .eq. bdir) then
+        ! Compute normal flux -Jub*ua  (b = a)
+        CHF_AUTOMULTIDO[FbaBx; i]
+          JubVal = D1 * (Jub(OFFSET1(i,+  bb)) + Jub(OFFSET0(i    )))
+     &           + D2 * (Jub(OFFSET1(i,+2*bb)) + Jub(OFFSET1(i,-bb)))
+
+          num = D1 * (  J(OFFSET1(i,+  aa)) * ua(OFFSET1(i,+  aa))
+     &                + J(OFFSET0(i      )) * ua(OFFSET0(i      ))   )
+     &        + D2 * (  J(OFFSET1(i,+2*aa)) * ua(OFFSET1(i,+2*aa))
+     &                + J(OFFSET1(i,-  aa)) * ua(OFFSET1(i,-  aa))   )
+          den = D1 * (  J(OFFSET1(i,+  aa))
+     &                + J(OFFSET0(i      ))   )
+     &        + D2 * (  J(OFFSET1(i,+2*aa))
+     &                + J(OFFSET1(i,-  aa))   )
+          uaVal  = num / den
+
+          Fba(OFFSET0(i)) = -JubVal * uaVal
+        CHF_ENDDO
+
+      else
+        ! Compute transverse flux -Jub*ua  (b != a)
+        CHF_AUTOMULTIDO[FbaBx; i]
+          JubVal = C1 * (Jub(OFFSET0(i    )) + Jub(OFFSET1(i,-  aa)))
+     &           + C2 * (Jub(OFFSET1(i,+aa)) + Jub(OFFSET1(i,-2*aa)))
+
+          num = C1 * (  J(OFFSET0(i      )) * ua(OFFSET0(i      ))
+     &                + J(OFFSET1(i,-  bb)) * ua(OFFSET1(i,-  bb))   )
+     &        + C2 * (  J(OFFSET1(i,+  bb)) * ua(OFFSET1(i,+  bb))
+     &                + J(OFFSET1(i,-2*bb)) * ua(OFFSET1(i,-2*bb))   )
+          den = C1 * (  J(OFFSET0(i      ))
+     &                + J(OFFSET1(i,-  bb))   )
+     &        + C2 * (  J(OFFSET1(i,+  bb))
+     &                + J(OFFSET1(i,-2*bb))   )
+          uaVal  = num / den
+
+          Fba(OFFSET0(i)) = -JubVal * uaVal
+        CHF_ENDDO
+      endif
+
+      return
+      end
+
+
+! ----------------------------------------------------------------------
+! Same as MomAdvFlux_FourthOrder, but assumes Jub are fourth-order
+! face averages and ua are fourth-order "cell" averages. ua must still be
+! staggered, but the "cell" I am referring to is centered at the face and
+! extends halfway into each neighboring cell.
+! ----------------------------------------------------------------------
+      subroutine MomAdvFlux_FullyFourthOrder (
+     &      CHF_FRA1[Fba],
+     &      CHF_BOX[FbaBx],
+     &      CHF_CONST_FRA1[Jub],  ! FC advectING vel
+     &      CHF_CONST_FRA1[ua],   ! FC Cartesian, advectED vel
+     &      CHF_CONST_FRA1[J],    ! FC J
+     &      CHF_CONST_INT[bdir],
+     &      CHF_CONST_INT[adir],
+     &      CHF_CONST_REAL[dXib])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[aa]
+      integer CHF_AUTODECL[bb]
+      integer CHF_AUTODECL[bbp]
+      REAL_T JubVal, uaVal, deltaJub, deltaua
+      REAL_T idxb, dFdb
+      REAL_T num, den
+
+      REAL_T, parameter :: C1 = seven / twelve      ! 4th-order FV recentering
+      REAL_T, parameter :: C2 = -one / twelve
+      REAL_T, parameter :: E1 = nine / (six + ten)  ! 4th-order FD recentering
+      REAL_T, parameter :: E2 = -one / (six + ten)
+
+      CHF_AUTOID[aa; adir] ! advectED dir
+      CHF_AUTOID[bb; bdir] ! advectING dir
+
+      CHF_AUTOID[bbp; mod(bdir + 1, CH_SPACEDIM)]
+
+      idxb = one / dXib
+
+      if (adir .eq. bdir) then
+        ! Compute normal flux -Jub*ua  (b = a)
+        CHF_AUTOMULTIDO[FbaBx; i]
+          JubVal = E1 * (Jub(OFFSET1(i,+  bb)) + Jub(OFFSET0(i    )))
+     &           + E2 * (Jub(OFFSET1(i,+2*bb)) + Jub(OFFSET1(i,-bb)))
+
+          num = C1 * (  J(OFFSET1(i,+  aa)) * ua(OFFSET1(i,+  aa))
+     &                + J(OFFSET0(i      )) * ua(OFFSET0(i      ))   )
+     &        + C2 * (  J(OFFSET1(i,+2*aa)) * ua(OFFSET1(i,+2*aa))
+     &                + J(OFFSET1(i,-  aa)) * ua(OFFSET1(i,-  aa))   )
+          den = C1 * (  J(OFFSET1(i,+  aa))
+     &                + J(OFFSET0(i      ))   )
+     &        + C2 * (  J(OFFSET1(i,+2*aa))
+     &                + J(OFFSET1(i,-  aa))   )
+          uaVal  = num / den
+
+          deltaJub = Jub(OFFSET1(i,+bbp)) - Jub(OFFSET0(i))
+          deltaua = fourth * (  ua(OFFSET1(i,+bbp))     - ua(OFFSET1(i,-bbp))
+     &                        + ua(OFFSET2(i,+bbp,+bb)) - ua(OFFSET2(i,-bbp,+bb))  )
+
+          Fba(OFFSET0(i)) = -JubVal * uaVal - deltaJub * deltaua / (12.0d0)
+        CHF_ENDDO
+
+      else
+        ! Compute transverse flux -Jub*ua  (b != a)
+        CHF_AUTOMULTIDO[FbaBx; i]
+          JubVal = E1 * (Jub(OFFSET0(i    )) + Jub(OFFSET1(i,-  aa)))
+     &           + E2 * (Jub(OFFSET1(i,+aa)) + Jub(OFFSET1(i,-2*aa)))
+
+          num = C1 * (  J(OFFSET0(i      )) * ua(OFFSET0(i      ))
+     &                + J(OFFSET1(i,-  bb)) * ua(OFFSET1(i,-  bb))   )
+     &        + C2 * (  J(OFFSET1(i,+  bb)) * ua(OFFSET1(i,+  bb))
+     &                + J(OFFSET1(i,-2*bb)) * ua(OFFSET1(i,-2*bb))   )
+          den = C1 * (  J(OFFSET0(i      ))
+     &                + J(OFFSET1(i,-  bb))   )
+     &        + C2 * (  J(OFFSET1(i,+  bb))
+     &                + J(OFFSET1(i,-2*bb))   )
+          uaVal  = num / den
+
+          deltaJub = Jub(OFFSET0(i)) - Jub(OFFSET1(i,-bbp))
+          deltaua = fourth * (  ua(OFFSET1(i,+bbp))     - ua(OFFSET1(i,-bbp))
+     &                        + ua(OFFSET2(i,+bbp,-bb)) - ua(OFFSET2(i,-bbp,-bb))  )
+
+          Fba(OFFSET0(i)) = -JubVal * uaVal - deltaJub * deltaua / (12.0d0)
+        CHF_ENDDO
+      endif
+
+      return
+      end
+
+
+! ----------------------------------------------------------------------
+!     kua   [inout]: FC forcing term. Added to, not overwritten.
+!     kuaBx [in   ]: The faces on which we will compute kua.
+!     Jub   [in   ]: J * mapped advecting velocity, b-comp. FC in bdir.
+!     ua    [in   ]: Cartesian advected velocity, a-comp. FC in adir.
+!     bdir  [in   ]: Advecting velocity direction.
+!     adir  [in   ]: Advected velocity direction.
+!     dXib  [in   ]: The grid spacing in bdir.
+! ----------------------------------------------------------------------
+      subroutine momAdvForce_advForm_SecondOrder (
+        &      CHF_FRA1[kua],
+        &      CHF_BOX[kuaBx],
+        &      CHF_CONST_FRA1[Jub],  ! FC advecting vel
+        &      CHF_CONST_FRA1[ua],   ! FC cart vel
+        &      CHF_CONST_INT[bdir],  ! advectING dir / deriv dir
+        &      CHF_CONST_INT[adir],  ! advectED dir
+        &      CHF_CONST_REAL[dXib])
+
+         integer CHF_AUTODECL[i]
+         integer CHF_AUTODECL[bb]
+         integer CHF_AUTODECL[aa]
+         REAL_T Jubl, Jubr, dudbl, dudbr
+         REAL_T idxb
+
+         CHF_AUTOID[bb; bdir]
+         CHF_AUTOID[aa; adir]
+
+         idxb = one / dXib
+
+         if (adir .eq. bdir) then
+           CHF_AUTOMULTIDO[kuaBx; i]
+           Jubl = half * (Jub(OFFSET1(i,-aa    )) + Jub(OFFSET0(i    )))
+           Jubr = half * (Jub(OFFSET0(i        )) + Jub(OFFSET1(i,+bb)))
+
+           dudbl = (ua(OFFSET0(i)) - ua(OFFSET1(i,-bb))) * idxb
+           dudbr = (ua(OFFSET1(i,+bb)) - ua(OFFSET0(i))) * idxb
+
+           kua(OFFSET0(i)) = -half * (Jubl * dudbl + Jubr * dudbr)
+         CHF_ENDDO
+
+         else
+           CHF_AUTOMULTIDO[kuaBx; i]
+             Jubl = half * (Jub(OFFSET1(i,-aa    )) + Jub(OFFSET0(i    )))
+             Jubr = half * (Jub(OFFSET2(i,-aa,+bb)) + Jub(OFFSET1(i,+bb)))
+
+             dudbl = (ua(OFFSET0(i)) - ua(OFFSET1(i,-bb))) * idxb
+             dudbr = (ua(OFFSET1(i,+bb)) - ua(OFFSET0(i))) * idxb
+
+             kua(OFFSET0(i)) = -half * (Jubl * dudbl + Jubr * dudbr)
+           CHF_ENDDO
+         endif
+
+         return
+         end
+
+
+! ----------------------------------------------------------------------
+!     kw    [in/out]: Vertical velocity force term. FC in z-dir.
+!     bpert [    in]: Buoyancy perturbation. CC, 1 ghost in z-dir.
+!     ccJ   [    in]: The metric determinant on bpert's box.
+!     fcBox [    in]: The faces on which we will compute kwFAB.
+! ----------------------------------------------------------------------
+      subroutine AddExplicitGravityForcing (
+     &      CHF_FRA1[kw],
+     &      CHF_CONST_FRA1[bpert],
+     &      CHF_CONST_FRA1[ccJ],
+     &      CHF_BOX[fcBox])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      REAL_T b, w
+
+      CHF_AUTOID[ii; CH_SPACEDIM-1]
+
+      ! dw/dt = -b
+      CHF_AUTOMULTIDO[fcBox; i]
+        b = (  ccJ(CHF_AUTOIX[i])      *bpert(CHF_AUTOIX[i])
+     &       + ccJ(CHF_OFFSETIX[i;-ii])*bpert(CHF_OFFSETIX[i;-ii])  )
+     &      / (ccJ(CHF_AUTOIX[i]) + ccJ(CHF_OFFSETIX[i;-ii]))
+
+        kw(CHF_AUTOIX[i]) = kw(CHF_AUTOIX[i]) - b
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ----------------------------------------------------------------------
+!     kuFAB     [in/out]: Cartesian x-velocity force term. FC in x-dir.
+!     kvFAB     [in/out]: Cartesian y-velocity force term. FC in y-dir.
+!     uFAB      [    in]: Cartesian x-velocity. FC in x-dir.
+!     vFAB      [    in]: Cartesian x-velocity. FC in x-dir.
+!     coriolisF [    in]: The f-plane Coriolis parameter.
+!     kuBox     [    in]: The faces on which we will compute kuFAB.
+!     kvBox     [    in]: The cells on which we will compute kvFAB.
+! ----------------------------------------------------------------------
+      subroutine AddExplicitCoriolisForcing3D (
+     &      CHF_FRA1[kuFAB],
+     &      CHF_FRA1[kvFAB],
+     &      CHF_FRA1[kwFAB],            ! 20210915
+     &      CHF_CONST_FRA1[uFAB],
+     &      CHF_CONST_FRA1[vFAB],
+     &      CHF_CONST_FRA1[wFAB],       ! 20210915
+     &      CHF_CONST_REAL[coriolisFy], ! 20210915
+     &      CHF_CONST_REAL[coriolisFz], ! coriolisF to coriolisFz 20210915
+     &      CHF_BOX[kuBox],
+     &      CHF_BOX[kvBox],
+     &      CHF_BOX[kwBox])             ! 20210915
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ex]
+      integer CHF_AUTODECL[ey]
+      integer CHF_AUTODECL[ez]          ! 20210915
+      REAL_T u, v, w                    ! add w 20210915
+
+      CHF_AUTOID[ex; 0]
+      CHF_AUTOID[ey; 1]
+      CHF_AUTOID[ez; 2]                 ! 20210915
+
+      ! du/dt = fv
+      CHF_AUTOMULTIDO[kuBox; i]
+        v = (  vFAB(OFFSET0(i))
+     &       + vFAB(OFFSET1(i,-ex))
+     &       + vFAB(OFFSET1(i,+ey))
+     &       + vFAB(OFFSET2(i,-ex,+ey))  ) * fourth
+
+        kuFAB(OFFSET0(i)) = kuFAB(OFFSET0(i)) + coriolisFz * v ! coriolisF to coriolisFz 20210915
+      CHF_ENDDO
+
+      ! dv/dt = -fu
+      CHF_AUTOMULTIDO[kvBox; i]
+        u = (  uFAB(OFFSET0(i))
+     &       + uFAB(OFFSET1(i,-ey))
+     &       + uFAB(OFFSET1(i,+ex))
+     &       + uFAB(OFFSET2(i,-ey,+ex))  ) * fourth
+
+        kvFAB(OFFSET0(i)) = kvFAB(OFFSET0(i)) - coriolisFz * u ! coriolisF to coriolisFz 20210915
+      CHF_ENDDO
+
+!     ---
+
+      ! du/dt = -(fy)*w             20210915
+      CHF_AUTOMULTIDO[kuBox; i]
+        w = (  wFAB(OFFSET0(i))
+     &       + wFAB(OFFSET1(i,-ex))
+     &       + wFAB(OFFSET1(i,+ez))
+     &       + wFAB(OFFSET2(i,-ex,+ez))  ) * fourth
+
+        kuFAB(OFFSET0(i)) = kuFAB(OFFSET0(i)) - coriolisFy * w
+      CHF_ENDDO
+
+      ! dw/dt = (fy)*u              20210915
+      CHF_AUTOMULTIDO[kwBox; i]
+        u = (  uFAB(OFFSET0(i))
+     &       + uFAB(OFFSET1(i,-ez))
+     &       + uFAB(OFFSET1(i,+ex))
+     &       + uFAB(OFFSET2(i,-ez,+ex))  ) * fourth
+
+        kwFAB(OFFSET0(i)) = kwFAB(OFFSET0(i)) + coriolisFy * u
+      CHF_ENDDO
+
+      return
+      end
+
+
+
+! ----------------------------------------------------------------------
+!     uFAB   [in/out]: Cartesian x-velocity. FC in x-dir.
+!     vFAB   [in/out]: Cartesian x-velocity. FC in x-dir.
+!     u2FAB  [    in]: Workspace defined on uFAB.box().
+!     sigma  [    in]: The f-plane Coriolis parameter * gamma*dt.
+!     uBox   [    in]: uFAB.box().
+!     uValid [    in]: The faces on which we will compute uFAB.
+!     vValid [    in]: The cells on which we will compute vFAB.
+! ----------------------------------------------------------------------
+      subroutine SolveImplicitCoriolis3D (
+     &      CHF_FRA1[uFAB],
+     &      CHF_FRA1[vFAB],
+     &      CHF_FRA1[u2FAB],
+     &      CHF_CONST_REAL[sigma],
+     &      CHF_BOX[uBox],
+     &      CHF_BOX[uValid],
+     &      CHF_BOX[vValid])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ex]
+      integer CHF_AUTODECL[ey]
+      REAL_T u, v, invDet
+
+      CHF_AUTOID[ex; 0]
+      CHF_AUTOID[ey; 1]
+
+      invDet = one / (one + sigma*sigma)
+
+      ! Send u to temp holder.
+      CHF_AUTOMULTIDO[uBox; i]
+        u2FAB(OFFSET0(i)) = uFAB(OFFSET0(i))
+      CHF_ENDDO
+
+      ! u...
+      CHF_AUTOMULTIDO[uValid; i]
+        u = u2FAB(OFFSET0(i))
+
+        v = (  vFAB(OFFSET0(i))
+     &       + vFAB(OFFSET1(i,-ex))
+     &       + vFAB(OFFSET1(i,+ey))
+     &       + vFAB(OFFSET2(i,-ex,+ey))  ) * fourth
+
+        uFAB(OFFSET0(i)) = invDet * (u + sigma*v)
+      CHF_ENDDO
+
+      ! v...
+      CHF_AUTOMULTIDO[vValid; i]
+        u = (  u2FAB(OFFSET0(i))
+     &       + u2FAB(OFFSET1(i,-ey))
+     &       + u2FAB(OFFSET1(i,+ex))
+     &       + u2FAB(OFFSET2(i,-ey,+ex))  ) * fourth
+
+        v = vFAB(OFFSET0(i))
+
+        vFAB(OFFSET0(i)) = invDet * (v - sigma*u)
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ---------------------------------------------------------------------------------
+! Finds the largest speed, c1 (smallest Nsq/c^2) and the corresponding structure
+! function, phi1 (corresponding eigenfunction) of phi'' + (Nsq/c^2) phi = 0.
+! NOTE: N is the number of vertical cells (the size of phi1) while Nsq is the
+! square of the Brunt-Vaisala frequency.
+!
+! jacFC and jacCC are dZeta/dz.
+! ---------------------------------------------------------------------------------
+      subroutine SolveVertEigenProblem (
+     &     CHF_REAL[c1],
+     &     CHF_FRA1[phi1],
+     &     CHF_CONST_FRA1[Nsq],
+     &     CHF_CONST_FRA1[jacFC],
+     &     CHF_CONST_FRA1[jacCC],
+     &     CHF_CONST_INTVECT[loIdx],
+     &     CHF_CONST_INT[N],
+     &     CHF_CONST_REAL[dz],
+     &     CHF_CONST_REAL[abstol],
+     &     CHF_FIA1[IFAIL],
+     &     CHF_FIA1[IWORK],
+     &     CHF_FRA1[AB],
+     &     CHF_FRA1[BB],
+     &     CHF_FRA1[Q],
+     &     CHF_FRA1[W],
+     &     CHF_FRA1[WORK],
+     &     CHF_FRA1[Z])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[hi]
+      integer CHF_AUTODECL[vunit]
+      integer idx
+      REAL_T scale, EPS, maxZ
+
+      CHARACTER          JOBZ, RANGE, UPLO
+      INTEGER            IL, INFO, IU, KA, KB, LDAB, LDBB, LDQ, LDZ, M
+      DOUBLE PRECISION   VL, VU
+
+      double precision DLAMCH
+      external DLAMCH
+
+      JOBZ = 'V'    ! Compute eigenvalues and eigenvectors.
+      RANGE = 'I'   ! The IL-th through IU-th eigenvalues will be found.
+      UPLO = 'L'    ! Lower triangles of A and B are stored.
+      KA = 1        ! The number of subdiagonals of the matrix A.
+      KB = 0        ! The number of subdiagonals of the matrix B
+      LDAB = 2      ! The leading dimension of the array AB. LDAB >= KA+1.
+      LDBB = 1      ! The leading dimension of the array BB. LDBB >= KB+1.
+      LDQ = N       ! The leading dimension of the array Q. LDQ >= max(1,N).
+      VL = 0.0      ! If RANGE='V', the lower bound of the eigenvalue search. VL < VU.
+      VU = 1.0      ! If RANGE='V', the upper bound of the eigenvalue search. VL < VU.
+      IL = 1        ! If RANGE='I', the index of the smallest eigenvalue.
+      IU = 1        ! If RANGE='I', the index of the largest eigenvalue.
+      M = 1         ! The total number of eigenvalues found.
+      LDZ = N       ! The leading dimension of the array Z.
+      EPS = 1.0E-12 ! Added to diagonal entries of BB to amplify diagonal dominance.
+
+      CHF_DTERM[    ! The horizontal coordinates and vertical unit vector
+      hi0 = loIdx(0);
+      hi1 = loIdx(1);
+      hi2 = loIdx(2)]
+
+      CHF_AUTOID[vunit;CH_SPACEDIM-1]
+
+      ! Construct AB matrix = second vertical derivative.
+      scale = one/(dz*dz)
+      AB(CHF_IX[1;1;1]) = (two*jacFC(CHF_AUTOIX[hi]) + jacFC(CHF_OFFSETIX[hi;+vunit])) * scale
+      AB(CHF_IX[2;1;1]) = -jacFC(CHF_OFFSETIX[hi;+vunit]) * scale
+      do idx = 2, N-1
+        AB(CHF_IX[1;idx;1]) = (jacFC(CHF_OFFSETIX[hi;+(idx-1)*vunit]) + jacFC(CHF_OFFSETIX[hi;+idx*vunit])) * scale
+        AB(CHF_IX[2;idx;1]) = -jacFC(CHF_OFFSETIX[hi;+idx*vunit])*scale
+      enddo
+      AB(CHF_IX[1;N;1]) = (jacFC(CHF_OFFSETIX[hi;+(N-1)*vunit]) + two*jacFC(CHF_OFFSETIX[hi;+N*vunit])) * scale
+      AB(CHF_IX[2;N;1]) = 123456789.0
+
+
+      ! Construct BB matrix = Nsq on diagonals.
+      do idx = 1, N
+        BB(CHF_IX[1;idx;1]) = (Nsq(CHF_OFFSETIX[hi;+(idx-1)*vunit]) / jacCC(CHF_OFFSETIX[hi;+(idx-1)*vunit])) + EPS
+      enddo
+
+      ! Call LAPACK solver
+      call DSBGVX (JOBZ, RANGE, UPLO, N, KA, KB, AB, LDAB, BB,
+     &             LDBB, Q, LDQ, VL, VU, IL, IU, abstol, M, W, Z,
+     &             LDZ, WORK, IWORK, IFAIL, INFO)
+
+      ! Did the solver fail?
+      if (INFO .ne. 0) then
+        print*, 'SOLVEVERTEIGENPROBLEM: INFO = ', INFO, ' -- IFAIL(1) = ', IFAIL(CHF_IX[1;1;1]), ' -- W(1) = ', W(CHF_IX[1;1;1])
+        call MAYDAYERROR()
+      endif
+
+      ! Normalize Z and send results to permanent holders
+      maxZ = zero
+      do idx = 1, N
+        if (abs(maxZ) .lt. abs(Z(CHF_IX[idx;1;1]))) then
+          maxZ = Z(CHF_IX[idx;1;1])
+        endif
+      enddo
+      do idx = 1, N
+        phi1(CHF_OFFSETIX[hi;+(idx-1)*vunit]) = Z(CHF_IX[idx;1;1]) / maxZ
+      enddo
+      c1 = sqrt(one / abs(W(CHF_IX[1;1;1])))
+
+      return
+      end
+
+
+! ----------------------------------------------------------------
+! ProjectPhaseSpeed
+! c1^i = Max_j[c1 * dXi^i/dx^j)], j = horizontal dirs
+! ----------------------------------------------------------------
+      subroutine ProjectPhaseSpeed (
+     &      CHF_FRA[c1i],
+     &      CHF_CONST_FRA1[c1],
+     &      CHF_CONST_FRA[dXidx],
+     &      CHF_BOX[region])
+
+      integer CHF_AUTODECL[i]
+      REAL_T c1val, maxJinv
+
+      CH_assert(CHF_NCOMP[dXidx] .eq. CH_SPACEDIM*CH_SPACEDIM)
+
+      CHF_AUTOMULTIDO[region;i]
+        c1val = c1(CHF_AUTOIX[i])
+
+        ! c1^i = Max_j[c1 * dXi^i/dx^j)], j = horizontal dirs
+        CHF_DTERM[;
+        maxJinv = dXidx(CHF_AUTOIX[i],xxComp);
+        maxJinv = Max(maxJinv, dXidx(CHF_AUTOIX[i],xyComp))]
+        c1i(CHF_AUTOIX[i],0) = c1val * maxJinv
+
+        CHF_DTERM[;
+        maxJinv = dXidx(CHF_AUTOIX[i],yxComp);
+        maxJinv = Max(maxJinv, dXidx(CHF_AUTOIX[i],yyComp))]
+        c1i(CHF_AUTOIX[i],1) = c1val * maxJinv
+
+        CHF_DTERM[;;
+        maxJinv = dXidx(CHF_AUTOIX[i],zxComp)
+        maxJinv = Max(maxJinv, dXidx(CHF_AUTOIX[i],zyComp))
+        c1i(CHF_AUTOIX[i],2) = c1val * maxJinv]
+
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ----------------------------------------------------------------------
+!      OUTS
+!     F0    : 0-comp of the viscous force. Staggered in dir0.
+!
+!      INS
+!     T00   : 00-comp of the stress tensor. Not staggered.
+!     T10   : 10-comp of the stress tensor. Staggered in 1 and 0 dirs.
+!     T20   : 20-comp of the stress tensor. Staggered in 2 and 0 dirs.
+!             In 2D, this will not be used. Just send in anything.
+!     region: The faces where we will compute F0. Staggered in 0 dir.
+!     dXi   : The cell widths.
+!     dir0  : We are computing the LHS  of du^a/dt = F^a. dir0 is a.
+!             F0 is staggered in this direction.
+!     dir1  : dir1 != dir0. This tells us the first index of T10.
+!     dir2  : dir2 != dir0, dir1. This tells us the first index of T20.
+! ----------------------------------------------------------------------
+      subroutine AddViscousForceComp3D (
+     &      CHF_FRA1[F0],
+     &      CHF_CONST_FRA1[T00],
+     &      CHF_CONST_FRA1[T10],
+     &      CHF_CONST_FRA1[T20],
+     &      CHF_BOX[region],
+     &      CHF_CONST_REALVECT[dXi],
+     &      CHF_CONST_INT[dir0],
+     &      CHF_CONST_INT[dir1],
+     &      CHF_CONST_INT[dir2],
+     &      CHF_CONST_REAL[scale])
+
+      integer i, j, k
+      integer CHF_DDECL[e0i; e0j; e0k]
+      integer CHF_DDECL[e1i; e1j; e1k]
+      integer CHF_DDECL[e2i; e2j; e2k]
+      REAL_T CHF_DDECL[invDx0; invDx1; invDx2]
+      REAL_T dT0, dT1, dT2
+
+      ! T0a is CC (not staggered)
+      CHF_DTERM[
+      e0i = CHF_ID(0,dir0);
+      e0j = CHF_ID(1,dir0);
+      e0k = CHF_ID(2,dir0)]
+
+      ! T1a is EC (staggered in 1 and a dirs)
+      CHF_DTERM[
+      e1i = CHF_ID(0,dir1);
+      e1j = CHF_ID(1,dir1);
+      e1k = CHF_ID(2,dir1)]
+
+      ! T2a is EC (staggered in 2 and a dirs)
+      CHF_DTERM[
+      e2i = CHF_ID(0,dir2);
+      e2j = CHF_ID(1,dir2);
+      e2k = CHF_ID(2,dir2)]
+
+      CHF_DTERM[
+      invDx0 = scale / dXi(dir0);
+      invDx1 = scale / dXi(dir1);
+      invDx2 = scale / dXi(dir2)]
+
+      CHF_MULTIDO[region; i; j; k]
+        dT0 = T00(CHF_IX[i    ;j    ;k    ])
+     &      - T00(CHF_IX[i-e0i;j-e0j;k-e0k])
+
+        dT1 = T10(CHF_IX[i+e1i;j+e1j;k+e1k])
+     &      - T10(CHF_IX[i    ;j    ;k    ])
+
+        dT2 = T20(CHF_IX[i+e2i;j+e2j;k+e2k])
+     &      - T20(CHF_IX[i    ;j    ;k    ])
+
+        F0(CHF_IX[i;j;k]) = F0(CHF_IX[i;j;k])
+     &      + (CHF_DTERM[dT0*invDx0; + dT1*invDx1; + dT2*invDx2])
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ----------------------------------------------------------------------
+!     2D version
+! ----------------------------------------------------------------------
+      subroutine AddViscousForceComp2D (
+     &      CHF_FRA1[F0],
+     &      CHF_CONST_FRA1[T00],
+     &      CHF_CONST_FRA1[T10],
+     &      CHF_BOX[region],
+     &      CHF_CONST_REALVECT[dXi],
+     &      CHF_CONST_INT[dir0],
+     &      CHF_CONST_INT[dir1],
+     &      CHF_CONST_REAL[scale])
+
+      integer i, j, k
+      integer CHF_DDECL[e0i; e0j; e0k]
+      integer CHF_DDECL[e1i; e1j; e1k]
+      REAL_T CHF_DDECL[invDx0; invDx1; invDx2]
+      REAL_T dT0, dT1
+
+      ! T0a is CC (not staggered)
+      CHF_DTERM[
+      e0i = CHF_ID(0,dir0);
+      e0j = CHF_ID(1,dir0);
+      e0k = CHF_ID(2,dir0)]
+
+      ! T1a is EC (staggered in 1 and a dirs)
+      CHF_DTERM[
+      e1i = CHF_ID(0,dir1);
+      e1j = CHF_ID(1,dir1);
+      e1k = CHF_ID(2,dir1)]
+
+      CHF_DTERM[
+      invDx0 = scale / dXi(dir0);
+      invDx1 = scale / dXi(dir1);]
+
+      CHF_MULTIDO[region; i; j; k]
+        dT0 = T00(CHF_IX[i    ;j    ;k    ])
+     &      - T00(CHF_IX[i-e0i;j-e0j;k-e0k])
+
+        dT1 = T10(CHF_IX[i+e1i;j+e1j;k+e1k])
+     &      - T10(CHF_IX[i    ;j    ;k    ])
+
+        F0(CHF_IX[i;j;k]) = F0(CHF_IX[i;j;k])
+     &                    + (dT0*invDx0 + dT1*invDx1)
+      CHF_ENDDO
+
+      return
+      end
+
+
+
+! ----------------------------------------------------------------
+! The constant Smagorinsky model.
+! nu_t = constant * (cell volume)^(1/Spacedim) * |S|
+! ----------------------------------------------------------------
+      subroutine SGSModel_ConstantSmagorinsky (
+     &      CHF_FRA1[eddyNu],
+     &      CHF_CONST_FRA[Sab],
+     &      CHF_CONST_FRA1[ccJ],
+     &      CHF_BOX[valid],
+     &      CHF_CONST_REALVECT[dx])
+
+      integer :: CHF_DDECL[i; j; k]
+      integer :: ij
+      REAL_T  :: dxProd, deltaY, nu_t
+
+      REAL_T  :: magS
+      REAL_T  :: Sxx, Sxy, Sxz
+      REAL_T  :: Syx, Syy, Syz
+      REAL_T  :: Szx, Szy, Szz
+
+      REAL_T, parameter :: C_SMAG = 0.085
+      REAL_T, parameter :: power = CHF_DSELECT[one; one/two; one/three]
+
+      dxProd = CHF_DTERM[dx(0); *dx(1); *dx(2)]
+
+      CHF_MULTIDO[valid; i; j; k]
+        ! Compute |S| = sqrt(2*Sab.Sab)
+        CHF_DTERM[
+         Sxx = Sab(CHF_IX[i;j;k],xxComp);
+         Sxy = Sab(CHF_IX[i;j;k],xyComp)
+         Syx = Sab(CHF_IX[i;j;k],yxComp)
+         Syy = Sab(CHF_IX[i;j;k],yyComp);
+         Sxz = Sab(CHF_IX[i;j;k],xzComp)
+         Syz = Sab(CHF_IX[i;j;k],yzComp)
+         Szx = Sab(CHF_IX[i;j;k],zxComp)
+         Szy = Sab(CHF_IX[i;j;k],zyComp)
+         Szz = Sab(CHF_IX[i;j;k],zzComp)]
+
+        magS = CHF_DTERM[  Sxx*Sxx;
+     &                   + Sxy*Sxy + Syx*Syx + Syy*Syy;
+     &                   + Sxz*Sxz + Syz*Syz + Szx*Szx + Szy*Szy + Szz*Szz]
+        magS = sqrt(two * magS)
+
+        ! Compute eddy viscosity
+        deltaY = (ccJ(CHF_IX[i;j;k]) * dxProd)**power
+        eddyNu(CHF_IX[i;j;k]) = (C_SMAG**2) * (deltaY**2) * magS
+
+      CHF_ENDDO
+
+      return
+      end
+
+
+! ----------------------------------------------------------------------
+!     The Laplacan filter for the LES as defined in Ducros, et. al.,
+!     Journal of Fluid Mechanics / Volume 326 / November 1996, pp 1- 36
+!     DOI: http://dx.doi.org/10.1017/S0022112096008221
+!     Eqs. 2.19 - 2.20.
+!
+!     filtPhi will be computed over region.
+!     phi must be defined over region + 1 ghost layer.
+! ----------------------------------------------------------------------
+      subroutine Filter_Laplacian (
+     &      CHF_FRA[filtPhi],
+     &      CHF_CONST_FRA[phi],
+     &      CHF_BOX[region],
+     &      CHF_CONST_REALVECT[dirScale]);
+
+      integer :: CHF_DDECL[i; j; k]
+      integer :: comp
+      REAL_T  :: CHF_DDECL[d2x; d2y; d2z]
+
+      do comp = 0, CHF_NCOMP[phi]-1
+          CHF_MULTIDO[region; i; j; k]
+            d2x =     phi(CHF_IX[i+1;j;k], comp)
+     &          - two*phi(CHF_IX[i  ;j;k], comp)
+     &          +     phi(CHF_IX[i-1;j;k], comp)
+
+            d2y =     phi(CHF_IX[i;j-1;k], comp)
+     &          - two*phi(CHF_IX[i;j  ;k], comp)
+     &          +     phi(CHF_IX[i;j+1;k], comp)
+
+#if CH_SPACEDIM > 2
+            d2z =     phi(CHF_IX[i;j;k+1], comp)
+     &          - two*phi(CHF_IX[i;j;k  ], comp)
+     &          +     phi(CHF_IX[i;j;k-1], comp)
+#endif
+
+            filtPhi(CHF_IX[i;j;k], comp) =
+     &          CHF_DTERM[
+     &            d2x * dirScale(0);
+     &          + d2y * dirScale(1);
+     &          + d2z * dirScale(2)]
+          CHF_ENDDO
+      enddo
+      return
+      end
+
+
+! ----------------------------------------------------------------------
+!     This model was defined by Ducros, et. al. in
+!     Journal of Fluid Mechanics / Volume 326 / November 1996, pp 1- 36
+!     DOI: http://dx.doi.org/10.1017/S0022112096008221
+!     In 2D, w will not be used.
+! ----------------------------------------------------------------------
+      subroutine SGSModel_Ducros (
+     &      CHF_FRA1[eddyNu],
+     &      CHF_CONST_FRA1[u],
+     &      CHF_CONST_FRA1[v],
+     &      CHF_CONST_FRA1[w],
+     &      CHF_CONST_FRA1[ccJ],
+     &      CHF_BOX[region],
+     &      CHF_CONST_REALVECT[dx],
+     &      CHF_CONST_REALVECT[dirScale])
+
+      integer            :: CHF_DDECL[i; j; k]
+      integer            :: comp
+      REAL_T             :: dxProd, deltaY, F2, mid, coeff, F2Scale
+
+      REAL_T, parameter  :: C_K   = half
+      REAL_T, parameter  :: power = CHF_DSELECT[one; one/two; one/three]
+
+      dxProd  = CHF_DTERM[dx(0); *dx(1); *dx(2)]
+      coeff   = (0.0014d0)*(C_K**(-three/two))
+
+      ! 4-neighbor formulation....F2Scale = 1/4.
+      ! 6-neighbor formulation....F2Scale = 1/6.
+      F2Scale = CHF_DTERM[dirScale(0); +dirScale(1); +dirScale(2)]
+      F2Scale = half / F2Scale
+
+
+      CHF_MULTIDO[region; i; j; k]
+        ! Compute the second-order structure function, F2.
+        mid = u(CHF_IX[i;j;k])
+        CHF_DTERM[
+        F2 = (  (u(CHF_IX[i+1;j  ;k  ]) - mid)**2
+     &        + (u(CHF_IX[i-1;j  ;k  ]) - mid)**2  ) * dirScale(0);
+     &     + (  (u(CHF_IX[i  ;j+1;k  ]) - mid)**2
+     &        + (u(CHF_IX[i  ;j-1;k  ]) - mid)**2  ) * dirScale(1);
+     &     + (  (u(CHF_IX[i  ;j  ;k+1]) - mid)**2
+     &        + (u(CHF_IX[i  ;j  ;k-1]) - mid)**2  ) * dirScale(2)]
+
+        mid = v(CHF_IX[i;j;k])
+        CHF_DTERM[
+        F2 = F2
+     &     + (  (v(CHF_IX[i+1;j  ;k  ]) - mid)**2
+     &        + (v(CHF_IX[i-1;j  ;k  ]) - mid)**2  ) * dirScale(0);
+     &     + (  (v(CHF_IX[i  ;j+1;k  ]) - mid)**2
+     &        + (v(CHF_IX[i  ;j-1;k  ]) - mid)**2  ) * dirScale(1);
+     &     + (  (v(CHF_IX[i  ;j  ;k+1]) - mid)**2
+     &        + (v(CHF_IX[i  ;j  ;k-1]) - mid)**2  ) * dirScale(2)]
+
+#if CH_SPACEDIM > 2
+        mid = w(CHF_IX[i;j;k])
+        F2 = F2
+     &     + (  (w(CHF_IX[i+1;j  ;k  ]) - mid)**2
+     &        + (w(CHF_IX[i-1;j  ;k  ]) - mid)**2  ) * dirScale(0)
+     &     + (  (w(CHF_IX[i  ;j+1;k  ]) - mid)**2
+     &        + (w(CHF_IX[i  ;j-1;k  ]) - mid)**2  ) * dirScale(1)
+     &     + (  (w(CHF_IX[i  ;j  ;k+1]) - mid)**2
+     &        + (w(CHF_IX[i  ;j  ;k-1]) - mid)**2  ) * dirScale(2)
+#endif
+        F2 = F2Scale * F2
+
+        ! Compute eddyNu using the structure function, F2.
+        deltaY = (ccJ(CHF_IX[i;j;k]) * dxProd)**power
+        eddyNu(CHF_IX[i;j;k]) = coeff * deltaY * sqrt(F2)
+      CHF_ENDDO
+
+      return
+      end

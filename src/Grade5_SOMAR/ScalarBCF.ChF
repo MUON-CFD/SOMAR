@@ -1,0 +1,91 @@
+C*******************************************************************************
+C  SOMAR - Stratified Ocean Model with Adaptive Refinement
+C  Developed by Ed Santilli & Alberto Scotti
+C  Copyright (C) 2023
+C    Jefferson (Philadelphia University + Thomas Jefferson University) and
+C    Arizona State University
+C
+C  This library is free software; you can redistribute it and/or
+C  modify it under the terms of the GNU Lesser General Public
+C  License as published by the Free Software Foundation; either
+C  version 2.1 of the License, or (at your option) any later version.
+C
+C  This library is distributed in the hope that it will be useful,
+C  but WITHOUT ANY WARRANTY; without even the implied warranty of
+C  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+C  Lesser General Public License for more details.
+C
+C  You should have received a copy of the GNU Lesser General Public
+C  License along with this library; if not, write to the Free Software
+C  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+C  USA
+C
+C  For up-to-date contact information, please visit the repository homepage,
+C  https://github.com/somarhub.
+C*******************************************************************************
+#include "CONSTANTS.H"
+#include "AddlFortranMacros.H"
+
+
+C ---------------------------------------------------------------------
+C The BCTools_FillGhostCells_MixedBC function will set ghosts on phi via
+C     alpha*phi + beta*dphi/dn = BC.
+C
+C If phi is the perturbation to a vertical background stratification,
+C     phi = phiTotal - phiBar,
+C then we must alter the rhs via
+C     alpha*phi + beta*dphi/dn = BC - (alpha*phiBar + beta*dphiBar/dn).
+C
+C This function alters sets
+C     BC = BC - (alpha*phiBar + beta*dphiBar/dn).
+C
+C We do not check if the BCs are homogeneous. Do that in the calling function.
+C dz is only used if bdir == SpaceDim - 1.
+C ---------------------------------------------------------------------
+      subroutine ScalarBC_SetBackgroundRHS (
+     &     CHF_FRA[BC],
+     &     CHF_CONST_FRA[phiBar],
+     &     CHF_CONST_FRA[alpha],
+     &     CHF_CONST_FRA[beta],
+     &     CHF_CONST_FRA1[dz],
+     &     CHF_BOX[ghostBox],
+     &     CHF_CONST_INT[bdir],
+     &     CHF_CONST_INT[bsign])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer comp, ncomps
+      REAL_T a, b, invDz
+
+      ncomps = CHF_NCOMP[phiBar]
+      CHF_AUTOID[ii; bdir; bsign]
+
+      if (bdir .ne. CH_SPACEDIM - 1) then
+        ! Horizontal boundary. Avoid using dz.
+        do comp = 0, ncomps - 1
+          CHF_AUTOMULTIDO[ghostBox; i]
+            a = alpha(CHF_AUTOIX[i], comp) * half
+
+            BC(CHF_AUTOIX[i], comp) = BC(CHF_AUTOIX[i], comp)
+     &          - a * phiBar(VERTIX(i0, i1, i2), comp)
+     &          - a * phiBar(VERTIX(i0-ii0, i1-ii1, i2-ii2), comp)
+          CHF_ENDDO
+        enddo
+      else
+        ! Vertical boundary.
+        invDz = one / dz(VERTIX(ighostBoxlo0, ighostBoxlo1, ighostBoxlo2));
+
+        do comp = 0, ncomps - 1
+          CHF_AUTOMULTIDO[ghostBox; i]
+            a  = alpha(CHF_AUTOIX[i], comp) * half
+            b  = beta(CHF_AUTOIX[i], comp) * invDz
+
+            BC(CHF_AUTOIX[i], comp) = BC(CHF_AUTOIX[i], comp)
+     &          - (a + b) * phiBar(VERTIX(i0, i1, i2), comp)
+     &          - (a - b) * phiBar(VERTIX(i0-ii0, i1-ii1, i2-ii2), comp)
+          CHF_ENDDO
+        enddo
+      endif
+
+      return
+      end
