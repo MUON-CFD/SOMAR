@@ -33,9 +33,6 @@
 // TEMP!!!
 #include "LevelLepticSolver.H"
 #include "memusage.H"
-// #include "LepticSolver.H"
-// #include "Subspace.H"
-// void noDelete2(const Elliptic::LevelOperator<LevelData<FArrayBox>>*) {}
 
 
 #ifndef NDEBUG
@@ -73,13 +70,6 @@ AMRNSLevel::projectPredict(LevelData<FluxBox>&   a_vel,
     BEGIN_FLOWCHART();
 
     const ProblemContext* ctx = ProblemContext::getInstance();
-
-    // ====== IB ======
-    if (ctx->ib.doIB) { // TODO: IB
-        constexpr bool makeFast = true;
-        this->applyIBForcing(a_vel, a_time, a_projDt, makeFast);
-    }
-
     if (!ctx->proj.doLevelProj) return;
 
     // Gather references / set parameters
@@ -188,7 +178,6 @@ AMRNSLevel::projectPredict(LevelData<FluxBox>&   a_vel,
 
     if (finalDivNorm > initDivNorm) {
         // Lagged pressure failed. Use one FMG iter to drive divVel down.
-        // NOTE: This re-applies the IB force. Not bad, but unneeded.
         const auto saveOpts = m_levelProjSolverPtr->getOptions();
         auto tempOpts = saveOpts;
 
@@ -291,12 +280,6 @@ AMRNSLevel::projectCorrect(LevelData<FluxBox>&   a_vel,
     BEGIN_FLOWCHART();
 
     const ProblemContext* ctx = ProblemContext::getInstance();
-
-    // ====== IB ======
-    if (ctx->ib.doIB) {
-        this->moveIB(a_time);
-        this->applyIBForcing(a_vel, a_time, a_projDt);
-    }
 
     // ====== Projection ======
     // NaN checks in debug mode no matter what.

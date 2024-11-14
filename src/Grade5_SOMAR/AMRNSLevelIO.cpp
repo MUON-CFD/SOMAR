@@ -746,9 +746,6 @@ AMRNSLevel::writePlotHeader(HeaderData&        a_header,
     auto& header = a_header;
     char comp_str[30];
 
-    const ProblemContext* ctx = ProblemContext::getInstance();
-    const bool doIB = ctx->ib.doIB;
-
     // This MUST match numComps in writePlotLevel.
     const int numComps = this->numScalars()
                        + SpaceDim  // u,(v),w
@@ -757,7 +754,6 @@ AMRNSLevel::writePlotHeader(HeaderData&        a_header,
                        + 3         // T,S,b totals
                        + 3         // T,S,b perturbations
                        + 1         // eddy viscosity
-                       + (doIB ? 1 : 0) // Fluid fraction
 #ifdef WRITE_GRADP_TO_HDF5
                        + SpaceDim  // gradP
 #endif //WRITE_GRADP_TO_HDF5
@@ -843,13 +839,6 @@ AMRNSLevel::writePlotHeader(HeaderData&        a_header,
     sprintf(comp_str, "component_%d", comp);
     header.m_string[comp_str] = "eddyNu";
     comp++;
-
-    // Fluid fraction
-    if (doIB) {
-        sprintf(comp_str, "component_%d", comp);
-        header.m_string[comp_str] = "Fluid_fraction";
-        comp++;
-    }
 
 #ifdef WRITE_GRADP_TO_HDF5
     // gradP
@@ -1050,9 +1039,6 @@ AMRNSLevel::writePlotLevel(const std::string& a_filename, int /*level*/) const
 {
     BEGIN_FLOWCHART();
 
-    const ProblemContext* ctx = ProblemContext::getInstance();
-    const bool doIB = ctx->ib.doIB;
-
     char level_str[20];
     sprintf(level_str, "%d", m_level);
     const std::string label = std::string("level_") + level_str;
@@ -1078,7 +1064,6 @@ AMRNSLevel::writePlotLevel(const std::string& a_filename, int /*level*/) const
                        + 3         // T,S,b totals
                        + 3         // T,S,b perturbations
                        + 1         // eddy viscosity
-                       + (doIB ? 1 : 0) // Fluid fraction
 #ifdef WRITE_GRADP_TO_HDF5
                        + SpaceDim  // gradP
 #endif //WRITE_GRADP_TO_HDF5
@@ -1326,14 +1311,6 @@ AMRNSLevel::writePlotLevel(const std::string& a_filename, int /*level*/) const
             dest[dit].copy(m_statePtr->eddyNu[dit]);
         }
 
-        comp += 1;
-    }
-
-    // Fluid fraction
-    if (doIB) {
-        LevelData<FArrayBox> dest;
-        aliasLevelData(dest, &plotData, Interval(comp, comp));
-        this->getIB().getFluidFraction().copyTo(dest);
         comp += 1;
     }
 

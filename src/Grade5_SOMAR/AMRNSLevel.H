@@ -52,10 +52,6 @@
 #include "SideArray.H"
 #include "CubicSpline.H"
 
-// IB stuff
-#include "Layout.H"
-#include "IB.H"    // TODO: IB
-
 // Time stepping
 #include "PARK.H"
 #include "ForwardEuler.H"
@@ -788,51 +784,6 @@ public:
 
 
     // -------------------------------------------------------------------------
-    /// \name AMRNSLevelIB.cpp
-    /// \{
-
-    /// \brief Allocates and sets-up the IB object.
-    /// \details
-    ///  There are typically two ways to do this. Either create a
-    ///  FiniteElements::FE object or a DEM object and pass it into the IB
-    ///  constructor. Alternatively, you can manually create the markers and
-    ///  add them one-by-one, but I don't recommend it.
-    ///
-    ///  If you plan to use IB, this function must create a useable m_IBPtr.
-    ///  Otherwise, just leave m_IBPtr null.
-    virtual void
-    constructIB(const Real a_time = 0.);
-
-    /// \brief Applies a rigid translation /rotation to an existent IB .
-    /// \details
-    ///  Typically, operates on the location of the nodes.
-    virtual void
-    moveIB(const Real a_time = 0.0);
-
-    /// \brief Constrains the velocity field at the immersed boundary.
-    /// \param[inout] a_vel      The velocity to be constrained. At least one
-    ///                          ghost needed.
-    /// \param[in   ] a_time     Needed to apply the BCs.
-    /// \param[in   ] a_dt       The timestep. Needed if we ever want to
-    ///                          compute the forces at the IB.
-    /// \param[in   ] a_makeFast Tell the IB to opt for speed over accuracy.
-    virtual void
-    applyIBForcing(LevelData<FluxBox>& a_vel,
-                   const Real          a_time,
-                   const Real          a_dt,
-                   const bool          a_makeFast = false);
-
-    /// @brief Computes / returns the velocity of the entire, rigid IB.
-    /// @param a_time
-    /// @param a_dt
-    virtual RealVect
-    computeIBVel(const Real a_time, const Real a_dt) {
-        return RealVect::Zero;
-    }
-    /// \}
-
-
-    // -------------------------------------------------------------------------
     /// \name AMRNSLevelRHS.cpp
     /// \{
 
@@ -1230,11 +1181,6 @@ public:
     virtual Vector<const LevelGeometry*>
     getAMRLevGeos () const;
 
-    /// Retrieves an IB object reference.
-    /// You had better be sure we are using IB first!!!
-    virtual const IB&
-    getIB() const;  // TODO: IB
-
     /// \brief Allocates and defines m_amrData on the indicated levels.
     /// \details
     /// If a_lmax = -1, then we allocate up to the top level.
@@ -1403,8 +1349,6 @@ protected:
     /// m_physBdryIter[dir][side] = PhysBdryIter for just one domain side.
     mutable PhysBdryIter                                      m_allPhysBdryIter;
     mutable std::array<std::array<PhysBdryIter, 2>, SpaceDim> m_singlePhysBdryIter;
-
-    std::unique_ptr<IB> m_IBPtr; // TODO: IB
     /// \}
 
     FiniteDiff* m_finiteDiffPtr;
@@ -1475,14 +1419,6 @@ protected:
     std::shared_ptr<LevelData<FluxBox>>   m_oldVelPtr;
     std::shared_ptr<LevelData<FArrayBox>> m_oldPPtr;
     std::shared_ptr<LevelData<FArrayBox>> m_oldQPtr;
-
-    /// \name Static variable accessors
-    /// \{
-
-    // /// Get the level 0 FE representation of the IB.
-    // static std::unique_ptr<FiniteElements::Layout>&
-    // getFELayoutPtr(); // TODO: IB
-    /// \}
 };
 
 

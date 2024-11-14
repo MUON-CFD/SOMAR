@@ -302,15 +302,6 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
         }
     }
 
-    if (ctx->ib.doIB && ctx->amr.tagIB) {
-        CH_verify(m_IBPtr);
-        IntVectSet tmpIVS;
-        m_IBPtr->addLocalIBStencil(tmpIVS);
-        for (IVSIterator ivsit(tmpIVS); ivsit.ok(); ++ivsit) {
-            a_tags |= ivsit();
-        }
-    }
-
     // Finalize.
     a_tags.grow(growTags);
     a_tags &= domBox;

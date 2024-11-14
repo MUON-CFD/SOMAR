@@ -35,7 +35,6 @@
 #include "LayoutTools.H"
 #include "MGSolver.H"
 #include "lapack.H"
-// #include "FETools.H" // TODO: IB
 
 #include <chrono> // for high_resolution_clock
 #include "AnisotropicRefinementTools.H"
@@ -350,8 +349,6 @@ AMRNSLevel::deactivateLevel()
 
     m_isActivated = false;
 
-    m_IBPtr.reset(nullptr); // TODO: IB
-
     // This level gets completely invalidated.
     m_levelOpsValid     = false;
     m_levelSolversValid = false;
@@ -586,17 +583,6 @@ AMRNSLevel::activateLevel(const Vector<Box>& a_new_grids,
                              m_pPtr->ghostVect(),
                              m_qPtr->nComp(),
                              m_qPtr->ghostVect());
-
-    // Set up IB on this level.
-    {
-        const auto start = std::chrono::high_resolution_clock::now();
-        this->constructIB();
-        const auto finish = std::chrono::high_resolution_clock::now();
-
-        const std::chrono::duration<double> elapsed = finish - start;
-        pout() << "IB setup time on level " << m_level << ": "
-               << Format::textTime(elapsed.count()) << '\n';
-    }
 }
 
 

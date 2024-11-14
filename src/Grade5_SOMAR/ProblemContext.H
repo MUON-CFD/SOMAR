@@ -35,7 +35,6 @@
 #include "AMRParameters.H"
 #include "RHSParameters.H"
 #include "ProjectorParameters.H"
-#include "IBParameters.H"
 
 #include "Debug.H"
 
@@ -74,7 +73,6 @@ public:
     AMRParameters       amr;    // everything needed by AnisotropicAMR.
     RHSParameters       rhs;    // Model parameters.
     ProjectorParameters proj;   // for the projector.
-    IBParameters        ib;     // for the immersed boundary.
     // ...
 };
 

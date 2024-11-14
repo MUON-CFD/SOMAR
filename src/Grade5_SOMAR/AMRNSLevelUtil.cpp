@@ -350,18 +350,6 @@ AMRNSLevel::getAMRLevGeos () const
 
 
 // -----------------------------------------------------------------------------
-// Retrieves an IB object reference.
-// You had better be sure we are using IB first!!!
-// -----------------------------------------------------------------------------
-const IB&
-AMRNSLevel::getIB() const  // TODO: IB
-{
-    CH_assert(m_IBPtr);
-    return *m_IBPtr;
-}
-
-
-// -----------------------------------------------------------------------------
 // Allocates and defines m_qcc on the indicated levels.
 //
 // If a_lmax = -1, then we allocate up to the top level.

@@ -1,0 +1,3 @@
+[submodule "PyGlue"]
+	path = PyGlue
+	url = https://github.com/ululi1970/PyGlue.git

@@ -40,7 +40,6 @@ ProblemContext::ProblemContext ()
 , amr(base)
 , rhs(base, amr.numLevels)
 , proj()
-, ib()
 {
 }
 

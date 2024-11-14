@@ -91,12 +91,6 @@ public:
     createScalarsPhysBC(const int             a_dir,
                         const Side::LoHiSide& a_side) const override;
 
-    // // Set physical BCs on all scalars.
-    // virtual void
-    // setScalarPhysBC(LevelData<FArrayBox>& a_state,
-    //                 const Real            a_time,
-    //                 const bool            a_homogBCs) const override;
-
     // The equation of state.
     // Fills a data holder with the buoyancy given temperature and salinity.
     //
@@ -122,22 +116,6 @@ public:
     {
         a_bFAB.copy(a_TFAB);
     }
-
-    // //
-    // virtual void
-    // tagCellsInit(IntVectSet& a_tags);
-
-    // //
-    // virtual void
-    // tagCells(IntVectSet& a_tags);
-
-    ///
-    virtual void
-    constructIB(Real a_time = 0.0) override;
-
-    // ///
-    // virtual void
-    // writePlotHeader(HeaderData& a_header, const std::string& a_filename) const;
 };
 
 #endif //!___LockExchangePhysics_H__INCLUDED___
