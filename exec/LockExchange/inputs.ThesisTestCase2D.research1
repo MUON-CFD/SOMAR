@@ -23,6 +23,12 @@ time.dtMult             = 0.90          # [0.80]     Keep below 1.0 for stabilit
 time.maxDtGrow          = 1.5           # [1.5]      Negative value sets this to 1.0e8.
 # time.restartFile        =               # [commented out / no restart file]
 
+time.useElementaryController = 1
+time.usePIController         = 0
+time.usePIDController        = 0
+time.absTol = 1.0e-3
+# time.relTol = 1.0e-4
+
 
 #----------------------------------- Output -----------------------------------#
 output.plotInterval       = 1                   # [-1]       MUST SPECIFY THIS
