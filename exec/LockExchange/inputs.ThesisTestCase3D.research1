@@ -1,92 +1,157 @@
-############################################
-##### A very basic input file template #####
-############################################
+################################################################################
+#                       A very basic input file template                       #
+################################################################################
 
-# AMRParameters...
 
-amr.verbosity = 2               # [1]
+#------------------- Base level geometry and decomposition --------------------#
+base.L                  = 30.0 3.0 2.0    # MUST SPECIFY
+base.nx                 = 960 96 64       # MUST SPECIFY
+base.nxOffset           = -480 0 0        # [0 0 0]
+base.isPeriodic         = 0 1 0           # [0 0 0]
+# base.splitDirs          = 1 1 1         # [1 1 1]
+base.maxBaseGridSize    = 64 96 64        # [Automated when not defined]
+# base.blockFactor        = 16            # [Automated when not defined]
 
-# rhs.L = 1.0 1.0         # MUST SPECIFY
-# # amr.nx = 64 64                # MUST SPECIFY
-# amr.nx = 128 128                 # MUST SPECIFY
 
-# amr.nx = 480 48 32                # MUST SPECIFY
-# amr.nxOffset = -240 0 0           # [0 0 0]
+#---------------------------- Timestepping details ----------------------------#
+time.stopTime           = 100.0
+time.maxSteps           = 2000
+# time.fixedDt            = -1.0          # [-1.0]     Negative value turns this off.
+time.maxDt              = 10.0            # [1.0e8]
+time.initDtMult         = 0.1             # [0.1]
+time.dtMult             = 0.90            # [0.80]     Keep below 1.0 for stability.
+time.maxDtGrow          = 1.5             # [1.5]      Negative value sets this to 1.0e8.
+# time.restartFile        =               # [commented out / no restart file]
 
-amr.nx = 960 96 64                # MUST SPECIFY
-amr.nxOffset = -480 0 0           # [0 0 0]
 
-# amr.nx = 1920 144 128                # MUST SPECIFY
-# amr.nxOffset = -960 0 0           # [0 0 0]
+#----------------------------------- Output -----------------------------------#
+output.plotInterval       = 1                   # [-1]       MUST SPECIFY THIS
+# output.plotPeriod         = -1.0                # [-1.0]     OR THIS!
+output.plotPrefix         = hdf5_output/plot_   # [hdf5_output/plot_]
+output.checkpointInterval = 50                 # [-1]       Negative value turns this off.
+output.checkpointPrefix   = check_points/chkpt_ # [check_points/chkpt_]
 
-amr.isPeriodic = 0 1 0          # [0 0 0]
-amr.splitDirs = 1 1 1           # [1 1 1]
-# amr.maxGridSize = 0 0 0         # [0 0 0]
-amr.maxBaseGridSize = 64 96 64     # [amr.maxGridSize]
+output.verbosity          = 2                   # [1]
+# output.doFlowchart        = 1                   # [0]
 
-amr.maxLevel = 0                # [0]
-amr.refRatio = 2 2 2              # [4 4 4]
-# amr.refRatio_lev0 = 16 16       # [amr.refRatio]
-# amr.refRatio_lev1 = 4 4 4       # [amr.refRatio]
+
+#-------------------------------- AMR details ---------------------------------#
+amr.maxLevel            = 0             # [0]
+# amr.useSubcycling       = 1             # [1]
+# amr.refRatio            = 4 4 4         # [4 4 4]
+# amr.refRatio_lev0       = 16 16 16      # [amr.refRatio]
+# amr.refRatio_lev1       = 4 4 4         # [amr.refRatio]
 # and so on...
-amr.bufferSize = 1                          # [1]
-amr.fillRatio = 0.8                         # [0.8]
-# amr.blockFactor = 16                         # [0]
-amr.regridIntervals = 1 1 1      # [10 on each level]  Excess values ignored.
+# amr.bufferSize          = 1             # [1]
+# amr.fillRatio           = 0.8           # [0.8]
+# amr.regridIntervals     = 10 10 10      # [10 on each level]  Excess values ignored.
+# amr.maxGridSize         =               # [Automated when not defined]
 
-amr.plotInterval = 1                        # [-1]       MUST SPECIFY THIS
-amr.plotPeriod = -1.0                       # [-1.0]     OR THIS!
-amr.plotPrefix = hdf5_output/plot_          # [plot_]
-amr.checkpointInterval = 50                 # [-1]       Negative value turns this off.
-amr.checkpointPrefix = check_points/chkpt_  # [chkpt_]
-
-amr.stopTime = 100.0
-amr.maxSteps = 2 #2000
-# amr.fixedDt = 0.02              # [-1.0]     Negative value turns this off.
-amr.maxDt = 10.0                 # [1.0e8]
-amr.initDtMult = 0.1            # [0.1]
-amr.dtMult = 0.90                # [0.80]     This used to be called amr.cfl.
-amr.maxDtGrow = 1.5             # [1.5]      Negative value sets this to 1.0e8.
-amr.useSubcycling = 1           # [1]
-
-# amr.restartFile = check_points/chkpt_000070.2d.hdf5  # [commented out / no restart file]
-# dem.fileName = MasoudCEX1_2D.hdf5
-# DEM_test_2d.hdf5
-
-# RHSParameters...
-
-rhs.L = 30.0 3.0 2.0                 # MUST SPECIFY
-rhs.nu = 0.00089442719          # [0.]
-rhs.TKappa = 0.0012597566       # [0.]
-rhs.scalarsKappa = 0.0001 0.0001 0.0001 0.00       # [0. 0. 0. ...]
-# rhs.sKappa = 0.0012597566 0.0 0.0       # [0. 0. 0. ...]
-rhs.coriolisF = 0.0 0.0 0.0            # [0.0]
-rhs.domainBCTypeLo = 1 1 1      # [1 1 1]   1 = no slip, 2 = free slip
-rhs.domainBCTypeHi = 1 1 1      # [1 1 1]   1 = no slip, 2 = free slip
-
-rhs.stratType = 0
-
-# Gr = (1/nu)^2 = 1.25e6
-# Sc = nu/kappa = 0.71
+# amr.velTagTol     = 0.0                 # [-1.0]
+# amr.bTagTol       = 0.0                 # [-1.0]
+# amr.TTagTol       = 0.0                 # [-1.0]
+# amr.STagTol       = 0.0                 # [-1.0]
+# amr.bpertTagTol   = 0.0                 # [-1.0]
+# amr.TpertTagTol   = 0.0                 # [-1.0]
+# amr.SpertTagTol   = 0.0                 # [-1.0]
+# amr.scalarsTagTol =                     # [empty vector] one elem for each scalar
+# amr.growTags      = 1                   # [0]
 
 
-# LES stuff. Methods are: -1 = Zero everywhere except where averaged down
-#                          0 = Zero everywhere,
-#                          1 = Static Smag, 2 = Dynamic Smag, 3 = Ducrose
-rhs.eddyViscMethod =  3 3  # [0]
-rhs.eddyPrandtlT = 0.71    # [1.0]
-rhs.eddyPrandtlS = 0.71    # [1.0]
-rhs.eddyPrandtlScalars = 1.0    # [1.0]
-rhs.eddyScale = 1.0 1.0 1.0   # [1.0 1.0 1.0]
+#------------------------------ Model parameters ------------------------------#
+rhs.nu                  = 0.00089442719             # [0.]
+rhs.TKappa              = 0.0012597566              # [0.]
+# rhs.SKappa              = 0.0                     # [0.]
+rhs.scalarsKappa        = 0.0001 0.0001 0.0001 0.00 # [0. 0. 0. ...]
+# rhs.doImplicitDiffusion = 1                       # [0]
 
-rhs.doMomentumAdvection            = 1  # [1]  OK
-rhs.doBuoyancyAdvection            = 1  # [1]  OK
-rhs.doScalarAdvection              = 1  # [1]  OK
-rhs.doViscousForcing               = 1  # [1]  Buggy
-rhs.doBuoyancyDiffusion            = 1  # [1]  OK
-rhs.doScalarDiffusion              = 1  # [1]  OK
-rhs.doGravityForcing               = 1  # [1]  OK
-rhs.doCoriolisForcing              = 0  # [1]
+# rhs.coriolisF           = 0.0           # [0.0]
 
-rhs.computeInitPressure = 0             # [1]
+rhs.velBCTypeLo = 1 0 1       # [1 1] 0 = Periodic, 1 = no slip, 2 = free slip, 3 = custom, 4 = Tidal
+rhs.velBCTypeHi = 1 0 1       # [1 1] 0 = Periodic, 1 = no slip, 2 = free slip, 3 = custom, 4 = Tidal
+
+rhs.tempBCTypeLo = 1 0 1      # [1 1] 0 = Periodic, 1 = zero neum, 2 = zero neum on pert
+rhs.tempBCTypeHi = 1 0 1      # [1 1] 0 = Periodic, 1 = zero neum, 2 = zero neum on pert
+
+rhs.salinityBCTypeLo = 1 0 1  # [1 1] 0 = Periodic, 1 = zero neum, 2 = zero neum on pert
+rhs.salinityBCTypeHi = 1 0 1  # [1 1] 0 = Periodic, 1 = zero neum, 2 = zero neum on pert
+
+# rhs.tidalU0        = 0.0  0.0  0.0      # [0. 0.]
+# rhs.tidalOmega     = 0.0  0.0  0.0      # [0. 0.]
+# rhs.tidalInitPhase = 0.0  0.0  0.0      # [0. 0.]
+
+# rhs.spongeWidthLo    = 0.0  0.0  0.0    # [0. 0.]
+# rhs.spongeWidthHi    = 0.0  0.0  0.0    # [0. 0.]
+# rhs.spongeTimeCoeff  = 15.0             # [15.]
+
+# Forcing toggles
+# rhs.doMomentumAdvection    = 0          # [1]
+# rhs.doTemperatureAdvection = 0          # [1]
+rhs.doSalinityAdvection    = 0          # [1]
+# rhs.doScalarAdvection      = 0          # [1]
+# rhs.doViscousForcing       = 0          # [1]
+# rhs.doTemperatureDiffusion = 0          # [1]
+rhs.doSalinityDiffusion    = 0          # [1]
+# rhs.doScalarDiffusion      = 0          # [1]
+# rhs.doGravityForcing       = 0          # [1]
+# rhs.doCoriolisForcing      = 0          # [1 if coriolisF is set, 0 otherwise]
+rhs.doTidalforcing         = 0          # [1 if tidal params set, 0 otherwise]
+rhs.doSpongeForcing        = 0          # [1 if sponge params set, 0 otherwise]
+# rhs.computeInitPressure = 1             # [1]
+
+# Advection scheme settings
+# rhs.velReconstruction  = 4      # [4] Can be 2 or 4.
+# rhs.scalReconstruction = 4      # [4] Can be 2 or 4.
+# rhs.momAdvSkewness     = 0.0    # [0.0] 0 = cons form, 1 = adv form.
+
+
+#--------------------------- Stratification details ---------------------------#
+# strat.type              = 0     # [0] 0 = NONE, 1 = LINEAR, 2 = TANH
+# strat.interpOrder       = 1     # [1] 1 = Linear, 3 = Cubic splines
+### See docs for more options.
+
+
+#-------------------------------- LES details ---------------------------------#
+# Methods are: -1 = Zero everywhere except where averaged down
+#               0 = Zero everywhere,
+#               1 = Static Smag, 2 = Dynamic Smag, 3 = Ducrose
+rhs.eddyViscMethod      = 3 3           # [0]
+rhs.eddyPrandtlT        = 0.71          # [1.0]
+rhs.eddyPrandtlS        = 1.0           # [1.0]
+rhs.eddyPrandtlScalars  = 1.0           # [1.0]
+rhs.eddyScale           = 1.0 1.0 1.0   # [1.0 1.0 1.0]
+
+
+#------------------------- Pressure projector details -------------------------#
+# ProjectorParameters...
+# proj.doLevelProj        = 1             # [1]
+# proj.doInitProj         = 1             # [1]
+# proj.doSyncProj         = 1             # [1]
+
+# proj.bottom_absTol      = 1e-12         # [1.0e-12]
+# proj.bottom_relTol      = 1e-12         # [1.0e-6]
+# proj.relaxMethod        = 5             # [5] 5 = GSRB
+# proj.numSmoothDown      = 16            # [16]
+# proj.numSmoothUp        = 16            # [16]
+# proj.numSmoothBottom    = 0             # [2]
+# proj.numSmoothPrecond   = 0             # [2]
+# proj.prolongOrder       = 1             # [1]  Interpolator used in V-cycles. (0 = const, 1 = linear, ...)
+# proj.prolongOrderFMG    = 3             # [3]  Interpolator used by FMG _after_ V-cycles.
+# proj.numSmoothUpFMG     = 2             # [0]  Only used in FMG
+# proj.maxDepth           = 0             # [-1] -1 = coarsen as much as possible
+# proj.numCycles          = 1             # [-1] < 0 for FMG. >0 for V-Cycles
+# proj.maxIters           = 1             # [10]
+# proj.hang               = 1e-7          # [1.0e-7]
+# proj.normType           = 2             # [2]
+# proj.verbosity          = 10            # [4]
+
+# proj.bottom_absTol              = 1.0e-6    # [1.0e-6]
+# proj.bottom_relTol              = 1.0e-2    # *[1.0e-4]
+# proj.bottom_small               = 1.0e-30   # [1.0e-30]
+# proj.bottom_hang                = 1.0e-7    # [1.0e-7]
+# proj.bottom_maxIters            = 80        # [80]
+# proj.bottom_maxRestarts         = 5         # [5]
+# proj.bottom_normType            = 2         # [2]
+# proj.bottom_verbosity           = 0         # [0]
+# proj.bottom_numSmoothPrecond    = 2         # [2]
 
