@@ -240,6 +240,7 @@ def setEnvOptions(Flags, src_dir='src', root_dir='.'):
 			          ,'-Wduplicated-branches'  # (only in GCC >= 7.0) warn if if / else branches have duplicated code
 			          ,'-Wlogical-op'           # (only in GCC) warn about logical operations being used where bitwise were probably wanted
 			          ,'-Wnull-dereference'     # (only in GCC >= 6.0) warn if a null dereference is detected
+                      ,'-Wno-unused-parameter'  # This warning is just annoying.
 			]
     if Flags.Debug:
         if Flags.IntelCompiler or Flags.ClangCompiler:
@@ -251,8 +252,8 @@ def setEnvOptions(Flags, src_dir='src', root_dir='.'):
         CPPSwitches['DEBUG']=None
         CPPSwitches['CH_USE_SETVAL']=None # this is a bit unfortunate, but it means that it sets corresponding switch
     else:
-        CXXFLAGS+=['-g', '-O2']
-        F77FLAGS+=['-g', '-O2', '-funroll-loops']
+        CXXFLAGS+=['-O3']
+        F77FLAGS+=['-O3', '-funroll-loops']
         CPPSwitches['NDEBUG']=None # see comment above
 
     if Flags.noPython: del CPPSwitches['CH_USE_PYTHON']
@@ -346,11 +347,11 @@ def setEnvOptions(Flags, src_dir='src', root_dir='.'):
         "SOURCE_DIR" : src_dir,
         "VARIANT_DIR" : src_dir
     }
-    
+
     # here we sepcify the name of the compiler.
     if Flags.MPI:
         env_options['CXX']='mpiicpc' if shutil.which('mpiicpc') is not None and Flags.IntelCompiler else 'mpic++'
-        
+
     else:
         if Flags.IntelCompiler:
             env_options['CXX']= 'icx'
@@ -358,7 +359,7 @@ def setEnvOptions(Flags, src_dir='src', root_dir='.'):
             env_options['CXX']= 'clang++'
         else:
             env_options['CXX']= 'g++'
-            
+
 
     env_options['FORTRAN']='ifort' if Flags.IntelCompiler else 'gfortran'
 

@@ -389,7 +389,6 @@ FiniteDiff::levelDivergenceMAC_4thOrder(LevelData<FArrayBox>&     a_div,
     // Collect references
     const RealVect&          dXi   = m_levGeoPtr->getDXi();
     const DisjointBoxLayout& grids = a_div.getBoxes();
-    DataIterator             dit   = a_div.dataIterator();
 
     LevelData<FArrayBox> deriv2(grids, SpaceDim, IntVect::Unit);
 

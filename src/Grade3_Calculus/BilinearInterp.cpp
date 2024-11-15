@@ -36,6 +36,7 @@ std::vector<Real>
 addGhostLayer(const std::vector<Real>& a_src) {
     std::vector<Real> growSrc(a_src.size() + 2);
 
+    CH_verify(a_src.size() >= 2);
     growSrc[0] = 2.0 * a_src[0] - a_src[1];
 
     size_t gi = 1;

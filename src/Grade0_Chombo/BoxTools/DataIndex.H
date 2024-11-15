@@ -71,12 +71,12 @@ public:
 #endif
   }
 
-  LayoutIndex(const LayoutIndex& a_input)
-  : m_index(a_input.m_index)
-  , m_datInd(a_input.m_datInd)
-  , m_layoutIntPtr(a_input.m_layoutIntPtr)
-  {
-  }
+//   LayoutIndex(const LayoutIndex& a_input)
+//   : m_index(a_input.m_index)
+//   , m_datInd(a_input.m_datInd)
+//   , m_layoutIntPtr(a_input.m_layoutIntPtr)
+//   {
+//   }
 
   ///
   /**

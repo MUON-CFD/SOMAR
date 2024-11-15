@@ -111,7 +111,7 @@ public:
     /// @brief Only some settings will be affected by using this function
     /// instead of redefining the whole solver.
     /// @param a_options
-    inline virtual void
+    inline void
     setOptions(const Options& a_options)
     {
         m_options = a_options;
@@ -142,7 +142,7 @@ public:
           const Real       a_convergenceMetric = -1.0) const;
 
     /// \brief Solve residual eq L[cor] = res, assuming homog BCs.
-    virtual SolverStatus
+    SolverStatus
     solveResidualEq(StateType&       a_cor,
                     const StateType& a_res,
                     const Real       a_time,

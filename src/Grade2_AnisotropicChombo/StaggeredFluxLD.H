@@ -60,6 +60,10 @@ public:
     StaggeredFluxLD(const DisjointBoxLayout& a_grids,
                     const bool               a_noDiags = false);
 
+    /// Virtual destructor to silence warnings.
+    virtual
+    ~StaggeredFluxLD() = default;
+
     /// Full virtual constructor. Leaves object in a usable state.
     /// If a_noDiags == true, then (*this)[i][i] will be left undefined.
     virtual void

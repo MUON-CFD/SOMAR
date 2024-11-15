@@ -52,6 +52,8 @@ public:
     typedef typename StateTraits<LevelData<FluxBox>>::CopierType CopierType;
     typedef typename StateTraits<LevelData<FluxBox>>::GridsType  GridsType;
 
+    virtual ~StateOps() {}
+
     // -------------------------------------------------------------------------
     /// \{
     /// \name {Needed by LevelOperators}

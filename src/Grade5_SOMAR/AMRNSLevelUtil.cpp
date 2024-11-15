@@ -38,13 +38,14 @@ AMRNSLevel::getLevel(const int a_level)
     CH_assert(a_level >= 0);
 
     AMRNSLevel* levPtr = this;
-    while (a_level < levPtr->m_level) {
+    while (levPtr && a_level < levPtr->m_level) {
         levPtr = levPtr->crseNSPtr();
     }
-    while (a_level > levPtr->m_level) {
+    while (levPtr && a_level > levPtr->m_level) {
         levPtr = levPtr->fineNSPtr();
-        if (levPtr == nullptr) return nullptr;
+        if (!levPtr) return nullptr;
     }
+    CH_verify(levPtr);
     return levPtr;
 }
 
@@ -174,9 +175,10 @@ AMRNSLevel*
 AMRNSLevel::coarsestNSPtr()
 {
     AMRNSLevel* levelNSPtr = this;
-    while (levelNSPtr->m_level != 0) {
+    while (levelNSPtr && levelNSPtr->m_level != 0) {
         levelNSPtr = levelNSPtr->crseNSPtr();
     }
+    CH_verify(levelNSPtr);
     return levelNSPtr;
 }
 

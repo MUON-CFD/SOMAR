@@ -670,7 +670,7 @@ explicit IntVect(PyObject *a_pin);
     void
     linearOut(void* const a_outBuf) const
     {
-        int* const ibuf = static_cast<int* const>(a_outBuf);
+        int* ibuf = static_cast<int*>(a_outBuf);
         D_TERM(
         ibuf[0] = vect[0];,
         ibuf[1] = vect[1];,
@@ -683,7 +683,7 @@ explicit IntVect(PyObject *a_pin);
     void
     linearIn(const void* const a_inBuf)
     {
-        const int* const ibuf = static_cast<const int* const>(a_inBuf);
+        const int* ibuf = static_cast<const int*>(a_inBuf);
         D_TERM(
         vect[0] = ibuf[0];,
         vect[1] = ibuf[1];,

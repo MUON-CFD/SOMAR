@@ -52,6 +52,8 @@ public:
     typedef typename StateTraits<LevelData<FArrayBox>>::CopierType CopierType;
     typedef typename StateTraits<LevelData<FArrayBox>>::GridsType  GridsType;
 
+    virtual ~StateOps() {}
+
     // -------------------------------------------------------------------------
     /// \{
     /// \name {Needed by LevelOperators}

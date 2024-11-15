@@ -15,7 +15,7 @@ base.maxBaseGridSize    = 64 96 64        # [Automated when not defined]
 
 #---------------------------- Timestepping details ----------------------------#
 time.stopTime           = 100.0
-time.maxSteps           = 2000
+time.maxSteps           = 1 #2000
 # time.fixedDt            = -1.0          # [-1.0]     Negative value turns this off.
 time.maxDt              = 10.0            # [1.0e8]
 time.initDtMult         = 0.1             # [0.1]

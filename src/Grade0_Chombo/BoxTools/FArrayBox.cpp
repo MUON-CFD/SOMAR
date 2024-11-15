@@ -92,6 +92,8 @@ Real FArrayBox::norm(const Box& a_subbox,
             }
         } EndForPencil
 
+      if (!tmp) {MayDay::Error("tmp not properly allocated.");}
+
       nrm = tmp[0];
       for (int i = 1; i < tmplen; i++)
         {
@@ -122,6 +124,8 @@ Real FArrayBox::norm(const Box& a_subbox,
                 }
             }
         } EndForPencil
+
+      if (!tmp) {MayDay::Error("tmp not properly allocated.");}
 
       nrm = tmp[0];
       for (int i = 1; i < tmplen; i++)
@@ -189,6 +193,8 @@ Real FArrayBox::sumPow(const Box& a_subbox,
       }
     } EndForPencil
 
+    if (!tmp) {MayDay::Error("tmp not properly allocated.");}
+
     sum = tmp[0];
     for (int i = 1; i < tmplen; i++)
     {
@@ -220,6 +226,8 @@ Real FArrayBox::sumPow(const Box& a_subbox,
         }
       }
     } EndForPencil
+
+    if (!tmp) {MayDay::Error("tmp not properly allocated.");}
 
     sum = tmp[0];
     for (int i = 1; i < tmplen; i++)
@@ -717,6 +725,8 @@ Real FArrayBox::sum(int a_comp,
     }
   } EndForPencil;
 
+  if (!_sum_row) {MayDay::Error("_sum_row not properly allocated.");}
+
   Real _sum = _sum_row[0];
   for (int i = 1; i < _sum_len; i++)
   {
@@ -757,6 +767,8 @@ Real FArrayBox::sum(const Box& a_subbox,
         }
       }
   } EndForPencil;
+
+  if (!_sum_row) {MayDay::Error("_sum_row not properly allocated.");}
 
   Real _sum = _sum_row[0];
   for (int i = 1; i < _sum_len; i++)

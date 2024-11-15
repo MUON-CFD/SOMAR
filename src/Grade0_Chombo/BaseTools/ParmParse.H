@@ -334,6 +334,8 @@ public:
   //
   /*explicit*/ PP_LnPtr (T* rhs);
 
+  PP_LnPtr(const PP_LnPtr<T>&) = default;
+
   /**: The copy assignment operator.  The contained pointer is set
     to the one wrapped by rhs.  The reference count is decremented
     on this object and the reference count is incremented for
@@ -421,6 +423,8 @@ public:
   ///: Construct a PP_LnPtr<T> setting the wrapped pointer to rhs.
   //
   /*explicit*/ PP_LnClassPtr (T* rhs);
+
+  PP_LnClassPtr(const PP_LnClassPtr<T>&) = default;
 
   /**: The copy assignment operator.  The contained pointer is set
     to the one wrapped by rhs.  The reference count is decremented

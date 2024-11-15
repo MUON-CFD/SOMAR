@@ -71,6 +71,18 @@ BoxLayout::define(const Vector<Box>& a_boxes, const Vector<int>& a_procIDs)
     close();
 }
 
+// -----------------------------------------------------------------------------
+BoxLayout::BoxLayout(const BoxLayout &a_rhs)
+: m_boxes(a_rhs.m_boxes)
+, m_layout(a_rhs.m_layout)
+, m_closed(a_rhs.m_closed)
+, m_sorted(a_rhs.m_sorted)
+, m_dataIterator(a_rhs.m_dataIterator)
+#ifdef CH_MPI
+, m_dataIndex(a_rhs.m_dataIndex)
+#endif
+{
+}
 
 // -----------------------------------------------------------------------------
 BoxLayout&

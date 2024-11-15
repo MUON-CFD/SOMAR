@@ -164,15 +164,21 @@ public:
    */
   BoxLayout();
 
+  /// @brief Copy constructor
+  /// @param a_rhs
+  BoxLayout(const BoxLayout& a_rhs);
+
   ///
   /** Construct from a Vector of Boxes and a Vector of
       processor assignments.  On exit, the BoxLayout will be closed.
   */
   BoxLayout(const Vector<Box>& a_boxes,
             const Vector<int>& a_procIDs);
+
 #ifdef CH_USE_PYTHON
   explicit BoxLayout(PyObject *a_pin);
 #endif
+
   ///
   void transform(BaseTransform& a_transform);
 
