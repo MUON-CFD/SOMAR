@@ -19,7 +19,7 @@
  *  USA
  *
  *  For up-to-date contact information, please visit the repository homepage,
- *  https://github.com/MUON-CFD/somar.
+ *  https://github.com/MUON-CFD/SOMAR.
  ******************************************************************************/
 
 // this structure is used to test if a class T defines the a linear operator

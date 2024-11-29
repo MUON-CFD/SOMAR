@@ -19,7 +19,7 @@
  *  USA
  *
  *  For up-to-date contact information, please visit the repository homepage,
- *  https://github.com/MUON-CFD/somar.
+ *  https://github.com/MUON-CFD/SOMAR.
  ******************************************************************************/
 #ifndef M0091158a93725eb57192ee021f0139bf
 #error PARKI.H is not for public use! Try including PARK.H instead.

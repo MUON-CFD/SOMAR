@@ -19,7 +19,7 @@ c  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 c  USA
 c
 c  For up-to-date contact information, please visit the repository homepage,
-c  https://github.com/MUON-CFD/somar.
+c  https://github.com/MUON-CFD/SOMAR.
 c*******************************************************************************
 #include "CONSTANTS.H"
 #include "TensorComp.H"

@@ -22,13 +22,13 @@ features of the std library. Caveat emptor.
 
 Get the software
 ----------------
-SOMAR can be downloaded at its `GitHub repository <https://github.com/Multiscale-Ocean-Numerics/somar>`_
+SOMAR can be downloaded at its `GitHub repository <https://github.com/MUON-CFD/SOMAR>`_
 or directly from the command line:
 
 .. code-block:: console
 
-    git clone https://github.com/Multiscale-Ocean-Numerics/somar.git
-    cd somar
+    git clone https://github.com/MUON-CFD/SOMAR.git
+    cd SOMAR
     git submodule init
     git submodule update
 
@@ -58,14 +58,14 @@ For now, we proceed assuming that you are setting SOMAR on a workstation. Before
 and remove it from your .basrc if you happen to have it defined there.
 
 Next, we create a conda environment using the provided environment file environment_lite.yml.
-But first, edit the name block in environment_lite.yml if you plan to use a name other than somar for the environment.
+But first, edit the name block in environment_lite.yml if you plan to use a name other than SOMAR for the environment.
 Also set the variable SOMAR_ROOT to point to the directory where you have downloaded SOMAR.
 
 Now it is time to create the conda environment.
 
 .. code-block:: console
 
-    cd /path/to/somar
+    cd /path/to/SOMAR
     conda env create -f environment_lite.yml
 
 This environment is based on Python 3.9. Note that it will install paraview, which you can
@@ -134,7 +134,7 @@ For Intel, use mpiicc or for the latest version mpiicx.
 .. code-block:: console
 
 
-    cd somar
+    cd SOMAR
     export MPICC=<your_mpicc>; PythonScripts/installRequiredModules.py
 
 This will take some time. If everything goes well, the proper Python environment

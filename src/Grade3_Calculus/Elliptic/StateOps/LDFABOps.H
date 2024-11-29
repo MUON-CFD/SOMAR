@@ -19,7 +19,7 @@
  *  USA
  *
  *  For up-to-date contact information, please visit the repository homepage,
- *  https://github.com/MUON-CFD/somar.
+ *  https://github.com/MUON-CFD/SOMAR.
  ******************************************************************************/
 #ifndef ___EllipticLDFABOps_H__INCLUDED___
 #define ___EllipticLDFABOps_H__INCLUDED___

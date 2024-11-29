@@ -20,7 +20,7 @@
 #  USA
 #
 #  For up-to-date contact information, please visit the repository homepage,
-#  https://github.com/MUON-CFD/somar.
+#  https://github.com/MUON-CFD/SOMAR.
 # ******************************************************************************/
 
 # this collection of function is used by SCons to build SOMAR
