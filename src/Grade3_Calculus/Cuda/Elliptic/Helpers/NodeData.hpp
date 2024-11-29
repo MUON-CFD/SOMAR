@@ -1,9 +1,7 @@
 /*******************************************************************************
  *  SOMAR - Stratified Ocean Model with Adaptive Refinement
  *  Developed by Ed Santilli & Alberto Scotti
- *  Copyright (C) 2019
- *    Jefferson University and
- *    University of North Carolina at Chapel Hill
+ *  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -37,10 +35,10 @@ class NodeData {
 
 public:
   typedef Memory MyMemory;
-  NodeData() : m_isDefined(false), m_container(0) {} //leaves object unusable 
+  NodeData() : m_isDefined(false), m_container(0) {} //leaves object unusable
   NodeData(const NodeData &x) : m_container(x()), m_isDefined(true) {}
   NodeData(int i) : m_container(i), m_isDefined(true) {}
-  
+
   ~NodeData() {}
 
   cusp::array1d<ValueType, Memory> &operator()() { return m_container; }
@@ -132,8 +130,8 @@ public:
     VolEl.setVal(dV);
     Real r = this->dotProduct(VolEl);
     VolEl.setVal(r);
-    
-    
+
+
     this->incr(VolEl,-1.0);
 
     return r;

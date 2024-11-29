@@ -1,9 +1,7 @@
 /*******************************************************************************
  *  SOMAR - Stratified Ocean Model with Adaptive Refinement
  *  Developed by Ed Santilli & Alberto Scotti
- *  Copyright (C) 2019
- *    Jefferson University and
- *    University of North Carolina at Chapel Hill
+ *  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -36,10 +34,10 @@ namespace MultiGrid {
 /**
  * MGSolver class, generic. It requires a LinearOperator over a Hilbert class,
  * a BottomSolver class to handle the solver at the coarsest level, and a BC
- * class to provide the boundary conditions. 
+ * class to provide the boundary conditions.
  * See Elliptic/traits/isLinearOperatorOverHilbertMGCompatible.hpp for a
  * list of required members.
- */ 
+ */
 template <typename Hilbert, typename LinearOperator, typename BottomSolver,
           typename BC>
 class MGSolver {
@@ -97,7 +95,7 @@ public:
   BottomSolver *getBottomSolver() const { return m_bottomSolverPtr; }
 
   //! Solves L[phi] = rhs using the most appropriate methods.
-  //! returns a vector storing the convergence pattern. 
+  //! returns a vector storing the convergence pattern.
   auto solve(Hilbert &a_phi, const Hilbert &a_rhs, const Real a_time,
              const bool a_useHomogBCs = false,
              const bool a_setPhiToZero = false) -> std::vector<Real>;

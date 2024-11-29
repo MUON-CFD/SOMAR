@@ -1,9 +1,7 @@
 /*******************************************************************************
  *  SOMAR - Stratified Ocean Model with Adaptive Refinement
  *  Developed by Ed Santilli & Alberto Scotti
- *  Copyright (C) 2018
- *    Jefferson (Philadelphia University + Thomas Jefferson University) and
- *    University of North Carolina at Chapel Hill
+ *  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -117,8 +115,8 @@ AMRNSLevel::fillVelSpongeTarget(FArrayBox&       a_targetFAB,
     CH_assert(a_bdryDir < SpaceDim);
 
     CH_assert(a_spongeBox.type() == a_targetFAB.box().type());
-    
-    if (m_problem_domain.isPeriodic(a_bdryDir)) {   
+
+    if (m_problem_domain.isPeriodic(a_bdryDir)) {
         MAYDAYERROR("Cannot use sponge at a periodic boundary.");
     }
 

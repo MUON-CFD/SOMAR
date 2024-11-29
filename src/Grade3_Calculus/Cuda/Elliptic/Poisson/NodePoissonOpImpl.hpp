@@ -1,9 +1,7 @@
 /*******************************************************************************
  *  SOMAR - Stratified Ocean Model with Adaptive Refinement
  *  Developed by Ed Santilli & Alberto Scotti
- *  Copyright (C) 2018
- *    Jefferson (Philadelphia University + Thomas Jefferson University) and
- *    University of North Carolina at Chapel Hill
+ *  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -77,7 +75,7 @@ NodePoissonOp<M, BCType, FABC>::NodePoissonOp(const LevelGeometry *a_levGeoPtr,
                          a_levGeoPtr->getBoxes().physDomain().domainBox().numPts(), 0);
   m_Nrows = 0;
 
-  
+
   this->m_Streams.resize(grids.numBoxes(procID()));
   int c = 0;
   for (dit.reset(); dit.ok(); ++dit) {
@@ -139,7 +137,7 @@ NodePoissonOp<M, BCType, FABC>::NodePoissonOp(const LevelGeometry *a_levGeoPtr,
 
   this->makeCopyOfMatrix(GlobalLaplacian, this->m_GlobalLaplacian);
   this->eliminateZerosRowsAndColumns(this->m_GlobalLaplacian);
-  
+
   m_GlobalRelaxerPtr = new typename Elliptic::PythonInterface::ElliKit<
       int, Real, M, M, BCType>::SORRelax(&(this->m_GlobalLaplacian), this->RelaxCoefficient());
   //  m_GlobalRelaxerPtr = new typename Elliptic::PythonInterface::ElliKit<
@@ -223,7 +221,7 @@ void NodePoissonOp<M, BCType, Container>::upHierarchyPostDefinitions() {
     //
     this->makeCopyOfMatrix(GlobalRestrictor, this->m_GlobalRestrictor);
     this->eliminateZerosRowsAndColumns(this->m_GlobalRestrictor);
-    
+
     coarserPtr->upHierarchyPostDefinitions();
   }
 }

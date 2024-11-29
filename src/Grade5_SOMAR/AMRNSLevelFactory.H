@@ -1,9 +1,7 @@
 /*******************************************************************************
  *  SOMAR - Stratified Ocean Model with Adaptive Refinement
  *  Developed by Ed Santilli & Alberto Scotti
- *  Copyright (C) 2018
- *    Jefferson (Philadelphia University + Thomas Jefferson University) and
- *    University of North Carolina at Chapel Hill
+ *  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -52,7 +50,7 @@ public:
 
 protected:
     GeoSourceInterface*  m_geoSrcPtr;
-    
+
 };
 
 

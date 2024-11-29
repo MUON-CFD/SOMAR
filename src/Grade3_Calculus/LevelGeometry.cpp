@@ -1,9 +1,7 @@
 /*******************************************************************************
  *  SOMAR - Stratified Ocean Model with Adaptive Refinement
  *  Developed by Ed Santilli & Alberto Scotti
- *  Copyright (C) 2019
- *    Jefferson (Philadelphia University + Thomas Jefferson University) and
- *    University of North Carolina at Chapel Hill
+ *  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -116,7 +114,7 @@ LevelGeometry::define(const ProblemDomain&      a_domain,
     if ((m_geoSourcePtr == nullptr) && (m_coarserPtr != nullptr)) {
         m_geoSourcePtr = m_coarserPtr->m_geoSourcePtr;
     }
-    
+
     if (m_geoSourcePtr == nullptr) {
         MayDay::Error("LevelGeometry must get a well-defined GeoSourceInterface from a_geoSourcePtr or a_crseLevGeoPtr.");
     }

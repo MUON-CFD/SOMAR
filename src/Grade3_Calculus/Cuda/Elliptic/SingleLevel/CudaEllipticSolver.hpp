@@ -1,9 +1,7 @@
 /*******************************************************************************
  *  SOMAR - Stratified Ocean Model with Adaptive Refinement
  *  Developed by Ed Santilli & Alberto Scotti
- *  Copyright (C) 2019
- *    Jefferson University and
- *    University of North Carolina at Chapel Hill
+ *  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -37,7 +35,7 @@ namespace Elliptic
 namespace SingleLevel
 {
 /**
-*  The generic EllipticSolver interface. 
+*  The generic EllipticSolver interface.
 */
 template <typename HilbertSpace, typename LinearOperator>
 class EllipticSolver
@@ -54,10 +52,10 @@ public:
 
   virtual const LinearOperator &getOp() const { return *m_opPtr; } /*!< returns the LinearOperator associated with this solver*/
 
-/// The generic interface for a solve. 
+/// The generic interface for a solve.
   virtual int solve(HilbertSpace &a_phi, const HilbertSpace &a_rhs,
                     const Real a_time, const bool a_useHomogBCs,
-                    const bool a_setPhiToZero) const = 0; 
+                    const bool a_setPhiToZero) const = 0;
 
   // I'm doing this without an enum so that child classes can add to
   // the list if needed.
@@ -88,7 +86,7 @@ private:
   EllipticSolver &operator=(const EllipticSolver &that){};
 };
 
-/** 
+/**
 *This does nothing! It's useful for debugging V-Cycles.
 */
 template <class T, class L>
@@ -106,10 +104,10 @@ public:
   }
 };
 
-/** 
+/**
 * BiCGStab linear solver.
 * Copied almost directly from Chombo.
-*/ 
+*/
 template <class T, class L>
 class BiCGStabSolver : public EllipticSolver<T, L>
 {
@@ -161,14 +159,14 @@ private:
 /**
  * This uses the cusp BiCGStab solver. It inherits from BiCGStabSolver.
  * Note that it really only makes sense if using the global solver, since
- * the cusp solver does not know how to exchange across mpi solvers. 
+ * the cusp solver does not know how to exchange across mpi solvers.
  */
 template <class Hilbert, class LinearOperator>
 class CuspBiCGStabSolver : public BiCGStabSolver<Hilbert, LinearOperator>
 {
   private:
   //typedef typename  cusp::precond::aggregation::smoothed_aggregation<int, Real, cusp::device_memory> PreCond;
-  typedef typename  cusp::precond::diagonal<Real, cusp::device_memory> PreCond; //!< There 
+  typedef typename  cusp::precond::diagonal<Real, cusp::device_memory> PreCond; //!< There
 public:
   CuspBiCGStabSolver() : BiCGStabSolver<Hilbert, LinearOperator>() {}
 
@@ -176,28 +174,28 @@ public:
   {
     delete m_Precond;
   }
-  /** 
+  /**
    * In the definition, we need to create the Preconditioner.
    * There are several possibilities. Here we use the standard diagonal
    * preconditioner.
-   */ 
+   */
   virtual void define(const std::shared_ptr<LinearOperator> a_OpPtr)
   {
     CH_assert(a_OpPtr.get());
-    
+
     this->m_opPtr = a_OpPtr;
     m_Precond = new PreCond(*(a_OpPtr->getOperatorMatrixPtr()));
-    
-    
+
+
   }
-  /** 
-   * Solves the system. We use the monitor class from cusp to control convergence. 
+  /**
+   * Solves the system. We use the monitor class from cusp to control convergence.
    * The only return values are 1 if converged or 0 if not.
-   */ 
+   */
   virtual int solve(Hilbert &a_phi, const Hilbert &a_rhs, const Real a_time, const bool a_useHomogBCs, const bool a_setPhiToZero) const
   {
-    
-   
+
+
     cusp::monitor<Real> monitor(a_rhs(), this->m_opt.maxIters, this->m_opt.relTol, this->m_opt.absTol, false);
     cusp::krylov::bicgstab(*(this->m_opPtr->getOperatorMatrixPtr()), a_phi(), a_rhs(), monitor, *m_Precond);
     //cusp::krylov::gmres(*(this->m_opPtr->getOperatorMatrixPtr()), a_phi(), RHS(), 50, monitor, *m_Precond);
@@ -209,8 +207,8 @@ private:
   CuspBiCGStabSolver &operator=(const CuspBiCGStabSolver &that){};
 
   PreCond *m_Precond;
-  
-  
+
+
 };
 #define H9929fb0cc38edce433e3b0842ce1c397
 #include "CudaEllipticSolverImpl.hpp"

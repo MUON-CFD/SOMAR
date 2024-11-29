@@ -1,7 +1,7 @@
 c*******************************************************************************
 c  SOMAR - Stratified Ocean Model with Adaptive Refinement
 c  Developed by Ed Santilli & Alberto Scotti
-c  Copyright (C) 2014 University of North Carolina at Chapel Hill
+c  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
 c
 c  This library is free software; you can redistribute it and/or
 c  modify it under the terms of the GNU Lesser General Public
@@ -20,7 +20,8 @@ c  USA
 c
 c  For up-to-date contact information, please visit the repository homepage,
 c  https://github.com/somarhub.
-c*******************************************************************************#include "CONSTANTS.H"
+c*******************************************************************************
+#include "CONSTANTS.H"
 
 
 c ----------------------------------------------------------------

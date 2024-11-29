@@ -1,9 +1,7 @@
 /*******************************************************************************
  *  SOMAR - Stratified Ocean Model with Adaptive Refinement
  *  Developed by Ed Santilli & Alberto Scotti
- *  Copyright (C) 2019
- *    Jefferson University and
- *    University of North Carolina at Chapel Hill
+ *  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -66,7 +64,7 @@ public:
   }
 
   void project(LevelData<FluxBox> &vel, LevelData<FArrayBox> &phi,
-               LevelData<FluxBox> &gradPhi) 
+               LevelData<FluxBox> &gradPhi)
   {
     Container RHS, LHS;
 
@@ -143,7 +141,7 @@ public:
     // ERR.scale(1. / RHS.norm());
     // return ERR.norm();
   }
-  auto testProjector() 
+  auto testProjector()
   {
     Container RHS, LHS, ERR;
     this->setupContainers(RHS, LHS, ERR);
@@ -162,9 +160,9 @@ public:
              , vel[dit][1].copy(gradPhi[dit][1]);
              , vel[dit][2].copy(gradPhi[dit][2]);)
     }
-    // then we project 
+    // then we project
     this->m_solver.getOpPtr()->divergence(vel, RHS);
-    
+
 
     LHS.setToZero();
     auto res=this->solve(LHS, RHS);
@@ -176,7 +174,7 @@ public:
              , vel[dit][1].plus(gradPhi[dit][1], -1.0);
              , vel[dit][2].plus(gradPhi[dit][2], -1.0);)
     }
-    // and finally we calculate the residual 
+    // and finally we calculate the residual
     this->m_solver.getOpPtr()->divergence(vel, ERR);
     auto res_divgrad=ERR.norm()/RHS.norm();
     IO::tout(0) << " Residual of solver " << res << ". Residual of divgrad " << res_divgrad << endl;
@@ -184,7 +182,7 @@ public:
   }
 
   void findLowestMode(const std::shared_ptr<LinearOperator> L, LevelData<FArrayBox> & EigenVector)
-  { // uses Python to calculate the first two smallest eigenpairs. 
+  { // uses Python to calculate the first two smallest eigenpairs.
     static int c=0;
     std::vector<int> cols, row_offsets;
     std::vector<Real> Data, eig;
@@ -201,9 +199,9 @@ public:
     Python.PythonFunction("ElliKitWrapper", "LowestMode", cols, row_offsets, Data, eig);
     Container EIG(eig.size());
     thrust::copy(eig.begin(), eig.end(), EIG().begin());
-    
+
     L->ContainerToLD(EIG, EigenVector);
-    
+
   }
   // void findLowestMode()
   // {
@@ -357,9 +355,9 @@ public:
       OpsPtrs[i + 1]->setFinerOpPtr(OpsPtrs[i].get());
     }
     // post linking definitions. Used when the operator al level n
-    // needs to have access to info provided by the operator at 
-    // higher or lower levels. Thuss we do it here 
-    // after the cross linking. 
+    // needs to have access to info provided by the operator at
+    // higher or lower levels. Thuss we do it here
+    // after the cross linking.
     OpsPtrs[0]->upHierarchyPostDefinitions();
     //
     OpsPtrs.back()->downHierarchyPostDefinitions();

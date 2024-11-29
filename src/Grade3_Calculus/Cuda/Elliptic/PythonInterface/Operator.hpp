@@ -1,7 +1,7 @@
 /*******************************************************************************
  *  SOMAR - Stratified Ocean Model with Adaptive Refinement
  *  Developed by Ed Santilli & Alberto Scotti
- *  Copyright (C) 2014 University of North Carolina at Chapel Hill
+ *  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -160,7 +160,7 @@ public:
     if (!a_x.box().contains(this->m_gridInput)) {
       IO::tout(0) << " x.box() " << a_x.box() << "; grid Input " << m_gridInput
                   << endl;
-      
+
       MayDay::Error("Operator needs larger input array");
     }
     if (!a_y.box().contains(this->m_gridOutput)) {
@@ -189,7 +189,7 @@ public:
              : this->operator()(a_x.m_varr, a_y.m_varr, I);
   }
 
- 
+
  public:
   template <
       typename C_, typename M_ = OwnMemory,
