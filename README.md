@@ -6,6 +6,7 @@ SOMAR stands for The Stratified Ocean Model with Adaptive Refinement. It is free
 Release info
 -----
 The latest stable versions have been tagged as:
+- **Version 2.0-alpha1**: _COMING SOON_. This will be accompanied by a publication.
 - **Version 1.2-alpha1**: Introduces static mesh stretching and works with any number of levels.
 - **Version 1.1-alpha1**: Tested on simple Cartesian grids and 2 levels.
 
@@ -29,6 +30,10 @@ Features
 - **Large Eddy Simulation -** AMR helps refine local hotspots, but we often do not wish to resolve the flow down to the dissipative scales. For this, we turn to the closure scheme described by [Ducrose, et. al.](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/largeeddy-simulation-of-transition-to-turbulence-in-a-boundary-layer-developing-spatially-over-a-flat-plate/C277DE968A1FD929D3CB05FDBC434AAD)
 
 - **Familiar methods -** Unlike SOMAR v1.0, the newer versions use methods familiar to physical oceanographers such as Arakawa-C grids and Runge-Kutta time integration. We also use simple, centered finite differences for the advection terms rather than upwinding.
+
+- **Error control -** Embedded RK schemes are supported. Users can limit the velocity error using a variety of methods (local, PI, or PID controllers). From the user's perspective, all that is needed is an error tolerance specified in a text-based input file and SOMAR will take care of the rest.
+
+- **Python post-processing -** Analyzing SOMAR's output can be accomplished in [VisIt](https://visit-dav.github.io/visit-website/index.html 'The VisIt website'), [ParaView](https://www.paraview.org/ 'The ParaView website'), or with simple Python scripts. Python can also be used to create initial conditions, create custom force functions, and process data on-the-fly.
 
 - **Highly parallelizable -** SOMAR uses MPI and is build on the [Chombo framework.](https://commons.lbl.gov/display/chombo/Chombo+-+Software+for+Adaptive+Solutions+of+Partial+Differential+Equations)
 
@@ -64,4 +69,4 @@ With your code compiled and input file prepared, you are now ready to run the lo
 
 Documentation
 -----
-Documentation will eventually be hosted on [ReadTheDocs.org](https://readthedocs.org/), but for now you can compile the docs locally. First, make sure [sphinx](https://www.sphinx-doc.org/en/master/) is installed on your machine. You can typically do this via `pip3 install sphinx` or `apt-get install python3-sphinx`. Once installed, switch to SOMAR's `docs/sphinx` folder and run `make html`. View the docs by pointing your web browser to `docs/sphinx/build/html/index.html`.
+Up-to-date documentation is available at [https://somar.readthedocs.io](https://somar.readthedocs.io).
