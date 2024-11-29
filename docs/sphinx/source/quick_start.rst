@@ -22,13 +22,13 @@ features of the std library. Caveat emptor.
 
 Get the software
 ----------------
-SOMAR can be downloaded at its `GitHub repository <https://github.com/UNC-CFD/LES-SOMAR>`_
+SOMAR can be downloaded at its `GitHub repository <https://github.com/Multiscale-Ocean-Numerics/somar>`_
 or directly from the command line:
 
 .. code-block:: console
 
-    git clone https://github.com/UNC-CFD/LES-SOMAR.git
-    cd LES-SOMAR
+    git clone https://github.com/Multiscale-Ocean-Numerics/somar.git
+    cd somar
     git submodule init
     git submodule update
 
@@ -58,14 +58,14 @@ For now, we proceed assuming that you are setting SOMAR on a workstation. Before
 and remove it from your .basrc if you happen to have it defined there.
 
 Next, we create a conda environment using the provided environment file environment_lite.yml.
-But first, edit the name block in environment_lite.yml if you plan to use a name other than LES-SOMAR for the environment.
-Also set the variable SOMAR_ROOT to point to the directory where you have downloaded LES-SOMAR.
+But first, edit the name block in environment_lite.yml if you plan to use a name other than somar for the environment.
+Also set the variable SOMAR_ROOT to point to the directory where you have downloaded SOMAR.
 
 Now it is time to create the conda environment.
 
 .. code-block:: console
 
-    cd /path/to/LES-SOMAR
+    cd /path/to/somar
     conda env create -f environment_lite.yml
 
 This environment is based on Python 3.9. Note that it will install paraview, which you can
@@ -76,9 +76,9 @@ To activate the conda environment,
 
 .. code-block:: console
 
-    conda activate LES-SOMAR
+    conda activate SOMAR
 
-You will note that (LES-SOMAR) is now displayed to the left of your prompt.
+You will note that (SOMAR) is now displayed to the left of your prompt.
 
 We need to copy the script Setup.sh so that it is called when the environment is initialized.
 
@@ -126,7 +126,7 @@ Now it is time to activate the Conda environment and purge the pip cache (just t
 
 
 You will note that (SOMAR_HPC) is now displayed to the left of your prompt.
-Enter the LES-SOMAR root directory and run the provided Python script to install the required
+Enter the SOMAR root directory and run the provided Python script to install the required
 Python modules and the hdf5 library (you may have a version of libhdf5 already on your system
 but this ensures that hdf5 is compiled with the right mpi environment). By default, it uses mpicc.
 For Intel, use mpiicc or for the latest version mpiicx.
@@ -134,7 +134,7 @@ For Intel, use mpiicc or for the latest version mpiicx.
 .. code-block:: console
 
 
-    cd LES-SOMAR
+    cd somar
     export MPICC=<your_mpicc>; PythonScripts/installRequiredModules.py
 
 This will take some time. If everything goes well, the proper Python environment

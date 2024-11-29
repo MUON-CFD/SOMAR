@@ -20,7 +20,7 @@
  *  USA
  *
  *  For up-to-date contact information, please visit the repository homepage,
- *  https://github.com/somarhub.
+ *  https://github.com/MUON-CFD/somar.
  ******************************************************************************/
 #endif //CH_LANG_CC
 #ifndef ___TensorComp_H__INCLUDED___

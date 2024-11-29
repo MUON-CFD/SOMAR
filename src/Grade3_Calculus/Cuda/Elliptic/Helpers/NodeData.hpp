@@ -19,7 +19,7 @@
  *  USA
  *
  *  For up-to-date contact information, please visit the repository homepage,
- *  https://github.com/somarhub.
+ *  https://github.com/MUON-CFD/somar.
  ******************************************************************************/
 // a class to represent LevelData objects as single sparse matrix over the whole
 // domain

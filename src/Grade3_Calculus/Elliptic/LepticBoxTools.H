@@ -19,7 +19,7 @@
  *  USA
  *
  *  For up-to-date contact information, please visit the repository homepage,
- *  https://github.com/somarhub.
+ *  https://github.com/MUON-CFD/somar.
  ******************************************************************************/
 #ifndef __LepticBoxTools_H__INCLUDED__
 #define __LepticBoxTools_H__INCLUDED__

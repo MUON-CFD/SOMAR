@@ -19,7 +19,7 @@ C  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
 C  USA
 C
 C  For up-to-date contact information, please visit the repository homepage,
-C  https://github.com/somarhub.
+C  https://github.com/MUON-CFD/somar.
 C*******************************************************************************
 #include "CONSTANTS.H"
 #include "AddlFortranMacros.H"

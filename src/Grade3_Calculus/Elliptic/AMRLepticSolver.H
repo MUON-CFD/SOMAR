@@ -19,7 +19,7 @@
  *  USA
  *
  *  For up-to-date contact information, please visit the repository homepage,
- *  https://github.com/UNC-CFD/LES-SOMAR.
+ *  https://github.com/MUON-CFD/somar.
  ******************************************************************************/
 #ifndef ___AMRLepticSolver_H__INCLUDED___
 #define ___AMRLepticSolver_H__INCLUDED___

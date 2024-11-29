@@ -19,7 +19,7 @@
  *  USA
  *
  *  For up-to-date contact information, please visit the repository homepage,
- *  https://github.com/somarhub.
+ *  https://github.com/MUON-CFD/somar.
  ******************************************************************************/
 #ifndef H9929fb0cc38edce433e3b0842ce1c397
 #error CudaEllipticSolverImpl.hpp should only be used by EllipticSolver.H
