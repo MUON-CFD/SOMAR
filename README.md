@@ -1,7 +1,7 @@
 Welcome to the SOMAR repository!
 =====
 
-SOMAR stands for The Stratified Ocean Model with Adaptive Refinement. It is free software using the [LGPL license](https://www.gnu.org/licenses/lgpl-2.1.html 'The GNU Lesser General Public License, version 2.1 applies.') and provided jointly by [Thomas Jefferson University's College of Humanities and Sciences](https://www.jefferson.edu/academics/colleges-schools-institutes/humanities-sciences.html 'TJU\'s CHS website') and the [University of North Carolina at Chapel Hill's Marine Science Department](http://marine.unc.edu/ 'UNC Marine Sciences website').
+SOMAR stands for The Stratified Ocean Model with Adaptive Refinement. It is free software using the [LGPL license](https://www.gnu.org/licenses/lgpl-2.1.html 'The GNU Lesser General Public License, version 2.1 applies.') and provided jointly by [Thomas Jefferson University's College of Humanities and Sciences](https://www.jefferson.edu/academics/colleges-schools-institutes/humanities-sciences.html 'TJU\'s CHS website') and [Arizona State University's School of Engineering of Matter, Transport, and Energy](https://semte.engineering.asu.edu/ 'ASU Engineering website').
 
 Release info
 -----
@@ -33,7 +33,7 @@ Features
 - **Highly parallelizable -** SOMAR uses MPI and is build on the [Chombo framework.](https://commons.lbl.gov/display/chombo/Chombo+-+Software+for+Adaptive+Solutions+of+Partial+Differential+Equations)
 
 
-Software prerequisites
+<!-- Software prerequisites
 -----
 TODO
 
@@ -59,7 +59,7 @@ plot.checkpoint_interval = 100
 ```
 In this listing, several of the lines are commented out with a `#`. This usually means we either do not want a particular feature or we are happy with the default values. In this case, we do not want to restart a simulation from a saved state and we are happy with the default file name prefixes. As you can see, all plot files will be prefixed with `plot_` and all checkpoint files (files used to restart a simulation) will be prefixed with `chkpt_`. If we want the plot files to go into a different directory, we can uncomment the plot\_prefix line to read `plot.plot_prefix = /home/user/myPlotFolder/plot_`. Other input parameters can similarly be altered as you see fit.
 
-With your code compiled and input file prepared, you are now ready to run the lock exchange demo. To run the demo in serial, use `./somar2d.[config].OPTHIGH.MPI.ex inputs.LockExchange.HAL`. To run this simulation in parallel over 8 processors, use `mpirun -np 8 ./somar2d.[config].OPTHIGH.MPI.ex inputs.LockExchange.HAL`. The result should be two sets of [HDF5](http://www.hdfgroup.org/HDF5/ 'The HDF group website') files -- one set of checkpoint files that are used to restart a simulation, and one set of plot files that can be viewed in [VisIt](https://wci.llnl.gov/simulation/computer-codes/visit 'The VisIt webpage').
+With your code compiled and input file prepared, you are now ready to run the lock exchange demo. To run the demo in serial, use `./somar2d.[config].OPTHIGH.MPI.ex inputs.LockExchange.HAL`. To run this simulation in parallel over 8 processors, use `mpirun -np 8 ./somar2d.[config].OPTHIGH.MPI.ex inputs.LockExchange.HAL`. The result should be two sets of [HDF5](http://www.hdfgroup.org/HDF5/ 'The HDF group website') files -- one set of checkpoint files that are used to restart a simulation, and one set of plot files that can be viewed in [VisIt](https://wci.llnl.gov/simulation/computer-codes/visit 'The VisIt webpage'). -->
 
 
 Documentation
