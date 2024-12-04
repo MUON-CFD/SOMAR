@@ -110,7 +110,8 @@ Next, we create a basic conda environment
 
 .. code-block:: console
 
-conda create -n SOMAR_HPC -c conda-forge python=3.9
+    conda create -n SOMAR_HPC -c conda-forge python=3.9
+
 Note we have selected python 3.9 for our environment.
 Also note that conda may ask you to execute a command to add a block
 to your .basrc file (or equivalent if using a different shell). Follow
