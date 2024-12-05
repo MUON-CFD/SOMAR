@@ -25,6 +25,7 @@
 #error PARKI.H is not for public use! Try including PARK.H instead.
 #endif
 
+#include "PARK.H" // Helps VSCode find symbols.
 #include "Analysis.H"
 #include "Debug.H"
 #include "SOMAR_Constants.H"
@@ -73,6 +74,29 @@ PARK<RKC>::PARK(const DisjointBoxLayout& a_grids,
 , m_errorHistory()
 , m_controllerHistory{-1.0, -1.0, -1.0}
 {
+    // PARK methods have 3 strict requirements.
+    static bool writeOrder = true;
+    if (writeOrder) {
+        CH_verify(abs(RKC::c[0]) < smallReal);
+        CH_verify(abs(RKC::aI[0][0]) < smallReal);
+        CH_verify(RKC::numStages == 1 || abs(RKC::c[1]) > smallReal);
+
+        pout() << "Explicit order = " << s_orderE << '\n';
+        pout() << "Implicit order = " << s_orderI << '\n';
+        if (this->hasEmbeddedScheme()) {
+            pout() << "Explicit embedded order = " << s_orderEmbeddedE << '\n';
+            pout() << "Implicit embedded order = " << s_orderEmbeddedI << '\n';
+        } else {
+            pout() << "No embedded scheme.\n";
+        }
+        pout() << "Explicit stage order = " << s_stageOrderE << '\n';
+        pout() << "Implicit stage order = " << s_stageOrderI << '\n';
+        pout() << std::endl;
+
+        writeOrder = false;
+    }
+
+    // Allocate field variables.
     for (int i = 0; i < RKC::numStages; ++i) {
         m_vel[i].define(a_grids, a_velNumComps, m_velGhostVect);
         m_kvelE[i].define(a_grids, a_velNumComps);
@@ -94,23 +118,6 @@ PARK<RKC>::PARK(const DisjointBoxLayout& a_grids,
         debugInitLevel(m_kqE[i]);
         debugInitLevel(m_kqI[i]);
     }
-
-    // PARK methods have 3 strict requirements.
-    CH_verify(abs(RKC::c[0]) < smallReal);
-    CH_verify(abs(RKC::aI[0][0]) < smallReal);
-    CH_verify(RKC::numStages == 1 || abs(RKC::c[1]) > smallReal);
-
-    pout() << "Explicit order = " << s_orderE << '\n';
-    pout() << "Implicit order = " << s_orderI << '\n';
-    if (this->hasEmbeddedScheme()) {
-        pout() << "Explicit embedded order = " << s_orderEmbeddedE << '\n';
-        pout() << "Implicit embedded order = " << s_orderEmbeddedI << '\n';
-    } else {
-        pout() << "No embedded scheme.\n";
-    }
-    pout() << "Explicit stage order = " << s_stageOrderE << '\n';
-    pout() << "Implicit stage order = " << s_stageOrderI << '\n';
-    pout() << std::endl;
 
     // m_prevIdxForProj
     {
@@ -182,10 +189,12 @@ PARK<RKC>::PARK(const DisjointBoxLayout& a_grids,
                 m_needsAssemblyProjection |= !RealCmp::isZero(m_zetaI[s][j]);
             }
         }
+        // POUT(m_needsAssembly);
+        // POUT(m_needsAssemblyProjection);
     }
-    TODONOTE("m_needsAssemblyProjection is hardcoded to true.");
-    m_needsAssembly = true;
-    m_needsAssemblyProjection = true;
+    // TODONOTE("m_needsAssemblyProjection is hardcoded to true.");
+    // m_needsAssembly = true;
+    // m_needsAssemblyProjection = true;
 
     CH_verify(!s_removeDivFromK || m_needsAssemblyProjection);
 
@@ -871,7 +880,11 @@ PARK<RKC>::advance(LevelData<FluxBox>&   a_vel,
     }
 
     // Assembly of new state.
-    do {
+    if (!m_needsAssembly) {
+        this->copy(a_vel, m_vel[RKC::numStages - 1]);
+        this->copy(  a_q,   m_q[RKC::numStages - 1]);
+        this->copy(  a_p,   m_p[RKC::numStages - 1]);
+    } else {
         // // If the last row of RKC::a equals RKC::b, then we don't need
         // // to do anything!
         // bool lastARowEqualsB = true;
@@ -902,20 +915,22 @@ PARK<RKC>::advance(LevelData<FluxBox>&   a_vel,
             }
         }
 
-        pout() << Format::fixed;
-        pout() << "Assembly:\n";
-        pout() << Format::indent() << flush;
+        if (m_needsAssemblyProjection) {
+            pout() << Format::fixed;
+            pout() << "Assembly:\n";
+            pout() << Format::indent() << flush;
 
-        a_rhsPtr->projectPredict(a_vel, a_p, stageTime, projDt);
-        a_rhsPtr->projectCorrect(a_vel, a_p, stageTime, projDt);
+            a_rhsPtr->projectPredict(a_vel, a_p, stageTime, projDt);
+            a_rhsPtr->projectCorrect(a_vel, a_p, stageTime, projDt);
 
-        // Extrapolate p^{n+1} to t^{n+1}.
-        if (s_extrapAssemblyPressure) {
-            this->axby(2.0, a_p, -1.0, m_p[0]);
+            // Extrapolate p^{n+1} to t^{n+1}.
+            if (s_extrapAssemblyPressure) {
+                this->axby(2.0, a_p, -1.0, m_p[0]);
+            }
+
+            pout() << Format::unindent << flush;
         }
-
-        pout() << Format::unindent << flush;
-    } while (0);
+    };
 
 
     // Remove divergence from kE.

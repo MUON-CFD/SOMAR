@@ -65,13 +65,13 @@ public:
     inline constexpr Real
     ERKStabilityRe() const
     {
-        return 1.0;
+        return 2.51; // Roughly
     }
 
     inline constexpr Real
     ERKStabilityIm() const
     {
-        return 1.0;
+        return 1.73205080757;
     }
 
     /// @brief Computed the next dt based on error estimates.
