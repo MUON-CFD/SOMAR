@@ -153,9 +153,9 @@ To make sure everything works
 
 If everything is working, you should see
 
+.. code-block:: console
 
     My rank is 0
-
     My size is 1
 
 
@@ -184,7 +184,7 @@ simulation.
     ./Somar_2D.Serial.gcc.ex inputs.basicTest2D.research1
 
 If you wish to compile and run with the Intel compiler suite, use the
-:code:`--IntelCompiler` switch. A
+:code:`--IntelCompiler` switch.
 
 .. code-block:: console
 

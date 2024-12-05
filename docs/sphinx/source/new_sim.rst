@@ -19,7 +19,7 @@ This will create a :code:`somar/exec/MyFirstProject` folder that is populated wi
     $ cd MyFirstProject
     $ ./buildall -j32 --D=2 --Serial
 
-Although our computer has 16 available processors, we may have 2 threads per core, so we request twice as many simultaneous jobs when compiling with the :code:`-j32` option. If you wish to use the Intel or Clang compiler suites, add the :code:`--IntelCompiler` or :code:`--Clang`flags to the :code:`buildall` command.
+Although our computer has 16 available processors, we may have 2 threads per core, so we request twice as many simultaneous jobs when compiling with the :code:`-j32` option. If you wish to use the Intel or Clang compiler suites, add the :code:`--IntelCompiler` or :code:`--Clang` flags to the :code:`buildall` command.
 
 If all goes well, an executable will be created named :code:`Somar_2D.Serial.gcc.ex`. By default, this simulation will not do much because the initial state will be set to zero. Nevertheless, we should run it just to be sure everything is working.
 
