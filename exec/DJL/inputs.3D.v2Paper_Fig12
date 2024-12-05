@@ -1,0 +1,176 @@
+################################################################################
+#                       A very basic input file template                       #
+################################################################################
+
+
+#------------------- Base level geometry and decomposition --------------------#
+base.L                  = 512.0 512.0 1.0     # MUST SPECIFY
+base.nx                 = 128 128 32      # MUST SPECIFY
+# base.nx                 = 256 256 32      # MUST SPECIFY
+# base.nx                 = 512 512 32      # MUST SPECIFY
+base.nxOffset           = 0 0 -32        # [0 0 0]
+# base.isPeriodic         = 0 0 0         # [0 0 0]
+base.splitDirs          = 1 1 0           # [1 1 1]
+base.maxBaseGridSize    = 32 32 0          # [Automated when not defined]
+base.blockFactor        = 16            # [Automated when not defined]
+
+
+
+#---------------------------- Timestepping details ----------------------------#
+time.stopTime          = 600.0
+time.maxSteps          = 10000
+# time.maxDt             = 0.1            # [1.0e8]
+time.dtMult            = 0.80           # [0.80]
+# time.fixedDt           = -1.0           # [-1.0] Negative value turns this off.
+# time.initDtMult        = 0.1            # [0.1]
+# time.maxDtGrow         = 1.5            # [1.5]  Negative value sets this to 1.0e8.
+# time.restartFile       = check_points/chkpt_000700.3d.hdf5                # [commented out / no restart file]
+
+time.useElementaryController = 0
+time.usePIController         = 0
+time.usePIDController        = 1
+time.absTol = 1.0e-4
+# time.relTol = 1.0e-4
+
+
+#----------------------------------- Output -----------------------------------#
+output.verbosity        = 2             # [1]
+# output.doFlowchart      = 0             # [0]
+
+output.plotInterval        = 5                     # [-1]       MUST SPECIFY THIS
+# output.plotPeriod          = 5.0                  # [-1.0]     OR THIS!
+output.plotPrefix          = hdf5_output/plot_     # [plot_]
+output.checkpointInterval  = 25                   # [-1]       Negative value turns this off.
+output.checkpointPrefix    = check_points/chkpt_   # [chkpt_]
+
+
+#-------------------------------- AMR details ---------------------------------#
+amr.maxLevel            = 2             # [0]
+# amr.useSubcycling       = 1             # [1]
+# amr.refRatio            = 8 8 2         # [4 4 4]
+amr.refRatio_lev0       = 2 2 2      # [amr.refRatio]
+amr.refRatio_lev1       = 4 4 1         # [amr.refRatio]
+# and so on...
+# amr.bufferSize          = 1             # [1]
+# amr.fillRatio           = 1.0           # [0.8]
+# amr.regridIntervals     = 10 10 10      # [10 on each level]  Excess values ignored.
+amr.maxGridSize         = 64 64 0              # [Automated when not defined]
+
+# amr.velTagTol     = 0.01                 # [-1.0]
+# amr.bTagTol       = 0.003                 # [-1.0]
+# amr.TTagTol       = 0.0                 # [-1.0]
+# amr.STagTol       = 0.0                 # [-1.0]
+# amr.bpertTagTol   = 0.05                 # [-1.0]
+# amr.TpertTagTol   = 0.05                 # [-1.0]
+# amr.SpertTagTol   = 0.0                 # [-1.0]
+# amr.scalarsTagTol =                     # [empty vector] one elem for each scalar
+amr.growTags      = 2                   # [0]
+
+
+#------------------------------ Model parameters ------------------------------#
+rhs.nu       = 0.000001       # [0.]
+rhs.TKappa   = 0.000001        # [0.]
+# rhs.SKappa              = 0.0           # [0.]
+# rhs.scalarsKappa        = 0.0           # [0. 0. 0. ...]
+# rhs.doImplicitDiffusion = 1                # [0]
+
+# rhs.coriolisF           = 0.0           # [0.0]
+
+rhs.velBCTypeLo = 2 2 2       # [1 1] 0 = Periodic, 1 = no slip, 2 = free slip
+rhs.velBCTypeHi = 2 2 2       # [1 1] 0 = Periodic, 1 = no slip, 2 = free slip
+
+rhs.tempBCTypeLo = 1 1 1      # [1 1] 0 = Periodic, 1 = zero neum, 2 = zero neum on pert
+rhs.tempBCTypeHi = 1 1 1      # [1 1] 0 = Periodic, 1 = zero neum, 2 = zero neum on pert
+
+rhs.salinityBCTypeLo = 1 1 1  # [1 1] 0 = Periodic, 1 = zero neum, 2 = zero neum on pert
+rhs.salinityBCTypeHi = 1 1 1  # [1 1] 0 = Periodic, 1 = zero neum, 2 = zero neum on pert
+
+# rhs.tidalU0        = 0.0  0.0           # [0. 0.]
+# rhs.tidalOmega     = 0.0  0.0           # [0. 0.]
+# rhs.tidalInitPhase = 0.0  0.0           # [0. 0.]
+
+# rhs.spongeWidthLo    = 0.0  0.0  0.0    # [0. 0.]
+# rhs.spongeWidthHi    = 0.0  0.0  0.0    # [0. 0.]
+# rhs.spongeTimeCoeff  = 15.0             # [15.]
+
+# Forcing toggles
+# rhs.doMomentumAdvection    = 0          # [1]
+# rhs.doTemperatureAdvection = 0          # [1]
+rhs.doSalinityAdvection    = 0          # [1]
+rhs.doScalarAdvection      = 0          # [1]
+# rhs.doViscousForcing       = 0          # [1]
+# rhs.doTemperatureDiffusion = 0          # [1]
+rhs.doSalinityDiffusion    = 0          # [1]
+rhs.doScalarDiffusion      = 0          # [1]
+# rhs.doGravityForcing       = 0          # [1]
+rhs.doCoriolisForcing      = 0          # [1 if coriolisF is set, 0 otherwise]
+rhs.doTidalforcing         = 0          # [1 if tidal params set, 0 otherwise]
+rhs.doSpongeForcing        = 0          # [1 if sponge params set, 0 otherwise]
+# rhs.computeInitPressure = 0             # [1]
+
+# Advection scheme settings
+rhs.velReconstruction  = 4      # [4] Can be 2 or 4.
+rhs.scalReconstruction = 4      # [4] Can be 2 or 4.
+rhs.momAdvSkewness     = 0.0    # [0.0] 0 = cons form, 1 = adv form.
+
+
+#--------------------------- Stratification details ---------------------------#
+# strat.type        = -1           # [0] 0 = NONE, 1 = LINEAR, 2 = TANH
+# strat.interpOrder = 1            # [1] 1 = Linear, 3 = Cubic splines
+
+# strat.type     = 1              # [0] 0 = NONE, 1 = LINEAR, 2 = TANH
+# strat.T0       =
+# strat.dTdz     =
+# strat.S0       =
+# strat.dSdz     =
+
+strat.type     = 2              # [0] 0 = NONE, 1 = LINEAR, 2 = TANH
+strat.T0       = 0.5
+strat.dT       = 0.5
+strat.S0       = 0.0
+strat.dS       = 0.0
+strat.z0       = -0.20
+strat.sigma    = 0.1
+
+
+#-------------------------------- LES details ---------------------------------#
+# LES stuff. Methods are: -1 = Zero everywhere except where averaged down
+#                          0 = Zero everywhere,
+#                          1 = Static Smag, 2 = Dynamic Smag, 3 = Ducrose
+# rhs.eddyViscMethod      = 0 0           # [0]
+# rhs.eddyPrandtl         = 1.0           # [1.0]
+# rhs.eddyScale           = 1.0 1.0 1.0   # [1.0 1.0 1.0]
+
+
+#------------------------- Pressure projector details -------------------------#
+# proj.doLevelProj        = 0             # [1]
+# proj.doInitProj         = 0             # [1]
+# proj.doSyncProj         = 0             # [1]
+
+proj.bottom_absTol      = 1e-6         # [1.0e-12]
+proj.bottom_relTol      = 1e-6         # [1.0e-6]
+proj.relaxMethod        = 6             # [5] 5 = GSRB, 6 = VertLine
+# proj.numSmoothDown      = 1            # [16]
+# proj.numSmoothUp        = 1            # [16]
+# proj.numSmoothBottom    = 1             # [2]
+# proj.numSmoothPrecond   = 1             # [2]
+# proj.prolongOrder       = 1             # [1]  Interpolator used in V-cycles. (0 = const, 1 = linear, ...)
+# proj.prolongOrderFMG    = 3             # [3]  Interpolator used by FMG _after_ V-cycles.
+# proj.numSmoothUpFMG     = 2             # [0]  Only used in FMG
+# proj.maxDepth           = 0             # [-1] -1 = coarsen as much as possible
+# proj.numCycles          = -1             # [-1] < 0 for FMG. >0 for V-Cycles
+# proj.maxIters           = 1             # [10]
+# proj.hang               = 0.001         # [1.0e-7]
+# proj.normType           = 2             # [2]
+proj.verbosity          = 1            # [4]
+
+# proj.bottom_absTol              = 1.0e-12    # [1.0e-6]
+# proj.bottom_relTol              = 1.0e-12    # *[1.0e-4]
+# proj.bottom_small               = 1.0e-30   # [1.0e-30]
+# proj.bottom_hang                = 1.0e-7    # [1.0e-7]
+# proj.bottom_maxIters            = 80        # [80]
+# proj.bottom_maxRestarts         = 5         # [5]
+# proj.bottom_normType            = 2         # [2]
+# proj.bottom_verbosity           = 5         # [0]
+# proj.bottom_numSmoothPrecond    = 2         # [2]
+
