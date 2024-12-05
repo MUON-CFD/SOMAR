@@ -81,6 +81,7 @@ PARK<RKC>::PARK(const DisjointBoxLayout& a_grids,
         CH_verify(abs(RKC::aI[0][0]) < smallReal);
         CH_verify(RKC::numStages == 1 || abs(RKC::c[1]) > smallReal);
 
+        pout() << "ARK coefficient details:" << Format::indent() << '\n';
         pout() << "Explicit order = " << s_orderE << '\n';
         pout() << "Implicit order = " << s_orderI << '\n';
         if (this->hasEmbeddedScheme()) {
@@ -91,7 +92,7 @@ PARK<RKC>::PARK(const DisjointBoxLayout& a_grids,
         }
         pout() << "Explicit stage order = " << s_stageOrderE << '\n';
         pout() << "Implicit stage order = " << s_stageOrderI << '\n';
-        pout() << std::endl;
+        pout() << Format::unindent << std::endl;
 
         writeOrder = false;
     }

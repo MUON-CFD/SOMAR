@@ -266,8 +266,8 @@ AMRNSLevel::setExplicitRHS(LevelData<FluxBox>&   a_kvel,
                                        primaryScale,
                                        transposeScale);
 
-        auto maxViscForce = Analysis::pNorm(viscForce, 0);
-        pout() << "max |visc force| = " << Format::scientific << maxViscForce << '\n';
+        // auto maxViscForce = Analysis::pNorm(viscForce, 0);
+        // pout() << "max |visc force| = " << Format::scientific << maxViscForce << '\n';
 
         for (dit.reset(); dit.ok(); ++dit) {
             a_kvel[dit] += viscForce[dit];
@@ -286,8 +286,8 @@ AMRNSLevel::setExplicitRHS(LevelData<FluxBox>&   a_kvel,
                                        primaryScale,
                                        transposeScale);
 
-        maxViscForce = Analysis::pNorm(viscForce, 0);
-        pout() << "max |eddy visc force| = " << Format::scientific << maxViscForce << '\n';
+        // maxViscForce = Analysis::pNorm(viscForce, 0);
+        // pout() << "max |eddy visc force| = " << Format::scientific << maxViscForce << '\n';
 
         for (dit.reset(); dit.ok(); ++dit) {
             a_kvel[dit] += viscForce[dit];
