@@ -293,31 +293,31 @@
       CH_assert((CHF_NCOMP[vel] .eq. CH_SPACEDIM))
 
       CHF_AUTOMULTIDO[region;i]
-        ! Add the advecting velocity
-        CHF_DTERM[
+        ! x-dir
         thisVel = vel(CHF_AUTOIX[i],0)
         thisC1i = c1i(CHF_AUTOIX[i],0)
-        totalVel(0) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i));
+        totalVel(0) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i))
+        if (totalVel(0) .ge. SMALLVAL) then
+            minDt = Min(minDt, dXi(0) / totalVel(0))
+        endif
 
+        ! y-dir
         thisVel = vel(CHF_AUTOIX[i],1)
         thisC1i = c1i(CHF_AUTOIX[i],1)
-        totalVel(1) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i));
-
-        thisVel = vel(CHF_AUTOIX[i],2)
-        thisC1i = c1i(CHF_AUTOIX[i],2)
-        totalVel(2) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i))]
-
-        ! minDt = Min_i[dXi^i / totalVel]
-        CHF_DTERM[
-        if (totalVel(0) .ge. SMALLVAL) then
-          minDt = Min(minDt, dXi(0) / totalVel(0))
-        endif;
+        totalVel(1) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i))
         if (totalVel(1) .ge. SMALLVAL) then
           minDt = Min(minDt, dXi(1) / totalVel(1))
-        endif;
+        endif
+
+#if CH_SPACEDIM > 2
+        ! z-dir
+        thisVel = vel(CHF_AUTOIX[i],2)
+        thisC1i = c1i(CHF_AUTOIX[i],2)
+        totalVel(2) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i))
         if (totalVel(2) .ge. SMALLVAL) then
           minDt = Min(minDt, dXi(2) / totalVel(2))
-        endif]
+        endif
+#endif
       CHF_ENDDO
 
       return
