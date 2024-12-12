@@ -376,10 +376,10 @@ applyBC(FArrayBox&            a_stateFAB,
 
 
     // Determine how many cells are available for the stencil.
-    // const int numValidCells = std::min(a_ccValid.size(a_bdryDir),
-    //                                    a_stateFAB.box().size(a_bdryDir));
-    constexpr int numValidCells = 1;
-    BUG("IBs close to the domain boundary don't work with second order BC extrap.");
+    const int numValidCells = std::min(a_ccValid.size(a_bdryDir),
+                                       a_stateFAB.box().size(a_bdryDir));
+    // constexpr int numValidCells = 1;
+    // BUG("IBs close to the domain boundary don't work with second order BC extrap.");
 
     // Set BCs on state. This happens differently for different centerings.
     if (normIXType == IndexType::CELL) {
