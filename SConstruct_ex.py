@@ -96,8 +96,9 @@ OtherLibs.append('m')
 if Flags.OpenMP:
     OtherLibs.append('gomp')
 
-if Flags.StaticLib or Flags.Debug:
-    OtherLibs.append('gfortran')
+# This is needed whenever a ChF file is in the exec folder. -ES
+# if Flags.StaticLib or Flags.Debug:
+OtherLibs.append('gfortran')
 
 if Flags.IntelCompiler:
     OtherLibs.append('ifcore')
