@@ -13,8 +13,6 @@ namespace Elliptic {
 // ========================= MGSolver Implementation ===========================
 
 // -----------------------------------------------------------------------------
-// Default constructor. Leaves object unusable.
-// -----------------------------------------------------------------------------
 template <class StateType>
 MGSolver<StateType>::MGSolver()
 {
@@ -33,9 +31,18 @@ MGSolver<StateType>::~MGSolver()
 
 
 // -----------------------------------------------------------------------------
-// a_topOp must be well-defined at depth = 0.
-// If you have something up your sleeve, you can provide your own refRatio
-// at each depth. Otherwise, SemicoarseningStrategy will be used.
+template <class StateType>
+void
+MGSolver<StateType>::define(std::shared_ptr<const MGOpType> a_topOpPtr,
+                            Options                         a_opt,
+                            Vector<IntVect>                 a_mgRefSchedule,
+                            const bool                      a_useBottomSolver)
+{
+    m_opt = a_opt;
+    this->define(*a_topOpPtr, a_mgRefSchedule, a_useBottomSolver);
+}
+
+
 // -----------------------------------------------------------------------------
 template <class StateType>
 void
@@ -50,10 +57,16 @@ MGSolver<StateType>::define(const MGOpType& a_topOp,
 
 
 // -----------------------------------------------------------------------------
-// a_topOp must be well-defined at depth = 0.
-// If you have something up your sleeve, you can provide your own refRatio
-// at each depth. Otherwise, SemicoarseningStrategy will be used.
-// This version does not set Options, just in case you already did that.
+template <class StateType>
+void
+MGSolver<StateType>::define(std::shared_ptr<const MGOpType> a_topOpPtr,
+                            Vector<IntVect>                 a_mgRefSchedule,
+                            const bool                      a_useBottomSolver)
+{
+    this->define(*a_topOpPtr, a_mgRefSchedule, a_useBottomSolver);
+}
+
+
 // -----------------------------------------------------------------------------
 template <class StateType>
 void
@@ -120,8 +133,6 @@ MGSolver<StateType>::define(const MGOpType& a_topOp,
 
 
 // -----------------------------------------------------------------------------
-// Sinmple check.
-// -----------------------------------------------------------------------------
 template <class StateType>
 bool
 MGSolver<StateType>::isDefined() const
@@ -130,8 +141,6 @@ MGSolver<StateType>::isDefined() const
 }
 
 
-// -----------------------------------------------------------------------------
-// Free's memory. Leaves object unusable.
 // -----------------------------------------------------------------------------
 template <class StateType>
 void
@@ -189,8 +198,6 @@ MGSolver<StateType>::setDefaultOptions()
 
 
 // -----------------------------------------------------------------------------
-// Returns the current solver's options.
-// -----------------------------------------------------------------------------
 template <class StateType>
 const typename MGSolver<StateType>::Options&
 MGSolver<StateType>::getOptions() const
@@ -199,12 +206,6 @@ MGSolver<StateType>::getOptions() const
 }
 
 
-// -----------------------------------------------------------------------------
-// I'm giving you access to this so that you can change absTol, relTol, etc
-// on-the-fly. This is useful when you want to use an already-defined
-// MGSolver to do a quick and dirty estimate. Just increase the tolerances
-// and set maxIters to 1.
-// NOTE: You cannot use this to change maxDepth.
 // -----------------------------------------------------------------------------
 template <class StateType>
 void
@@ -219,11 +220,6 @@ MGSolver<StateType>::setOptions(const MGSolver<StateType>::Options& a_opt)
 }
 
 
-// -----------------------------------------------------------------------------
-// Solves L[phi] = rhs using the most appropriate methods.
-// If a_convergenceMetric is > 0.0, it will be used to compute relative
-// residual norms. a_convergenceMetric takes precedence over
-// Options::convergenceMetric.
 // -----------------------------------------------------------------------------
 template <class StateType>
 SolverStatus
@@ -257,11 +253,6 @@ MGSolver<StateType>::solve(StateType&       a_phi,
 }
 
 
-// -----------------------------------------------------------------------------
-// Solves L[phi] = rhs using V-cycles.
-// If a_convergenceMetric is > 0.0, it will be used to compute relative
-// residual norms. a_convergenceMetric takes precedence over
-// Options::convergenceMetric.
 // -----------------------------------------------------------------------------
 template <class StateType>
 SolverStatus
@@ -431,11 +422,6 @@ MGSolver<StateType>::vCycle(StateType&       a_phi,
 }
 
 
-// -----------------------------------------------------------------------------
-// Solves L[phi] = rhs using Full Multigrid.
-// If a_convergenceMetric is > 0.0, it will be used to compute relative
-// residual norms. a_convergenceMetric takes precedence over
-// Options::convergenceMetric.
 // -----------------------------------------------------------------------------
 template <class StateType>
 SolverStatus
@@ -620,8 +606,6 @@ MGSolver<StateType>::fmg(StateType&       a_phi,
 
 
 // -----------------------------------------------------------------------------
-// Solves L[phi] = Jrhs with homogBCs at a specified depth.
-// -----------------------------------------------------------------------------
 template <class StateType>
 void
 MGSolver<StateType>::vCycle_residualEq(StateType&       a_cor,
@@ -763,8 +747,6 @@ MGSolver<StateType>::vCycle_residualEq(StateType&       a_cor,
 
 
 // -----------------------------------------------------------------------------
-// Solves L[phi] = Jrhs with homogBCs at a specified depth.
-// -----------------------------------------------------------------------------
 template <class StateType>
 void
 MGSolver<StateType>::fmg_residualEq(StateType&       a_cor,
@@ -831,8 +813,6 @@ MGSolver<StateType>::fmg_residualEq(StateType&       a_cor,
 
 
 // -----------------------------------------------------------------------------
-// pout formatting utility.
-// -----------------------------------------------------------------------------
 template <class StateType>
 void
 MGSolver<StateType>::indent(const int a_depth) const
@@ -848,8 +828,6 @@ MGSolver<StateType>::indent(const int a_depth) const
 }
 
 
-// -----------------------------------------------------------------------------
-// pout formatting utility.
 // -----------------------------------------------------------------------------
 template <class StateType>
 void

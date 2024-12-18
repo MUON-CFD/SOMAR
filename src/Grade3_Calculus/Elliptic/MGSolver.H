@@ -89,19 +89,51 @@ public:
     /// Destructor
     virtual ~MGSolver();
 
-    /// a_topOp must be well-defined at depth = 0.
-    /// If you have something up your sleeve, you can provide your own refRatio
-    /// at each depth. Otherwise, SemicoarseningStrategy will be used.
+    /// @brief Full define. Leaves object useable.
+    /// @param a_topOpPtr        Must be well-defined at depth = 0.
+    /// @param a_opt             The MG options.
+    /// @param a_mgRefSchedule   You can provide your own refRatio at each depth.
+    ///                          Otherwise, SemicoarseningStrategy will be used.
+    /// @param a_useBottomSolver Default is to use BiCGStab. Otherwise, only
+    ///                          relaxation will be used at the bottom.
+    virtual void
+    define(std::shared_ptr<const MGOpType> a_topOpPtr,
+           Options                         a_opt,
+           Vector<IntVect>                 a_mgRefSchedule = Vector<IntVect>(),
+           const bool                      a_useBottomSolver = true);
+
+    /// @brief Full define. Leaves object useable.
+    /// @param a_topOpPtr        Must be well-defined at depth = 0.
+    /// @param a_opt             The MG options.
+    /// @param a_mgRefSchedule   You can provide your own refRatio at each depth.
+    ///                          Otherwise, SemicoarseningStrategy will be used.
+    /// @param a_useBottomSolver Default is to use BiCGStab. Otherwise, only
+    ///                          relaxation will be used at the bottom.
     virtual void
     define(const MGOpType& a_topOp,
            Options         a_opt,
            Vector<IntVect> a_mgRefSchedule   = Vector<IntVect>(),
            const bool      a_useBottomSolver = true);
 
-    /// a_topOp must be well-defined at depth = 0.
-    /// If you have something up your sleeve, you can provide your own refRatio
-    /// at each depth. Otherwise, SemicoarseningStrategy will be used.
-    /// This version does not set Options, just in case you already did that.
+    /// @brief Full define. Leaves object useable. This version does not set
+    ///        the MG options, just in case you already did that.
+    /// @param a_topOpPtr        Must be well-defined at depth = 0.
+    /// @param a_mgRefSchedule   You can provide your own refRatio at each depth.
+    ///                          Otherwise, SemicoarseningStrategy will be used.
+    /// @param a_useBottomSolver Default is to use BiCGStab. Otherwise, only
+    ///                          relaxation will be used at the bottom.
+    virtual void
+    define(std::shared_ptr<const MGOpType> a_topOpPtr,
+           Vector<IntVect>                 a_mgRefSchedule = Vector<IntVect>(),
+           const bool                      a_useBottomSolver = true);
+
+    /// @brief Full define. Leaves object useable. This version does not set
+    ///        the MG options, just in case you already did that.
+    /// @param a_topOpPtr        Must be well-defined at depth = 0.
+    /// @param a_mgRefSchedule   You can provide your own refRatio at each depth.
+    ///                          Otherwise, SemicoarseningStrategy will be used.
+    /// @param a_useBottomSolver Default is to use BiCGStab. Otherwise, only
+    ///                          relaxation will be used at the bottom.
     virtual void
     define(const MGOpType& a_topOp,
            Vector<IntVect> a_mgRefSchedule   = Vector<IntVect>(),

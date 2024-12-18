@@ -657,7 +657,7 @@ AMRNSLevel::validateOpsAndSolvers()
         while (levPtr) {
             if (!levPtr->m_levelSolversValid) {
                 levPtr->m_levelProjSolverPtr.reset(new LevelProjSolver);
-                levPtr->m_levelProjSolverPtr->define(*levPtr->m_projOpPtr);
+                levPtr->m_levelProjSolverPtr->define(levPtr->m_projOpPtr);
 
                 if (s_verbosity >= verbThresh) {
                     pout() << "m_levelProjSolverPtr redefined on level "

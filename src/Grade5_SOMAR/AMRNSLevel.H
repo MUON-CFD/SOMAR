@@ -1385,10 +1385,10 @@ protected:
     /// Use smart ptrs because we use validation functions, and I don't want
     /// to worry about invalidation functions.
     using PoissonOp       = Elliptic::PoissonOp;
-    // using LevelProjSolver = Elliptic::LevelHybridSolver;
-    // using AMRProjSolver   = Elliptic::AMRLepticSolver;
-    using LevelProjSolver = Elliptic::MGSolver<LevelData<FArrayBox>>;
-    using AMRProjSolver   = Elliptic::AMRMGSolver<LevelData<FArrayBox>>;
+    using LevelProjSolver = Elliptic::LevelHybridSolver;
+    using AMRProjSolver   = Elliptic::AMRLepticSolver;
+    // using LevelProjSolver = Elliptic::MGSolver<LevelData<FArrayBox>>;
+    // using AMRProjSolver   = Elliptic::AMRMGSolver<LevelData<FArrayBox>>;
 
     std::shared_ptr<PoissonOp>       m_projOpPtr;
     std::shared_ptr<LevelProjSolver> m_levelProjSolverPtr;

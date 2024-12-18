@@ -68,11 +68,13 @@ LevelHybridSolver::define(std::shared_ptr<const MGOperator<StateType>> a_mgOpPtr
     if (useLeptic) {
         m_lepticSolverPtr.reset(new LevelLepticSolver);
         m_lepticSolverPtr->define(m_mgOpPtr, m_options.lepticOptions);
+        m_options.lepticOptions = m_lepticSolverPtr->getOptions();
     }
 
     if (useMG) {
         m_mgSolverPtr.reset(new MGSolver<StateType>);
         m_mgSolverPtr->define(*m_mgOpPtr, m_options.mgOptions);
+        m_options.mgOptions = m_mgSolverPtr->getOptions();
     }
 
     m_isDefined = true;
@@ -235,7 +237,6 @@ LevelHybridSolver::solveResidualEq(StateType&       a_cor,
     // Select solver.
     const auto solveMode = m_solveModeOrder[0];
     if (solveMode == SolveMode::Leptic) {
-        // Fully leptic problem. Just use leptic solver.
         constexpr bool homogBCs     = true;
         constexpr bool setCorToZero = false;
         m_solverStatus = m_lepticSolverPtr->solve(
@@ -368,6 +369,9 @@ LevelHybridSolver::setDefaultOptions()
 
     m_options.mgOptions.bottomOptions.verbosity = 0;
     // Use default convergence options.
+
+    m_options.lepticOptions.horizOptions.verbosity = 0;
+    m_options.lepticOptions.horizOptions.bottomOptions.verbosity = 0;
 }
 
 
