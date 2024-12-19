@@ -14,6 +14,104 @@ namespace Elliptic
 {
 
 
+// ======================== Option setters / getters ===========================
+
+// -----------------------------------------------------------------------------
+LevelLepticSolver::Options
+LevelLepticSolver::getDefaultOptions()
+{
+    Options opt;
+    const auto& proj = ProblemContext::getInstance()->proj;
+
+    // Leptic solver parameters
+    opt.absTol             = proj.absTol;
+    opt.relTol             = proj.relTol;
+    opt.maxOrder           = proj.maxIters;
+    opt.normType           = proj.normType;
+    opt.verbosity          = proj.verbosity;
+    opt.hang               = proj.hang;
+    opt.maxDivergingOrders = 2; // BUG: Hard-coded.
+
+    // Horizontal solver parameters
+    opt.horizOptions.absTol           = 1.0e-15;
+    opt.horizOptions.relTol           = 1.0e-15;
+    opt.horizOptions.numSmoothDown    = 4;
+    opt.horizOptions.numSmoothUp      = 4;
+    opt.horizOptions.numSmoothBottom  = 2;
+    opt.horizOptions.numSmoothPrecond = 2;
+    opt.horizOptions.prolongOrder     = 1;
+    opt.horizOptions.prolongOrderFMG  = 3;
+    opt.horizOptions.numSmoothUpFMG   = 0;
+    opt.horizOptions.maxDepth         = -1;
+    opt.horizOptions.numCycles        = 1;
+    opt.horizOptions.maxIters         = 20;
+    opt.horizOptions.hang             = 0.01;
+    opt.horizOptions.normType         = opt.normType;
+    opt.horizOptions.verbosity        = 0;
+
+    // Horizontal bottom solver parameters
+    opt.horizOptions.bottomOptions.absTol           = 1.0e-15;
+    opt.horizOptions.bottomOptions.relTol           = 1.0e-15;
+    opt.horizOptions.bottomOptions.small            = 1.0e-30;
+    opt.horizOptions.bottomOptions.hang             = 0.01;
+    opt.horizOptions.bottomOptions.maxIters         = 80;
+    opt.horizOptions.bottomOptions.maxRestarts      = 5;
+    opt.horizOptions.bottomOptions.normType         = opt.normType;
+    opt.horizOptions.bottomOptions.verbosity        = 0;
+    opt.horizOptions.bottomOptions.numSmoothPrecond = 2;
+
+    return opt;
+}
+
+
+// -----------------------------------------------------------------------------
+LevelLepticSolver::Options
+LevelLepticSolver::getQuickAndDirtyOptions()
+{
+    Options opt = getDefaultOptions();
+
+    // Forget this...the leptic method is already cheap!
+
+    // // Leptic solver parameters
+    // opt.absTol    = 1.0e-300;
+    // opt.relTol    = 1.0e-2;
+    // opt.maxOrder  = 2;
+
+    // // Horizontal solver parameters
+    // opt.horizOptions.verbosity = 0;
+
+    // // Horizontal bottom solver parameters
+    // opt.horizOptions.bottomOptions.verbosity = 0;
+
+    return opt;
+}
+
+
+// -----------------------------------------------------------------------------
+const LevelLepticSolver::Options&
+LevelLepticSolver::getOptions() const
+{
+    return m_options;
+}
+
+
+// -----------------------------------------------------------------------------
+void
+LevelLepticSolver::modifyOptionsExceptMaxDepth(
+    const LevelLepticSolver::Options& a_opt)
+{
+    if (!this->isDefined()) {
+        MAYDAYERROR("This can only be called AFTER LevelLepticSolver is defined.");
+    }
+
+    const auto oldMaxDepth = m_options.horizOptions.maxDepth;
+    m_options = a_opt;
+    m_options.horizOptions.maxDepth = oldMaxDepth;
+}
+
+
+// ======================== Constructors / destructors =========================
+
 // -----------------------------------------------------------------------------
 LevelLepticSolver::LevelLepticSolver()
 : LevelSolver()  // Initializes m_opPtr and m_solverStatus.
@@ -47,57 +145,13 @@ LevelLepticSolver::LevelLepticSolver()
 , m_horizMGOpPtr()
 , m_horizSolverPtr()
 {
-    this->setDefaultOptions();
 }
 
 
 // -----------------------------------------------------------------------------
 LevelLepticSolver::~LevelLepticSolver()
 {
-    this->undefine();
-}
-
-
-// -----------------------------------------------------------------------------
-void
-LevelLepticSolver::undefine()
-{
-    // LinearSolver variables.
-    m_solverStatus.clear();
-    m_opPtr.reset();
-
-    // The rest are LevelLepticSolver variables.
-    m_horizSolverPtr.reset();
-    m_horizMGOpPtr.reset();
-    m_horizToShiftedFlatCopier.clear();
-    m_shiftedFlatToHorizCopier.clear();
-    m_horizGrids     = DisjointBoxLayout();
-    m_horizDomain    = ProblemDomain();
-    m_horizRemoveAvg = true;
-    m_doHorizSolve   = true;
-
-    m_shiftedFlatGrids = DisjointBoxLayout();
-    m_flatDIComplement.clear();
-    m_flatDI.clear();
-    m_flatGrids = DisjointBoxLayout();
-
-    m_vertOpPtr.reset();
-    m_vertToOrigCopier.clear();
-    m_origToVertCopier.clear();
-    m_JgupPtr.reset();
-    m_grids = DisjointBoxLayout();
-
-    m_origGrids = DisjointBoxLayout();
-    m_domain    = ProblemDomain();
-    m_dXiCrse   = RealVect(D_DECL(quietNAN, quietNAN, quietNAN));
-    m_dXi       = RealVect(D_DECL(quietNAN, quietNAN, quietNAN));
-    m_L         = RealVect(D_DECL(quietNAN, quietNAN, quietNAN));
-
-    m_resNorms.clear();
-    m_options = Options();
-    m_isDefined     = false;
-
-    this->setDefaultOptions();
+    this->clear();
 }
 
 
@@ -106,13 +160,22 @@ void
 LevelLepticSolver::define(
     std::shared_ptr<const LevelOperator<StateType>> a_linearOpPtr)
 {
+    this->define(a_linearOpPtr, getDefaultOptions());
+}
+
+
+// -----------------------------------------------------------------------------
+void
+LevelLepticSolver::define(
+    std::shared_ptr<const LevelOperator<StateType>> a_linearOpPtr,
+    const Options&                                  a_opts)
+{
     if (m_isDefined) {
-        const auto oldOptions = m_options;
-        this->undefine();
-        m_options = oldOptions;
+        this->clear();
     }
 
     // This defines m_opPtr and m_solverStatus.
+    m_options = a_opts;
     LevelSolver<StateType>::define(a_linearOpPtr);
 
     // Make sure we were handed an appropriate operator.
@@ -291,59 +354,46 @@ LevelLepticSolver::define(
 
 // -----------------------------------------------------------------------------
 void
-LevelLepticSolver::define(
-    std::shared_ptr<const LevelOperator<StateType>> a_linearOpPtr,
-    const Options&                                  a_opts)
+LevelLepticSolver::clear()
 {
-    m_options = a_opts;
-    this->define(a_linearOpPtr);
+    // LinearSolver variables.
+    m_solverStatus.clear();
+    m_opPtr.reset();
+
+    // The rest are LevelLepticSolver variables.
+    m_horizSolverPtr.reset();
+    m_horizMGOpPtr.reset();
+    m_horizToShiftedFlatCopier.clear();
+    m_shiftedFlatToHorizCopier.clear();
+    m_horizGrids     = DisjointBoxLayout();
+    m_horizDomain    = ProblemDomain();
+    m_horizRemoveAvg = true;
+    m_doHorizSolve   = true;
+
+    m_shiftedFlatGrids = DisjointBoxLayout();
+    m_flatDIComplement.clear();
+    m_flatDI.clear();
+    m_flatGrids = DisjointBoxLayout();
+
+    m_vertOpPtr.reset();
+    m_vertToOrigCopier.clear();
+    m_origToVertCopier.clear();
+    m_JgupPtr.reset();
+    m_grids = DisjointBoxLayout();
+
+    m_origGrids = DisjointBoxLayout();
+    m_domain    = ProblemDomain();
+    m_dXiCrse   = RealVect(D_DECL(quietNAN, quietNAN, quietNAN));
+    m_dXi       = RealVect(D_DECL(quietNAN, quietNAN, quietNAN));
+    m_L         = RealVect(D_DECL(quietNAN, quietNAN, quietNAN));
+
+    m_resNorms.clear();
+    m_options   = Options();
+    m_isDefined = false;
 }
 
 
-// -----------------------------------------------------------------------------
-void
-LevelLepticSolver::setDefaultOptions()
-{
-    const auto& proj = ProblemContext::getInstance()->proj;
-
-    // Leptic solver parameters
-    m_options.absTol             = proj.absTol;
-    m_options.relTol             = proj.relTol;
-    m_options.maxOrder           = proj.maxIters;
-    m_options.normType           = proj.normType;
-    m_options.verbosity          = proj.verbosity;
-    m_options.hang               = proj.hang;
-    m_options.maxDivergingOrders = 2; // BUG: Hard-coded.
-
-    // Horizontal solver parameters
-    m_options.horizOptions.absTol           = 1.0e-15;
-    m_options.horizOptions.relTol           = 1.0e-15;
-    m_options.horizOptions.numSmoothDown    = 4;
-    m_options.horizOptions.numSmoothUp      = 4;
-    m_options.horizOptions.numSmoothBottom  = 2;
-    m_options.horizOptions.numSmoothPrecond = 2;
-    m_options.horizOptions.prolongOrder     = 1;
-    m_options.horizOptions.prolongOrderFMG  = 3;
-    m_options.horizOptions.numSmoothUpFMG   = 0;
-    m_options.horizOptions.maxDepth         = -1;
-    m_options.horizOptions.numCycles        = 1;
-    m_options.horizOptions.maxIters         = 20;
-    m_options.horizOptions.hang             = 0.01;
-    m_options.horizOptions.normType         = m_options.normType;
-    m_options.horizOptions.verbosity        = 0;
-
-    // Horizontal bottom solver parameters
-    m_options.horizOptions.bottomOptions.absTol           = 1.0e-15;
-    m_options.horizOptions.bottomOptions.relTol           = 1.0e-15;
-    m_options.horizOptions.bottomOptions.small            = 1.0e-30;
-    m_options.horizOptions.bottomOptions.hang             = 0.01;
-    m_options.horizOptions.bottomOptions.maxIters         = 80;
-    m_options.horizOptions.bottomOptions.maxRestarts      = 5;
-    m_options.horizOptions.bottomOptions.normType         = m_options.normType;
-    m_options.horizOptions.bottomOptions.verbosity        = 0;
-    m_options.horizOptions.bottomOptions.numSmoothPrecond = 2;
-}
-
+// ================================== Solvers ==================================
 
 // -----------------------------------------------------------------------------
 SolverStatus

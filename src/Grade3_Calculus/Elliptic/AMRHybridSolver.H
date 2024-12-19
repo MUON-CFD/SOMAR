@@ -21,8 +21,8 @@
  *  For up-to-date contact information, please visit the repository homepage,
  *  https://github.com/MUON-CFD/SOMAR.
  ******************************************************************************/
-#ifndef ___AMRLepticSolver_H__INCLUDED___
-#define ___AMRLepticSolver_H__INCLUDED___
+#ifndef ___AMRHybridSolver_H__INCLUDED___
+#define ___AMRHybridSolver_H__INCLUDED___
 
 #include "LevelData.H"
 #include "FArrayBox.H"
@@ -42,12 +42,16 @@ namespace Elliptic {
 /// a bit more automatic. That is, if you just need to solve equations without
 /// getting under the hood, we should be able to provide a leptic solver with
 /// less knobs to turn.
-class AMRLepticSolver
+class AMRHybridSolver
 {
 public:
     typedef LevelData<FArrayBox>                        StateType;
     typedef AMRMGOperator<StateType>                    AMRMGOpType;
     typedef typename StateTraits<StateType>::CopierType CopierType;
+
+    // -------------------------------------------------------------------------
+    /// \name Option setters / getters
+    /// \{
 
     /// Knobs for you to turn.
     struct Options {
@@ -56,31 +60,58 @@ public:
         Options() {}
 
         /// Stop if |res| < absTol
-        Real absTol            = 1.0e-12;
+        Real absTol            = -1.0;
         /// Stop if |res| / |init res| < relTol
-        Real relTol            = 1.0e-12;
+        Real relTol            = -1.0;
         Real convergenceMetric = -1.0;
-        int  numCycles         = 1;
-        int  maxIters          = 10;
-        Real hang              = 0.1;
-        // /**
-        //  * @brief 0 = inf-norm, 1 = 1-norm, etc...
-        //  * @detail
-        //  *  I suggest using the 2-norm (defualt) so that norms across different
-        //  *  MG depths are comparable.
-        //  */
-        int  normType          = 2;
-        int  verbosity         = 4;
+        int  numCycles         = 0;
+        int  maxIters          = -1;
+        Real hang              = -1;
 
-        // LevelHybridSolver::Options hybridOptions;
-        // LevelHybridSolver::Options bottomHybridOptions;
+        /// @brief 0 = inf-norm, 1 = 1-norm, etc...
+        /// @details
+        /// I suggest using the 2-norm (default) so that norms across different
+        /// MG depths are comparable.
+        int  normType          = -1;
+        int  verbosity         = -1;
     };
 
+    /// @brief Creates an Options struct set to defaults as defined by the input
+    /// file.
+    static Options
+    getDefaultOptions();
+
+    /// Returns the current solver's options.
+    inline virtual const Options&
+    getOptions() const {
+        return m_opt;
+    }
+
+    /// @brief Gets the current {absTol, relTol}.
+    inline std::array<Real, 2>
+    getTols() const {
+        return {m_opt.absTol, m_opt.relTol};
+    }
+
+    /// @brief Sets the new {absTol, relTol}.
+    /// @param a_tols
+    inline void
+    setTols(const std::array<Real, 2>& a_tols) {
+        m_opt.absTol = a_tols[0];
+        m_opt.relTol = a_tols[1];
+    }
+    /// \}
+
+
+    // -------------------------------------------------------------------------
+    /// \name Constructors / destructors
+    /// \{
+
     /// Default constructor. Leaves object unusable.
-    AMRLepticSolver ();
+    AMRHybridSolver ();
 
     /// Destructor
-    virtual ~AMRLepticSolver ();
+    virtual ~AMRHybridSolver ();
 
     /// Set up this solver to solve L[phi] = rhs on levels a_lmin to a_lmax.
     /// If a_lmin > 0, then a_vAMRMGOps must also be defined on a_lmin - 1.
@@ -91,14 +122,14 @@ public:
            const size_t                               a_lmax,
            Options                                    a_opt);
 
-    /// Set up this solver to solve L[phi] = rhs on levels a_lmin to a_lmax.
-    /// If a_lmin > 0, then a_vAMRMGOps must also be defined on a_lmin - 1.
-    /// a_vAMRMGOps can be defined or undefined on the levels we don't use.
-    /// This version does not set Options, just in case you already did that.
-    virtual void
-    define(Vector<std::shared_ptr<const AMRMGOpType>> a_vAMRMGOps,
-           const size_t                               a_lmin,
-           const size_t                               a_lmax);
+    // /// Set up this solver to solve L[phi] = rhs on levels a_lmin to a_lmax.
+    // /// If a_lmin > 0, then a_vAMRMGOps must also be defined on a_lmin - 1.
+    // /// a_vAMRMGOps can be defined or undefined on the levels we don't use.
+    // /// This version does not set Options, just in case you already did that.
+    // virtual void
+    // define(Vector<std::shared_ptr<const AMRMGOpType>> a_vAMRMGOps,
+    //        const size_t                               a_lmin,
+    //        const size_t                               a_lmax);
 
     // Is this solver ready for use?
     inline virtual bool
@@ -110,20 +141,12 @@ public:
     /// Free's memory. Leaves object unusable.
     virtual void
     clear();
+    /// \}
 
-    /// Returns the exit status.
-    inline virtual SolverStatus
-    getSolverStatus() const
-    {
-        return m_solverStatus;
-    }
 
-    /// Returns the current solver's options.
-    inline virtual const Options&
-    getOptions() const
-    {
-        return m_opt;
-    }
+    // -------------------------------------------------------------------------
+    /// \name Solvers
+    /// \{
 
     /**
      * @brief      Solves L[phi] = rhs using the most appropriate methods.
@@ -150,6 +173,14 @@ public:
           const bool                      a_useHomogBCs       = false,
           const bool                      a_setPhiToZero      = false,
           const Real                      a_convergenceMetric = -1.0) const;
+    /// \}
+
+    /// Returns the exit status.
+    inline virtual SolverStatus
+    getSolverStatus() const
+    {
+        return m_solverStatus;
+    }
 
 protected:
     /// Relaxes L[e] = r over the AMR hierarchy with a V-Cycle.
@@ -243,7 +274,7 @@ protected:
     Vector<std::shared_ptr<const AMRMGOpType>> m_vAMRMGOps;
     Vector<IntVect>                            m_vAMRCrseRefRatios;
     Vector<IntVect>                            m_vAMRFineRefRatios;
-    Vector<std::unique_ptr<LevelHybridSolver>> m_vLepticSolver;
+    Vector<std::unique_ptr<LevelHybridSolver>> m_vHybridSolver;
 
     mutable Vector<unique_ptr<StateType>>  m_ve;    // Defined on lbase too!
     mutable Vector<unique_ptr<StateType>>  m_vr;
@@ -253,11 +284,11 @@ protected:
     mutable Vector<unique_ptr<CopierType>> m_vReverseCopier; // from Res[l-1] to ResC[l]
 
 private:
-    AMRLepticSolver(const AMRLepticSolver&) = delete;
-    AMRLepticSolver& operator=(const AMRLepticSolver&) = delete;
+    AMRHybridSolver(const AMRHybridSolver&) = delete;
+    AMRHybridSolver& operator=(const AMRHybridSolver&) = delete;
 };
 
 
 
 }; // namespace Elliptic
-#endif //!___AMRLepticSolver_H__INCLUDED___
+#endif //!___AMRHybridSolver_H__INCLUDED___

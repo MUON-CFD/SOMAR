@@ -1,13 +1,35 @@
-#include "AMRLepticSolver.H"
+#include "AMRHybridSolver.H"
 #include "AnisotropicRefinementTools.H"
 
 namespace Elliptic {
 
 
-// ======================= AMRLepticSolver Implementation ==========================
+// ======================== Option setters / getters ===========================
 
 // -----------------------------------------------------------------------------
-AMRLepticSolver::AMRLepticSolver()
+AMRHybridSolver::Options
+AMRHybridSolver::getDefaultOptions()
+{
+    Options opt;
+    const auto& proj = ProblemContext::getInstance()->proj;
+
+    opt.absTol            = proj.absTol;
+    opt.relTol            = proj.relTol;
+    opt.convergenceMetric = -1.0;
+    opt.numCycles         = proj.numCycles; // was 1
+    opt.maxIters          = proj.maxIters;
+    opt.hang              = proj.hang; // was 0.1
+    opt.normType          = proj.normType;
+    opt.verbosity         = proj.verbosity;
+
+    return opt;
+}
+
+
+// ======================== Constructors / destructors =========================
+
+// -----------------------------------------------------------------------------
+AMRHybridSolver::AMRHybridSolver()
 : m_isDefined(false)
 , m_opt()
 , m_solverStatus()
@@ -19,7 +41,7 @@ AMRLepticSolver::AMRLepticSolver()
 
 
 // -----------------------------------------------------------------------------
-AMRLepticSolver::~AMRLepticSolver()
+AMRHybridSolver::~AMRHybridSolver()
 {
     this->clear();
 }
@@ -27,26 +49,15 @@ AMRLepticSolver::~AMRLepticSolver()
 
 // -----------------------------------------------------------------------------
 void
-AMRLepticSolver::define(
+AMRHybridSolver::define(
     Vector<std::shared_ptr<const AMRMGOpType>> a_vAMRMGOps,
     const size_t                               a_lmin,
     const size_t                               a_lmax,
     Options                                    a_opt)
 {
-    m_opt = a_opt;
-    this->define(a_vAMRMGOps, a_lmin, a_lmax);
-}
-
-
-// -----------------------------------------------------------------------------
-void
-AMRLepticSolver::define(
-    Vector<std::shared_ptr<const AMRMGOpType>> a_vAMRMGOps,
-    const size_t                               a_lmin,
-    const size_t                               a_lmax)
-{
     CH_assert(a_lmax >= a_lmin);
 
+    m_opt   = a_opt;
     m_lbase = ((a_lmin > 0) ? (a_lmin - 1) : a_lmin);
     m_lmin  = a_lmin;
     m_lmax  = a_lmax;
@@ -74,10 +85,18 @@ AMRLepticSolver::define(
     m_vAMRFineRefRatios[m_lmax] = IntVect::Unit;
 
     // Define the leptic solvers
-    m_vLepticSolver.resize(m_lmax + 1);
+    m_vHybridSolver.resize(m_lmax + 1);
     for (size_t l = m_lmin; l <= m_lmax; ++l) {
-            m_vLepticSolver[l].reset(new LevelHybridSolver);
-            m_vLepticSolver[l]->define(m_vAMRMGOps[l]);
+            auto newOpts = LevelHybridSolver::getDefaultOptions();
+            newOpts.verbosity                                          = 0;
+            newOpts.lepticOptions.verbosity                            = 0;
+            newOpts.lepticOptions.horizOptions.verbosity               = 0;
+            newOpts.lepticOptions.horizOptions.bottomOptions.verbosity = 0;
+            newOpts.mgOptions.verbosity                                = 0;
+            newOpts.mgOptions.bottomOptions.verbosity                  = 0;
+
+            m_vHybridSolver[l].reset(new LevelHybridSolver);
+            m_vHybridSolver[l]->define(m_vAMRMGOps[l], newOpts);
     }
 
     // This object is ready for use.
@@ -87,9 +106,9 @@ AMRLepticSolver::define(
 
 // -----------------------------------------------------------------------------
 void
-AMRLepticSolver::clear()
+AMRHybridSolver::clear()
 {
-    m_vLepticSolver.resize(0);
+    m_vHybridSolver.resize(0);
     m_vAMRMGOps.resize(0);
 
     m_lmax  = size_t(-1);
@@ -103,9 +122,11 @@ AMRLepticSolver::clear()
 }
 
 
+// ================================== Solvers ==================================
+
 // -----------------------------------------------------------------------------
 SolverStatus
-AMRLepticSolver::solve(Vector<StateType*>&             a_vphi,
+AMRHybridSolver::solve(Vector<StateType*>&             a_vphi,
                        const Vector<const StateType*>& a_vrhs,
                        const Real                      a_time,
                        const bool                      a_useHomogBCs,
@@ -303,7 +324,7 @@ AMRLepticSolver::solve(Vector<StateType*>&             a_vphi,
 
 // -----------------------------------------------------------------------------
 void
-AMRLepticSolver::amrVCycle_residualEq(
+AMRHybridSolver::amrVCycle_residualEq(
     Vector<unique_ptr<StateType>>& a_vphi,
     Vector<unique_ptr<StateType>>& a_vrhs,
     const Real                     a_time,
@@ -391,7 +412,7 @@ AMRLepticSolver::amrVCycle_residualEq(
     } else {
         // --- Bottom solve ---
         constexpr bool setToZero = false;
-        m_vLepticSolver[a_lev]->solve(phi, nullptr, rhs, a_time, homogBCs, setToZero);
+        m_vHybridSolver[a_lev]->solve(phi, nullptr, rhs, a_time, homogBCs, setToZero);
     }
 }
 
@@ -404,7 +425,7 @@ AMRLepticSolver::amrVCycle_residualEq(
 // -----------------------------------------------------------------------------
 
 void
-AMRLepticSolver::initializeSolve(
+AMRHybridSolver::initializeSolve(
     const Vector<StateType*>&       a_vphi,
     const Vector<const StateType*>& a_vrhs) const
 {
@@ -454,7 +475,7 @@ AMRLepticSolver::initializeSolve(
 // -----------------------------------------------------------------------------
 
 void
-AMRLepticSolver::finalizeSolve() const
+AMRHybridSolver::finalizeSolve() const
 {
     for (size_t l = m_lbase; l <= m_lmax; ++l) {
         m_vAMRMGOps[l]->clear(*m_ve[l]);
@@ -484,7 +505,7 @@ AMRLepticSolver::finalizeSolve() const
 // -----------------------------------------------------------------------------
 
 Real
-AMRLepticSolver::computeAMRResidual(
+AMRHybridSolver::computeAMRResidual(
     Vector<unique_ptr<StateType>>&  a_vres,
     Vector<StateType*>&             a_vphi,
     const Vector<const StateType*>& a_vrhs,
@@ -544,7 +565,7 @@ AMRLepticSolver::computeAMRResidual(
 // -----------------------------------------------------------------------------
 
 void
-AMRLepticSolver::computeAMRResidualLevel(StateType&       a_res,
+AMRHybridSolver::computeAMRResidualLevel(StateType&       a_res,
                                                 StateType*       a_finePhiPtr,
                                                 StateType&       a_phi,
                                                 const StateType* a_crsePhiPtr,
@@ -636,7 +657,7 @@ AMRLepticSolver::computeAMRResidualLevel(StateType&       a_res,
 // -----------------------------------------------------------------------------
 
 void
-AMRLepticSolver::smoothDown(StateType&   a_cor,
+AMRHybridSolver::smoothDown(StateType&   a_cor,
                                    StateType&   a_res,
                                    const Real   a_time,
                                    const size_t a_lev) const
@@ -661,7 +682,7 @@ AMRLepticSolver::smoothDown(StateType&   a_cor,
     // Solve. In standard AMRMG, this is relaxation or a mini V-cycle.
     constexpr bool homogBCs = true;
     constexpr bool setToZero = false;
-    m_vLepticSolver[a_lev]->solve(a_cor, nullptr, a_res, a_time, homogBCs, setToZero);
+    m_vHybridSolver[a_lev]->solve(a_cor, nullptr, a_res, a_time, homogBCs, setToZero);
 
     // Diagnostics
     if (m_opt.verbosity >= 7) {
@@ -689,7 +710,7 @@ AMRLepticSolver::smoothDown(StateType&   a_cor,
 // -----------------------------------------------------------------------------
 
 void
-AMRLepticSolver::smoothUp(StateType&   a_cor,
+AMRHybridSolver::smoothUp(StateType&   a_cor,
                                  StateType&   a_res,
                                  const Real   a_time,
                                  const size_t a_lev) const
@@ -714,7 +735,7 @@ AMRLepticSolver::smoothUp(StateType&   a_cor,
     // Solve. In standard AMRMG, this is relaxation or a mini V-cycle.
     constexpr bool homogBCs = true;
     constexpr bool setToZero = false;
-    m_vLepticSolver[a_lev]->solve(a_cor, nullptr, a_res, a_time, homogBCs, setToZero);
+    m_vHybridSolver[a_lev]->solve(a_cor, nullptr, a_res, a_time, homogBCs, setToZero);
 
     // Diagnostics
     if (m_opt.verbosity >= 7) {
@@ -740,7 +761,7 @@ AMRLepticSolver::smoothUp(StateType&   a_cor,
 // -----------------------------------------------------------------------------
 
 void
-AMRLepticSolver::indent(const int a_lev) const
+AMRHybridSolver::indent(const int a_lev) const
 {
     using std::string;
     using std::to_string;
@@ -761,7 +782,7 @@ AMRLepticSolver::indent(const int a_lev) const
 // -----------------------------------------------------------------------------
 
 void
-AMRLepticSolver::unindent(const int /*a_lev*/) const
+AMRHybridSolver::unindent(const int /*a_lev*/) const
 {
     if (m_opt.verbosity >= 7) {
         pout() << Format::unindent;

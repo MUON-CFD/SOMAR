@@ -33,7 +33,7 @@
 // Projector stuff
 #include "PoissonOp.H"
 #include "AMRMGSolver.H"
-#include "AMRLepticSolver.H"
+#include "AMRHybridSolver.H"
 #include "LevelHybridSolver.H"
 
 
@@ -1386,7 +1386,7 @@ protected:
     /// to worry about invalidation functions.
     using PoissonOp       = Elliptic::PoissonOp;
     using LevelProjSolver = Elliptic::LevelHybridSolver;
-    using AMRProjSolver   = Elliptic::AMRLepticSolver;
+    using AMRProjSolver   = Elliptic::AMRHybridSolver;
     // using LevelProjSolver = Elliptic::MGSolver<LevelData<FArrayBox>>;
     // using AMRProjSolver   = Elliptic::AMRMGSolver<LevelData<FArrayBox>>;
 

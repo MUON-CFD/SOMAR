@@ -657,7 +657,8 @@ AMRNSLevel::validateOpsAndSolvers()
         while (levPtr) {
             if (!levPtr->m_levelSolversValid) {
                 levPtr->m_levelProjSolverPtr.reset(new LevelProjSolver);
-                levPtr->m_levelProjSolverPtr->define(levPtr->m_projOpPtr);
+                levPtr->m_levelProjSolverPtr->define(
+                    levPtr->m_projOpPtr, LevelProjSolver::getDefaultOptions());
 
                 if (s_verbosity >= verbThresh) {
                     pout() << "m_levelProjSolverPtr redefined on level "
@@ -673,7 +674,10 @@ AMRNSLevel::validateOpsAndSolvers()
             if (!levPtr->m_amrSolversValid) {
                 levPtr->m_amrProjSolverPtr.reset(new AMRProjSolver);
                 levPtr->m_amrProjSolverPtr->define(
-                    vAMRMGOps, levPtr->m_level, lmax);
+                    vAMRMGOps,
+                    levPtr->m_level,
+                    lmax,
+                    AMRProjSolver::getDefaultOptions());
 
                 if (s_verbosity >= verbThresh) {
                     pout() << "m_amrProjSolverPtr redefined on level "

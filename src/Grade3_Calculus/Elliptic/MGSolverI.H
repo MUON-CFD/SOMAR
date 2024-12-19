@@ -7,16 +7,108 @@
 #include "Integral.H" // Assumes StateType = LevelData<FArrayBox>!
 #include "ProblemContext.H"
 
-
 namespace Elliptic {
 
-// ========================= MGSolver Implementation ===========================
+
+// ======================== Option setters / getters ===========================
+
+// -----------------------------------------------------------------------------
+template <class StateType>
+typename MGSolver<StateType>::Options
+MGSolver<StateType>::getDefaultOptions()
+{
+    Options opt;
+    const auto& proj = ProblemContext::getInstance()->proj;
+
+    opt.absTol            = proj.absTol;
+    opt.relTol            = proj.relTol;
+    opt.convergenceMetric = -1.0;
+    opt.numSmoothDown     = proj.numSmoothDown;
+    opt.numSmoothUp       = proj.numSmoothUp;
+    opt.numSmoothBottom   = proj.numSmoothBottom;
+    opt.numSmoothPrecond  = proj.numSmoothPrecond;
+    opt.prolongOrder      = proj.prolongOrder;
+    opt.prolongOrderFMG   = proj.prolongOrderFMG;
+    opt.numSmoothUpFMG    = proj.numSmoothUpFMG;
+    opt.maxDepth          = proj.maxDepth;
+    opt.numCycles         = proj.numCycles;
+    opt.maxIters          = proj.maxIters;
+    opt.hang              = proj.hang;
+    opt.normType          = proj.normType;
+    opt.verbosity         = proj.verbosity;
+
+    opt.bottomOptions.absTol           = proj.bottom_absTol;
+    opt.bottomOptions.relTol           = proj.bottom_relTol;
+    opt.bottomOptions.small            = proj.bottom_small;
+    opt.bottomOptions.hang             = proj.bottom_hang;
+    opt.bottomOptions.maxIters         = proj.bottom_maxIters;
+    opt.bottomOptions.maxRestarts      = proj.bottom_maxRestarts;
+    opt.bottomOptions.normType         = proj.bottom_normType;
+    opt.bottomOptions.verbosity        = proj.bottom_verbosity;
+    opt.bottomOptions.numSmoothPrecond = proj.bottom_numSmoothPrecond;
+
+    return opt;
+}
+
+
+// -----------------------------------------------------------------------------
+template <class StateType>
+typename MGSolver<StateType>::Options
+MGSolver<StateType>::getQuickAndDirtyOptions()
+{
+    Options opt = getDefaultOptions();
+
+    opt.absTol            = 1.0e-300;
+    opt.relTol            = 1.0e-300;
+    opt.numCycles         = -1;
+    opt.maxIters          = 1;
+    opt.verbosity         = 0;
+
+    opt.bottomOptions.absTol           = 1.0e-300;
+    opt.bottomOptions.relTol           = 1.0e-300;
+    // opt.bottomOptions.maxIters         = 80;
+    // opt.bottomOptions.maxRestarts      = 5;
+    opt.bottomOptions.verbosity        = 0;
+
+    return opt;
+}
+
+
+// -----------------------------------------------------------------------------
+template <class StateType>
+const typename MGSolver<StateType>::Options&
+MGSolver<StateType>::getOptions() const
+{
+    return m_opt;
+}
+
+
+// -----------------------------------------------------------------------------
+template <class StateType>
+void
+MGSolver<StateType>::modifyOptionsExceptMaxDepth(
+    const MGSolver<StateType>::Options& a_opt)
+{
+    if (!this->isDefined()) {
+        MAYDAYERROR("This can only be called AFTER MGSolver is defined.");
+    }
+
+    const auto oldMaxDepth = m_opt.maxDepth;
+    m_opt = a_opt;
+    m_opt.maxDepth = oldMaxDepth;
+
+    if (m_bottomSolverPtr) {
+        m_bottomSolverPtr->setOptions(a_opt.bottomOptions);
+    }
+}
+
+
+// ======================== Constructors / destructors =========================
 
 // -----------------------------------------------------------------------------
 template <class StateType>
 MGSolver<StateType>::MGSolver()
 {
-    this->setDefaultOptions();
 }
 
 
@@ -38,8 +130,7 @@ MGSolver<StateType>::define(std::shared_ptr<const MGOpType> a_topOpPtr,
                             Vector<IntVect>                 a_mgRefSchedule,
                             const bool                      a_useBottomSolver)
 {
-    m_opt = a_opt;
-    this->define(*a_topOpPtr, a_mgRefSchedule, a_useBottomSolver);
+    this->define(*a_topOpPtr, a_opt, a_mgRefSchedule, a_useBottomSolver);
 }
 
 
@@ -52,28 +143,7 @@ MGSolver<StateType>::define(const MGOpType& a_topOp,
                             bool            a_useBottomSolver)
 {
     m_opt = a_opt;
-    this->define(a_topOp, a_refSchedule, a_useBottomSolver);
-}
 
-
-// -----------------------------------------------------------------------------
-template <class StateType>
-void
-MGSolver<StateType>::define(std::shared_ptr<const MGOpType> a_topOpPtr,
-                            Vector<IntVect>                 a_mgRefSchedule,
-                            const bool                      a_useBottomSolver)
-{
-    this->define(*a_topOpPtr, a_mgRefSchedule, a_useBottomSolver);
-}
-
-
-// -----------------------------------------------------------------------------
-template <class StateType>
-void
-MGSolver<StateType>::define(const MGOpType& a_topOp,
-                            Vector<IntVect> a_refSchedule,
-                            bool            a_useBottomSolver)
-{
     // Use our own MGCoarseningStrategy? If so, use SemicoarseningStrategy.
     if (a_refSchedule.size() == 0) {
         const RealVect&  topDXi       = a_topOp.getDXi();
@@ -146,79 +216,15 @@ template <class StateType>
 void
 MGSolver<StateType>::clear()
 {
-    // Don't reset the options. Doing so may cause frustration. Consider this:
-    //   MGSovler mySolver;
-    //   mySolver.verbosity = 10
-    //   mySolver.define(&myOp);
-    //   mySolver.fmg(...);
-    // If define() calls clear() and clear() erases the options, the user
-    // will be wondering why the solver isn't as verbose as requested.
-
     m_bottomSolverPtr.reset();
     m_opPtrs.resize(0);
     m_refSchedule.resize(0);
     m_solverStatus.clear();
+    m_opt = Options();
 }
 
 
-// -----------------------------------------------------------------------------
-template <class StateType>
-void
-MGSolver<StateType>::setDefaultOptions()
-{
-    const auto& proj = ProblemContext::getInstance()->proj;
-
-    m_opt.absTol            = proj.absTol;
-    m_opt.relTol            = proj.relTol;
-    m_opt.convergenceMetric = -1.0;
-    m_opt.numSmoothDown     = proj.numSmoothDown;
-    m_opt.numSmoothUp       = proj.numSmoothUp;
-    m_opt.numSmoothBottom   = proj.numSmoothBottom;
-    m_opt.numSmoothPrecond  = proj.numSmoothPrecond;
-    m_opt.prolongOrder      = proj.prolongOrder;
-    m_opt.prolongOrderFMG   = proj.prolongOrderFMG;
-    m_opt.numSmoothUpFMG    = proj.numSmoothUpFMG;
-    m_opt.maxDepth          = proj.maxDepth;
-    m_opt.numCycles         = proj.numCycles;
-    m_opt.maxIters          = proj.maxIters;
-    m_opt.hang              = proj.hang;
-    m_opt.normType          = proj.normType;
-    m_opt.verbosity         = proj.verbosity;
-
-    m_opt.bottomOptions.absTol           = proj.bottom_absTol;
-    m_opt.bottomOptions.relTol           = proj.bottom_relTol;
-    m_opt.bottomOptions.small            = proj.bottom_small;
-    m_opt.bottomOptions.hang             = proj.bottom_hang;
-    m_opt.bottomOptions.maxIters         = proj.bottom_maxIters;
-    m_opt.bottomOptions.maxRestarts      = proj.bottom_maxRestarts;
-    m_opt.bottomOptions.normType         = proj.bottom_normType;
-    m_opt.bottomOptions.verbosity        = proj.bottom_verbosity;
-    m_opt.bottomOptions.numSmoothPrecond = proj.bottom_numSmoothPrecond;
-}
-
-
-// -----------------------------------------------------------------------------
-template <class StateType>
-const typename MGSolver<StateType>::Options&
-MGSolver<StateType>::getOptions() const
-{
-    return m_opt;
-}
-
-
-// -----------------------------------------------------------------------------
-template <class StateType>
-void
-MGSolver<StateType>::setOptions(const MGSolver<StateType>::Options& a_opt)
-{
-    if (a_opt.maxDepth != m_opt.maxDepth) {
-        MAYDAYERROR("You cannot change maxDepth on the fly.");
-    }
-
-    m_opt = a_opt;
-    m_bottomSolverPtr->setOptions(a_opt.bottomOptions);
-}
-
+// ================================== Solvers ==================================
 
 // -----------------------------------------------------------------------------
 template <class StateType>

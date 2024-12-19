@@ -177,35 +177,9 @@ AMRNSLevel::projectPredict(LevelData<FluxBox>&   a_vel,
     if (finalDivNorm > initDivNorm) {
         // Lagged pressure failed. Use one FMG iter to drive divVel down.
         const auto saveOpts = m_levelProjSolverPtr->getOptions();
-        auto tempOpts = saveOpts;
-
-        // For Elliptic::LevelHybridSolver::Options
-        tempOpts.absTol                 = 1.0e-300;
-        tempOpts.relTol                 = 1.0e-300;
-        tempOpts.maxSolverSwaps         = 1;
-        tempOpts.mgOptions.absTol       = 1.0e-300;
-        tempOpts.mgOptions.relTol       = 1.0e-300;
-        tempOpts.mgOptions.maxIters     = 1;
-        tempOpts.lepticOptions.absTol   = 1.0e-300;
-        tempOpts.lepticOptions.relTol   = 1.0e-300;
-        tempOpts.lepticOptions.maxOrder = 1;
-
-        // I don't think these will really change the verbosity, but...
-        tempOpts.verbosity                                          = 0;
-        tempOpts.mgOptions.verbosity                                = 0;
-        tempOpts.mgOptions.bottomOptions.verbosity                  = 0;
-        tempOpts.lepticOptions.verbosity                            = 0;
-        tempOpts.lepticOptions.horizOptions.verbosity               = 0;
-        tempOpts.lepticOptions.horizOptions.bottomOptions.verbosity = 0;
-
-        // // For Elliptic::MGSolver<LevelData<FArrayBox>>::Options
-        // tempOpts.absTol   = 1.0e-300;
-        // tempOpts.relTol   = 1.0e-300;
-        // tempOpts.maxIters = 1;
-
-        m_levelProjSolverPtr->setOptions(tempOpts);
+        m_levelProjSolverPtr->modifyOptionsExceptMaxDepth(LevelProjSolver::getQuickAndDirtyOptions());
         this->projectCorrect(a_vel, a_p, a_time, a_projDt);
-        m_levelProjSolverPtr->setOptions(saveOpts);
+        m_levelProjSolverPtr->modifyOptionsExceptMaxDepth(saveOpts);
 
         m_projOpPtr->levelDivergence(divVel, a_vel);
         nanCheck(divVel);

@@ -35,6 +35,10 @@ class LevelHybridSolver
 public:
     typedef LevelData<FArrayBox> StateType;
 
+    // -------------------------------------------------------------------------
+    /// \name Option setters / getters
+    /// \{
+
     enum class SolveMode {
         Undefined,
         MG,
@@ -46,32 +50,61 @@ public:
     struct Options {
         Options() {}
 
-        Real absTol         = 1.0e-15;
-        Real relTol         = 1.0e-15;
-        int  maxSolverSwaps = 10;
-        int  normType       = 2;
-        int  verbosity      = 1;
-        Real hang           = 0.01;
+        Real absTol         = -1.0;
+        Real relTol         = -1.0;
+        int  maxSolverSwaps = -1;
+        int  normType       = -1;
+        int  verbosity      = -1;
+        Real hang           = -1.0;
 
         LevelLepticSolver::Options   lepticOptions;
         MGSolver<StateType>::Options mgOptions;
     };
+
+    /// @brief Creates an Options struct set to defaults as defined by the input
+    /// file.
+    static Options
+    getDefaultOptions();
+
+    /// @brief Creates an Options struct set to silently perform a single FMG iter.
+    static Options
+    getQuickAndDirtyOptions();
+
+    /// Returns the current solver's options.
+    inline virtual const Options&
+    getOptions() const {
+        return m_options;
+    }
+
+    /// @brief This allows you to change absTol, relTol, etc on-the-fly.
+    /// This is useful when you want to use an already-defined solver to do a
+    /// quick and dirty estimate. Just raise the tols or set maxIters to 1.
+    ///
+    /// @param a_opt The new options. All MG maxDepth changes will be ignored.
+    ///              Your changes to lepticOptions.verbosity will be ignored as
+    ///              well.
+    ///
+    /// @details The reason we can't change maxDepth after the solver is defined
+    /// is because we'd need to reallocate and redefine all of the solvers in
+    /// the MG hierarchy - an expensive proposition if all you want is a quick
+    /// and dirty solution. It's probably faster (and definitely easier) to just
+    /// use the MG hierarchy that's available.
+    ///
+    /// @warning This can only be called on an already-defined solver.
+    virtual void
+    modifyOptionsExceptMaxDepth(const Options& a_opt);
+    /// \}
+
+
+    // -------------------------------------------------------------------------
+    /// \name Constructors / destructors
+    /// \{
 
     /// Constructor -- leaves object unusable.
     LevelHybridSolver();
 
     /// Destructor
     ~LevelHybridSolver();
-
-    /// Deallocates all memory and brings this solver back to an undefined
-    /// state.
-    void
-    undefine();
-
-    /// \brief Full define -- leave object in a usable state.
-    /// \param a_mgOpPtr Must be castable to a LepticOperator.
-    void
-    define(std::shared_ptr<const MGOperator<StateType>> a_mgOpPtr);
 
     /// \brief Full define + set options.
     /// \param a_mgOpPtr Must be castable to a LepticOperator.
@@ -92,42 +125,20 @@ public:
            std::shared_ptr<const MGOperator<StateType>> a_mgOpPtr,
            const Options&                               a_opts);
 
-    /// \brief Initializes all parameters with default values.
+    /// Simple check.
+    inline virtual bool
+    isDefined() const {
+        return m_isDefined;
+    }
+
+    /// Free memory. Leaves object unusable.
     void
-    setDefaultOptions();
-
-    /// \brief Returns this solver's settings. If called before this object is
-    /// defined, these will be the default settings.
-    /// \note There is no corresponding setOptions() function becuase the solver
-    /// needs to know the options during define() time.
-    inline Options
-    getOptions() const {
-        return m_options;
-    }
+    clear();
 
 
-    /// @brief Only some settings will be affected by using this function
-    /// instead of redefining the whole solver.
-    /// @param a_options
-    inline void
-    setOptions(const Options& a_options)
-    {
-        m_options = a_options;
-        if (m_mgSolverPtr) {
-            m_mgSolverPtr->setOptions(a_options.mgOptions);
-        }
-        if (m_lepticSolverPtr) {
-            m_lepticSolverPtr->setOptions(a_options.lepticOptions);
-        }
-    }
-
-    /// Returns a copy of our exit status.
-    inline SolverStatus
-    getSolverStatus() const
-    {
-        CH_assert(m_isDefined);
-        return m_solverStatus;
-    }
+    // -------------------------------------------------------------------------
+    /// \name Solvers
+    /// \{
 
     /// \brief Solve L[phi] = rhs.
     SolverStatus
@@ -145,12 +156,23 @@ public:
                     const StateType& a_res,
                     const Real       a_time,
                     const Real       a_convergenceMetric = -1.0) const;
+    /// \}
+
+
+    /// Returns a copy of our exit status.
+    inline SolverStatus
+    getSolverStatus() const
+    {
+        CH_assert(m_isDefined);
+        return m_solverStatus;
+    }
+
 protected:
     /// @brief
     /// @param a_mgOpPtr
-    static std::vector<SolveMode>
-    computeSolveModes(std::shared_ptr<const MGOperator<StateType>>& a_mgOpPtr,
-                      const Options&                                a_options);
+    static SolveMode
+    computeSolveMode(std::shared_ptr<const MGOperator<StateType>>& a_mgOpPtr,
+                     const Options&                                a_options);
 
     bool                      m_isDefined;
     Options                   m_options;
@@ -159,7 +181,7 @@ protected:
     mutable SolverStatus      m_solverStatus;
 
     std::shared_ptr<const MGOperator<StateType>> m_mgOpPtr;
-    std::vector<SolveMode>                       m_solveModeOrder;
+    SolveMode                                    m_solveMode;
     std::shared_ptr<LevelLepticSolver>           m_lepticSolverPtr;
     std::shared_ptr<MGSolver<StateType>>         m_mgSolverPtr;
 };

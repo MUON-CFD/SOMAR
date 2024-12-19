@@ -48,6 +48,10 @@ public:
     typedef MGOperator<T>                      MGOpType;
     typedef BiCGStabSolver<T>                  BottomSolverType;
 
+    // -------------------------------------------------------------------------
+    /// \name Option setters / getters
+    /// \{
+
     /// Knobs for you to turn.
     struct Options {
         /// A bug in the C++11 standard requires this,
@@ -55,33 +59,73 @@ public:
         Options() {}
 
         /// Stop if |res| < absTol
-        Real absTol            = 1.0e-12;
+        Real absTol            = -1.0;
+
         /// Stop if |res| / |init res| < relTol
-        Real relTol            = 1.0e-12;
+        Real relTol            = -1.0;
+
         Real convergenceMetric = -1.0;
-        int  numSmoothDown     = 4;
-        int  numSmoothUp       = 4;
-        int  numSmoothBottom   = 2;
-        int  numSmoothPrecond  = 2;
-        int  prolongOrder      = 1;
-        int  prolongOrderFMG   = 3;
-        int  numSmoothUpFMG    = 0;
-        /// -1 = coarsen as much as possible
+        int  numSmoothDown     = -1;
+        int  numSmoothUp       = -1;
+        int  numSmoothBottom   = -1;
+        int  numSmoothPrecond  = -1;
+        int  prolongOrder      = -1;
+        int  prolongOrderFMG   = -1;
+        int  numSmoothUpFMG    = -1;
+
+        /// -1 = coarsen as much as possible, 0 = don't coarsen, d = 1 coarsening, etc.
         int  maxDepth          = -1;
-        int  numCycles         = 1;
-        int  maxIters          = 10;
-        Real hang              = 0.01;
-        /**
-         * @brief 0 = inf-norm, 1 = 1-norm, etc...
-         * @detail
-         *  I suggest using the 2-norm (defualt) so that norms across different
-         *  MG depths are comparable.
-         */
-        int  normType          = 2;
-        int  verbosity         = 4;
+
+        /// 1 = V-cycle, 2 = W-cycle, -1 = FMG
+        int  numCycles         =  0;
+
+        int  maxIters          = -1;
+        Real hang              = -1.0;
+
+        /// \brief 0 = inf-norm, 1 = 1-norm, etc.
+        /// \details
+        ///  I suggest using the 2-norm (defualt) so that norms across different
+        ///  MG depths are comparable.
+        int  normType          = -1;
+        int  verbosity         = -1;
 
         typename BottomSolverType::Options bottomOptions;
     };
+
+    /// @brief Creates an Options struct set to defaults as defined by the input
+    /// file.
+    static Options
+    getDefaultOptions();
+
+    /// @brief Creates an Options struct set to silently perform a single FMG iter.
+    static Options
+    getQuickAndDirtyOptions();
+
+    /// Returns the current solver's options.
+    virtual const Options&
+    getOptions() const;
+
+    /// @brief This allows you to change absTol, relTol, etc on-the-fly.
+    /// This is useful when you want to use an already-defined MGSolver to do a
+    /// quick and dirty estimate. Just increase the tols and set maxIters to 1.
+    ///
+    /// @param a_opt The new options. The maxDepth setting will be ignored.
+    ///
+    /// @details The reason we can't change maxDepth after the solver is defined
+    /// is because we'd need to reallocate and redefine all of the solvers in
+    /// the MG hierarchy - an expensive proposition if all you want is a quick
+    /// and dirty solution. It's probably faster (and definitely easier) to just
+    /// use the MG hierarchy that's available.
+    ///
+    /// @warning This can only be called on an already-defined solver.
+    virtual void
+    modifyOptionsExceptMaxDepth(const Options& a_opt);
+    /// \}
+
+
+    // -------------------------------------------------------------------------
+    /// \name Constructors / destructors
+    /// \{
 
     /// Default constructor. Leaves object unusable.
     MGSolver();
@@ -115,82 +159,37 @@ public:
            Vector<IntVect> a_mgRefSchedule   = Vector<IntVect>(),
            const bool      a_useBottomSolver = true);
 
-    /// @brief Full define. Leaves object useable. This version does not set
-    ///        the MG options, just in case you already did that.
-    /// @param a_topOpPtr        Must be well-defined at depth = 0.
-    /// @param a_mgRefSchedule   You can provide your own refRatio at each depth.
-    ///                          Otherwise, SemicoarseningStrategy will be used.
-    /// @param a_useBottomSolver Default is to use BiCGStab. Otherwise, only
-    ///                          relaxation will be used at the bottom.
-    virtual void
-    define(std::shared_ptr<const MGOpType> a_topOpPtr,
-           Vector<IntVect>                 a_mgRefSchedule = Vector<IntVect>(),
-           const bool                      a_useBottomSolver = true);
-
-    /// @brief Full define. Leaves object useable. This version does not set
-    ///        the MG options, just in case you already did that.
-    /// @param a_topOpPtr        Must be well-defined at depth = 0.
-    /// @param a_mgRefSchedule   You can provide your own refRatio at each depth.
-    ///                          Otherwise, SemicoarseningStrategy will be used.
-    /// @param a_useBottomSolver Default is to use BiCGStab. Otherwise, only
-    ///                          relaxation will be used at the bottom.
-    virtual void
-    define(const MGOpType& a_topOp,
-           Vector<IntVect> a_mgRefSchedule   = Vector<IntVect>(),
-           const bool      a_useBottomSolver = true);
-
     /// Simple check.
     virtual bool
     isDefined() const;
 
-    /// Free's memory. Leaves object unusable.
+    /// Free memory. Leaves object unusable.
     virtual void
     clear();
+    /// \}
 
-    /// Returns a copy of our exit status.
-    virtual SolverStatus
-    getSolverStatus() const
-    {
-        return m_solverStatus;
-    }
 
-    /// \brief Initializes all parameters with default values.
-    virtual void
-    setDefaultOptions();
+    // -------------------------------------------------------------------------
+    /// \name Solvers
+    /// \{
 
-    /// Returns the current solver's options.
-    virtual const Options&
-    getOptions() const;
-
-    /// I'm giving you access to this so that you can change absTol, relTol, etc
-    /// on-the-fly. This is useful when you want to use an already-defined
-    /// MGSolver to do a quick and dirty estimate. Just increase the tolerances
-    /// and set maxIters to 1.
-    /// NOTE: You cannot use this to change maxDepth.
-    virtual void
-    setOptions(const Options& a_opt);
-
-    /**
-     *
-     * @brief      Solves L[phi] = rhs using the most appropriate methods.
-     *
-     * @param[inout] a_phi                On entry, the initial guess.
-     *                                    On exit, the solution.
-     * @param[in]    a_crsePhiPtr         Used to set CFI BCs, if needed.
-     *                                    Can be null if not needed.
-     * @param[in]    a_rhs
-     * @param[in]    a_time               Used to set BCs.
-     * @param[in]    a_useHomogBCs
-     * @param[in]    a_setPhiToZero       Should we set initial guess to zero?
-     * @param[in]    a_convergenceMetric  If supplied, this will be used as the
-     *                                    initial residual when computing
-     *                                    relative residuals. This setting takes
-     *                                    precedence over
-     *                                    Options::convergenceMetric.
-     *
-     * @return     The SolverStatus object.
-     *             This tells the caller if we converged.
-     */
+    /// @brief Solves L[phi] = rhs using the most appropriate methods.
+    ///
+    /// @param[inout] a_phi               On entry, the initial guess.
+    ///                                   On exit, the solution.
+    /// @param[in]    a_crsePhiPtr        Used to set CFI BCs, if needed.
+    ///                                   Can be null if not needed.
+    /// @param[in]    a_rhs
+    /// @param[in]    a_time              Used to set BCs.
+    /// @param[in]    a_useHomogBCs
+    /// @param[in]    a_setPhiToZero      Should we set initial guess to zero?
+    /// @param[in]    a_convergenceMetric If supplied, this will be used as the
+    ///                                   initial residual when computing
+    ///                                   relative residuals. This setting takes
+    ///                                   precedence over
+    ///                                   Options::convergenceMetric.
+    ///
+    /// @return The SolverStatus object. This tells the caller if we converged.
     virtual SolverStatus
     solve(StateType&       a_phi,
           const StateType* a_crsePhiPtr,
@@ -200,26 +199,23 @@ public:
           const bool       a_setPhiToZero      = false,
           const Real       a_convergenceMetric = -1.0);
 
-    /**
-     * @brief      Solves L[phi] = rhs using V-Cycles.
-     *
-     * @param[inout] a_phi                On entry, the initial guess.
-     *                                    On exit, the solution.
-     * @param[in]    a_crsePhiPtr         Used to set CFI BCs, if needed.
-     *                                    Can be null if not needed.
-     * @param[in]    a_rhs
-     * @param[in]    a_time               Used to set BCs.
-     * @param[in]    a_useHomogBCs
-     * @param[in]    a_setPhiToZero       Should we set initial guess to zero?
-     * @param[in]    a_convergenceMetric  If supplied, this will be used as the
-     *                                    initial residual when computing
-     *                                    relative residuals. This setting takes
-     *                                    precedence over
-     *                                    Options::convergenceMetric.
-     *
-     * @return     The SolverStatus object.
-     *             This tells the caller if we converged.
-     */
+    /// @brief Solves L[phi] = rhs using V-Cycles.
+    ///
+    /// @param[inout] a_phi                On entry, the initial guess.
+    ///                                    On exit, the solution.
+    /// @param[in]    a_crsePhiPtr         Used to set CFI BCs, if needed.
+    ///                                    Can be null if not needed.
+    /// @param[in]    a_rhs
+    /// @param[in]    a_time               Used to set BCs.
+    /// @param[in]    a_useHomogBCs
+    /// @param[in]    a_setPhiToZero       Should we set initial guess to zero?
+    /// @param[in]    a_convergenceMetric  If supplied, this will be used as the
+    ///                                    initial residual when computing
+    ///                                    relative residuals. This setting takes
+    ///                                    precedence over
+    ///                                    Options::convergenceMetric.
+    ///
+    /// @return The SolverStatus object. This tells the caller if we converged.
     virtual SolverStatus
     vCycle(StateType&       a_phi,
            const StateType* a_crsePhiPtr,
@@ -229,26 +225,23 @@ public:
            const bool       a_setPhiToZero      = false,
            const Real       a_convergenceMetric = -1.0);
 
-    /**
-     * @brief      Solves L[phi] = rhs using Full Multigrid.
-     *
-     * @param[inout] a_phi                On entry, the initial guess.
-     *                                    On exit, the solution.
-     * @param[in]    a_crsePhiPtr         Used to set CFI BCs, if needed.
-     *                                    Can be null if not needed.
-     * @param[in]    a_rhs
-     * @param[in]    a_time               Used to set BCs.
-     * @param[in]    a_useHomogBCs
-     * @param[in]    a_setPhiToZero       Should we set initial guess to zero?
-     * @param[in]    a_convergenceMetric  If supplied, this will be used as the
-     *                                    initial residual when computing
-     *                                    relative residuals. This setting takes
-     *                                    precedence over
-     *                                    Options::convergenceMetric.
-     *
-     * @return     The SolverStatus object.
-     *             This tells the caller if we converged.
-     */
+    /// @brief Solves L[phi] = rhs using Full Multigrid.
+    ///
+    /// @param[inout] a_phi                On entry, the initial guess.
+    ///                                    On exit, the solution.
+    /// @param[in]    a_crsePhiPtr         Used to set CFI BCs, if needed.
+    ///                                    Can be null if not needed.
+    /// @param[in]    a_rhs
+    /// @param[in]    a_time               Used to set BCs.
+    /// @param[in]    a_useHomogBCs
+    /// @param[in]    a_setPhiToZero       Should we set initial guess to zero?
+    /// @param[in]    a_convergenceMetric  If supplied, this will be used as the
+    ///                                    initial residual when computing
+    ///                                    relative residuals. This setting takes
+    ///                                    precedence over
+    ///                                    Options::convergenceMetric.
+    ///
+    /// @return The SolverStatus object. This tells the caller if we converged.
     virtual SolverStatus
     fmg(StateType&       a_phi,
         const StateType* a_crsePhiPtr,
@@ -271,6 +264,15 @@ public:
                    const StateType& a_res,
                    const Real       a_time,
                    const int        a_depth);
+    /// \}
+
+
+    /// Returns a copy of our exit status.
+    virtual SolverStatus
+    getSolverStatus() const
+    {
+        return m_solverStatus;
+    }
 
 protected:
     /// pout formatting utility.

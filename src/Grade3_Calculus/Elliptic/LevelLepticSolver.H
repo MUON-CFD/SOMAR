@@ -52,20 +52,61 @@ class LevelLepticSolver : public LevelSolver<LevelData<FArrayBox>>
 public:
     typedef LevelData<FArrayBox> StateType;
 
+    // -------------------------------------------------------------------------
+    /// \name Option setters / getters
+    /// \{
+
     /// Knobs for you to turn.
     struct Options {
+        /// A bug in the C++11 standard requires this,
+        /// even though it does nothing.
         Options() {}
 
-        Real absTol             = 1.0e-15;
-        Real relTol             = 1.0e-15;
-        int  maxOrder           = 10;
-        int  normType           = 2;
-        int  verbosity          = 1;
-        Real hang               = 0.01;
-        int  maxDivergingOrders = 2;
+        Real absTol             = -1.0;
+        Real relTol             = -1.0;
+        int  maxOrder           = -1;
+        int  normType           = -1;
+        int  verbosity          = -1;
+        Real hang               = -1.0;
+        int  maxDivergingOrders = -1;
 
         MGSolver<LevelData<FArrayBox>>::Options horizOptions;
     };
+
+    /// @brief Creates an Options struct set to defaults as defined by the input
+    /// file.
+    static Options
+    getDefaultOptions();
+
+    /// @brief Creates solver parameters to perform fast estimates.
+    static Options
+    getQuickAndDirtyOptions();
+
+    /// Returns the current solver's options.
+    virtual const Options&
+    getOptions() const;
+
+    /// @brief This allows you to change absTol, relTol, etc on-the-fly.
+    /// This is useful when you want to use an already-defined solver to do a
+    /// quick and dirty estimate. Just raise the tols or set maxIters to 1.
+    ///
+    /// @param a_opt The new options. All MG maxDepth changes will be ignored.
+    ///
+    /// @details The reason we can't change maxDepth after the solver is defined
+    /// is because we'd need to reallocate and redefine all of the solvers in
+    /// the MG hierarchy - an expensive proposition if all you want is a quick
+    /// and dirty solution. It's probably faster (and definitely easier) to just
+    /// use the MG hierarchy that's available.
+    ///
+    /// @warning This can only be called on an already-defined solver.
+    virtual void
+    modifyOptionsExceptMaxDepth(const Options& a_opt);
+    /// \}
+
+
+    // -------------------------------------------------------------------------
+    /// \name Constructors / destructors
+    /// \{
 
     /// Constructor -- leaves object unusable.
     LevelLepticSolver();
@@ -73,68 +114,34 @@ public:
     /// Destructor
     virtual ~LevelLepticSolver();
 
-    /// Deallocates all memory and brings this solver back to an undefined
-    /// state.
-    virtual void
-    undefine();
-
-    /// \brief Full define -- leave object in a usable state.
+    /// \brief Full define. Leaves object in a usable state with default options.
     ///  This is an override of the pure virtual LinearSolver function.
     /// \param a_linearOpPtr Must be castable to a LepticOperator.
     virtual void
     define(std::shared_ptr<const LevelOperator<StateType>> a_linearOpPtr) override;
 
-    /// \brief Full define + set options.
+    /// \brief Full define. Leaves object in a usable state with custom options.
     /// \param a_linearOpPtr Must be castable to a LepticOperator.
     /// \param a_opts        The options for the leptic solver.
     virtual void
     define(std::shared_ptr<const LevelOperator<StateType>> a_linearOpPtr,
            const Options&                                  a_opts);
 
-    /// \brief Returns this solver's settings. If called before this object is
-    /// defined, these will be the default settings.
-    /// \note There is no corresponding setOptions() function becuase the solver
-    /// needs to know the options during define() time.
-    inline virtual Options
-    getOptions() const {
-        return m_options;
-    }
+    /// Simple check.
+    inline virtual bool
+    isDefined() const {
+        return m_isDefined;
+    };
 
-    /// @brief This is useful when you want to change tolerances or verbosities
-    ///  on the fly. Be careful, not all changes will be respected.
-    /// @param a_options
-    inline virtual void
-    setOptions(const Options& a_options)
-    {
-        m_options = a_options;
-        m_horizSolverPtr->setOptions(a_options.horizOptions);
-    }
+    /// Free memory. Leaves object unusable.
+    virtual void
+    clear();
+    /// \}
 
-    /// @brief Sets the verbosities of the main, horizontal MG, and horizontal
-    /// MG bottom solvers.
-    /// @param a_verbs Components are 0 = main, 1 = horiz MG, 2 = horiz MG bottom.
-    inline virtual void
-    setVerbosities(const std::array<int, 3> a_verbs) {
-        m_options.verbosity = a_verbs[0];
-        m_options.horizOptions.verbosity = a_verbs[1];
-        m_options.horizOptions.bottomOptions.verbosity = a_verbs[2];
-    }
 
-    inline virtual std::array<int, 3>
-    getVerbosities() const {
-        return { m_options.verbosity,
-                 m_options.horizOptions.verbosity,
-                 m_options.horizOptions.bottomOptions.verbosity };
-    }
-
-    /// @brief Returns the residual norms after a solve.
-    /// @warning If called before a solve, it may return an empty vector or old
-    /// results.
-    inline virtual const std::vector<Real>&
-    getResNorms() const
-    {
-        return m_resNorms;
-    }
+    // -------------------------------------------------------------------------
+    /// \name Solvers
+    /// \{
 
     /// \brief Solve L[phi] = rhs.
     virtual SolverStatus
@@ -145,12 +152,18 @@ public:
           const bool       a_useHomogBCs,
           const bool       a_setPhiToZero,
           const Real       a_convergenceMetric = -1.0) const override;
+    /// \}
+
+    /// @brief Returns the residual norms after a solve.
+    /// @warning If called before a solve, it may return an empty vector or old
+    /// results.
+    inline virtual const std::vector<Real>&
+    getResNorms() const
+    {
+        return m_resNorms;
+    }
 
 protected:
-    /// \brief Initializes all parameters with default values.
-    virtual void
-    setDefaultOptions();
-
     /// Computes the excess function,
     /// excess = hiNeumBC - loNeumBC - Integral[rhs].
     virtual void

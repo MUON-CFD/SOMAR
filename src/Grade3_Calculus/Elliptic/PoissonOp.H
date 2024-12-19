@@ -34,7 +34,7 @@
 #include "LevelGeometry.H"
 #include "ProjectorParameters.H"
 
-// #include "LepticOperator.H"
+#include "LepticOperator.H"
 #include "LevelLepticSolver.H"
 
 namespace Elliptic

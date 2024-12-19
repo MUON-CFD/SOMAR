@@ -2,6 +2,94 @@
 
 namespace Elliptic {
 
+// ======================== Option setters / getters ===========================
+
+// -----------------------------------------------------------------------------
+LevelHybridSolver::Options
+LevelHybridSolver::getDefaultOptions()
+{
+    // BUG: A lot of this is hard-coded.
+
+    Options opt;
+    const auto& proj = ProblemContext::getInstance()->proj;
+
+    opt.absTol         = proj.absTol;
+    opt.relTol         = proj.relTol;
+    opt.maxSolverSwaps = 10;
+    opt.normType       = proj.normType;
+    opt.verbosity      = proj.verbosity;
+    opt.hang           = proj.hang;
+
+    opt.mgOptions = MGSolver<StateType>::getDefaultOptions();
+    opt.mgOptions.absTol    = opt.absTol;
+    opt.mgOptions.relTol    = opt.relTol;
+    opt.mgOptions.hang      = opt.hang;
+    opt.mgOptions.maxDepth  = -1;
+    opt.mgOptions.maxIters  = 10;
+    opt.mgOptions.normType  = opt.normType;
+    opt.mgOptions.numCycles = -1;
+    opt.mgOptions.verbosity = 0;
+    // Use default smoothing options.
+
+    opt.mgOptions.bottomOptions.normType = opt.normType;
+    opt.mgOptions.bottomOptions.verbosity = 0;
+    // Use default convergence options.
+
+    opt.lepticOptions = LevelLepticSolver::getDefaultOptions();
+    opt.lepticOptions.normType = opt.normType;
+    // opt.lepticOptions.verbosity = 0;
+
+    opt.lepticOptions.horizOptions.normType = opt.normType;
+    opt.lepticOptions.horizOptions.verbosity = 0;
+
+    opt.lepticOptions.horizOptions.bottomOptions.normType = opt.normType;
+    opt.lepticOptions.horizOptions.bottomOptions.verbosity = 0;
+
+    return opt;
+}
+
+
+// -----------------------------------------------------------------------------
+LevelHybridSolver::Options
+LevelHybridSolver::getQuickAndDirtyOptions()
+{
+    Options opt = getDefaultOptions();
+
+    opt.absTol         = 1.0e-300;
+    opt.relTol         = 1.0e-2;
+    opt.maxSolverSwaps = 1;
+
+    opt.mgOptions = MGSolver<StateType>::getQuickAndDirtyOptions();
+    opt.lepticOptions = LevelLepticSolver::getQuickAndDirtyOptions();
+
+    return opt;
+}
+
+
+// -----------------------------------------------------------------------------
+void
+LevelHybridSolver::modifyOptionsExceptMaxDepth(const Options& a_options)
+{
+    if (!this->isDefined()) {
+        MAYDAYERROR("This can only be called AFTER LevelHybridSolver is defined.");
+    }
+
+    const auto oldLepticVerb = m_options.lepticOptions.verbosity;
+    m_options = a_options;
+    m_options.lepticOptions.verbosity = oldLepticVerb;
+
+    if (m_mgSolverPtr) {
+        m_mgSolverPtr->modifyOptionsExceptMaxDepth(m_options.mgOptions);
+    }
+    if (m_lepticSolverPtr) {
+        m_lepticSolverPtr->modifyOptionsExceptMaxDepth(m_options.lepticOptions);
+    }
+}
+
+
+
+// ======================== Constructors / destructors =========================
+
 // -----------------------------------------------------------------------------
 LevelHybridSolver::LevelHybridSolver()
 : m_isDefined(false)
@@ -9,28 +97,29 @@ LevelHybridSolver::LevelHybridSolver()
 , m_resNorms()
 , m_solverStatus()
 , m_mgOpPtr()
-, m_solveModeOrder()
+, m_solveMode(SolveMode::Undefined)
 , m_lepticSolverPtr()
 , m_mgSolverPtr()
 {
-    this->setDefaultOptions();
 }
 
 
 // -----------------------------------------------------------------------------
 LevelHybridSolver::~LevelHybridSolver()
 {
-    this->undefine();
+    this->clear();
 }
 
 
 // -----------------------------------------------------------------------------
 void
-LevelHybridSolver::undefine()
+LevelHybridSolver::clear()
 {
+    m_options = Options();
+
     m_mgSolverPtr.reset();
     m_lepticSolverPtr.reset();
-    m_solveModeOrder.clear();
+    m_solveMode = SolveMode::Undefined;
     m_mgOpPtr.reset();
     m_solverStatus.clear();
 
@@ -41,54 +130,12 @@ LevelHybridSolver::undefine()
 
 // -----------------------------------------------------------------------------
 void
-LevelHybridSolver::define(std::shared_ptr<const MGOperator<StateType>> a_mgOpPtr)
-{
-    if (m_isDefined) {
-        this->undefine();
-    }
-
-    m_solverStatus.clear();
-
-    CH_assert(a_mgOpPtr);
-    m_mgOpPtr = a_mgOpPtr;
-
-    m_solveModeOrder = LevelHybridSolver::computeSolveModes(m_mgOpPtr, m_options);
-
-    bool useLeptic = false;
-    bool useMG = false;
-    for (const auto& mode : m_solveModeOrder) {
-        if (mode == SolveMode::Leptic || mode == SolveMode::Leptic_MG) {
-            useLeptic = true;
-        }
-        if (mode == SolveMode::MG || mode == SolveMode::Leptic_MG) {
-            useMG = true;
-        }
-    }
-
-    if (useLeptic) {
-        m_lepticSolverPtr.reset(new LevelLepticSolver);
-        m_lepticSolverPtr->define(m_mgOpPtr, m_options.lepticOptions);
-        m_options.lepticOptions = m_lepticSolverPtr->getOptions();
-    }
-
-    if (useMG) {
-        m_mgSolverPtr.reset(new MGSolver<StateType>);
-        m_mgSolverPtr->define(*m_mgOpPtr, m_options.mgOptions);
-        m_options.mgOptions = m_mgSolverPtr->getOptions();
-    }
-
-    m_isDefined = true;
-}
-
-
-// -----------------------------------------------------------------------------
-void
 LevelHybridSolver::define(
     std::shared_ptr<const MGOperator<StateType>> a_mgOpPtr,
     const Options&                               a_opts)
 {
     if (m_isDefined) {
-        this->undefine();
+        this->clear();
     }
 
     m_options = a_opts;
@@ -97,26 +144,45 @@ LevelHybridSolver::define(
     CH_assert(a_mgOpPtr);
     m_mgOpPtr = a_mgOpPtr;
 
-    m_solveModeOrder = LevelHybridSolver::computeSolveModes(m_mgOpPtr, m_options);
-
+    m_solveMode = LevelHybridSolver::computeSolveMode(m_mgOpPtr, m_options);
     bool useLeptic = false;
+    if (m_solveMode == SolveMode::Leptic || m_solveMode == SolveMode::Leptic_MG) {
+        useLeptic = true;
+    }
     bool useMG = false;
-    for (const auto& mode : m_solveModeOrder) {
-        if (mode == SolveMode::Leptic || mode == SolveMode::Leptic_MG) {
-            useLeptic = true;
-        }
-        if (mode == SolveMode::MG || mode == SolveMode::Leptic_MG) {
-            useMG = true;
-        }
+    if (m_solveMode == SolveMode::MG || m_solveMode == SolveMode::Leptic_MG) {
+        useMG = true;
     }
 
-    if (useLeptic) {
+    if (useLeptic && useMG) {
+        // Silence the individual solvers. We will summarize at the end.
+        m_options.lepticOptions.verbosity                            = 0;
+        m_options.lepticOptions.horizOptions.verbosity               = 0;
+        m_options.lepticOptions.horizOptions.bottomOptions.verbosity = 0;
+        m_options.mgOptions.verbosity               = 0;
+        m_options.mgOptions.bottomOptions.verbosity = 0;
+
         m_lepticSolverPtr.reset(new LevelLepticSolver);
         m_lepticSolverPtr->define(m_mgOpPtr, m_options.lepticOptions);
         m_options.lepticOptions = m_lepticSolverPtr->getOptions();
-    }
 
-    if (useMG) {
+        m_mgSolverPtr.reset(new MGSolver<StateType>);
+        m_mgSolverPtr->define(*m_mgOpPtr, m_options.mgOptions);
+        m_options.mgOptions = m_mgSolverPtr->getOptions();
+
+    } else if (useLeptic) {
+        m_lepticSolverPtr.reset(new LevelLepticSolver);
+        m_lepticSolverPtr->define(m_mgOpPtr, m_options.lepticOptions);
+        m_options.lepticOptions = m_lepticSolverPtr->getOptions();
+
+    } else if (useMG) {
+        m_mgSolverPtr.reset(new MGSolver<StateType>);
+        m_mgSolverPtr->define(*m_mgOpPtr, m_options.mgOptions);
+        m_options.mgOptions = m_mgSolverPtr->getOptions();
+
+    } else {
+        // ??? Just use MG
+        useMG = true;
         m_mgSolverPtr.reset(new MGSolver<StateType>);
         m_mgSolverPtr->define(*m_mgOpPtr, m_options.mgOptions);
         m_options.mgOptions = m_mgSolverPtr->getOptions();
@@ -135,7 +201,7 @@ LevelHybridSolver::define(
     const Options&                               a_opts)
 {
     if (m_isDefined) {
-        this->undefine();
+        this->clear();
     }
 
     m_options = a_opts;
@@ -144,35 +210,58 @@ LevelHybridSolver::define(
     CH_assert(a_mgOpPtr);
     m_mgOpPtr = a_mgOpPtr;
 
-    m_solveModeOrder = LevelHybridSolver::computeSolveModes(m_mgOpPtr, m_options);
-
+    m_solveMode = LevelHybridSolver::computeSolveMode(m_mgOpPtr, m_options);
     bool useLeptic = false;
+    if (m_solveMode == SolveMode::Leptic || m_solveMode == SolveMode::Leptic_MG) {
+        useLeptic = true;
+    }
     bool useMG = false;
-    for (const auto& mode : m_solveModeOrder) {
-        if (mode == SolveMode::Leptic || mode == SolveMode::Leptic_MG) {
-            useLeptic = true;
-        }
-        if (mode == SolveMode::MG || mode == SolveMode::Leptic_MG) {
-            useMG = true;
-        }
+    if (m_solveMode == SolveMode::MG || m_solveMode == SolveMode::Leptic_MG) {
+        useMG = true;
     }
 
-    if (useLeptic) {
-        CH_assert(a_lepticSolverPtr);
-        m_lepticSolverPtr = a_lepticSolverPtr;
+    if (useLeptic && useMG) {
+        // Silence the individual solvers. We will summarize at the end.
+        m_options.lepticOptions.verbosity                            = 0;
+        m_options.lepticOptions.horizOptions.verbosity               = 0;
+        m_options.lepticOptions.horizOptions.bottomOptions.verbosity = 0;
+        m_options.mgOptions.verbosity               = 0;
+        m_options.mgOptions.bottomOptions.verbosity = 0;
+
+        CH_verify(a_lepticSolverPtr);
+        m_lepticSolverPtr       = a_lepticSolverPtr;
         m_options.lepticOptions = a_lepticSolverPtr->getOptions();
-    }
 
-    if (useMG) {
-        CH_assert(a_mgSolverPtr);
-        CH_assert(a_mgSolverPtr->isDefined());
-        m_mgSolverPtr = a_mgSolverPtr;
+        CH_verify(a_mgSolverPtr);
+        CH_verify(a_mgSolverPtr->isDefined());
+        m_mgSolverPtr       = a_mgSolverPtr;
+        m_options.mgOptions = a_mgSolverPtr->getOptions();
+
+    } else if (useLeptic) {
+        CH_verify(a_lepticSolverPtr);
+        m_lepticSolverPtr       = a_lepticSolverPtr;
+        m_options.lepticOptions = a_lepticSolverPtr->getOptions();
+
+    } else if (useMG) {
+        CH_verify(a_mgSolverPtr);
+        CH_verify(a_mgSolverPtr->isDefined());
+        m_mgSolverPtr       = a_mgSolverPtr;
+        m_options.mgOptions = a_mgSolverPtr->getOptions();
+
+    } else {
+        // ??? Just use MG
+        CH_verify(a_mgSolverPtr);
+        CH_verify(a_mgSolverPtr->isDefined());
+        useMG               = true;
+        m_mgSolverPtr       = a_mgSolverPtr;
         m_options.mgOptions = a_mgSolverPtr->getOptions();
     }
 
     m_isDefined = true;
 }
 
+
+// ================================== Solvers ==================================
 
 // -----------------------------------------------------------------------------
 SolverStatus
@@ -235,8 +324,7 @@ LevelHybridSolver::solveResidualEq(StateType&       a_cor,
     m_solverStatus.setInitResNorm(m_resNorms.back());
 
     // Select solver.
-    const auto solveMode = m_solveModeOrder[0];
-    if (solveMode == SolveMode::Leptic) {
+    if (m_solveMode == SolveMode::Leptic) {
         constexpr bool homogBCs     = true;
         constexpr bool setCorToZero = false;
         m_solverStatus = m_lepticSolverPtr->solve(
@@ -249,7 +337,7 @@ LevelHybridSolver::solveResidualEq(StateType&       a_cor,
         const std::vector<std::string> vl(m_lepticSolverPtr->getResNorms().size() - 1, "Leptic");
         solverTypes.insert(solverTypes.end(), vl.begin(), vl.end());
 
-    } else if (solveMode == SolveMode::Leptic_MG) {
+    } else if (m_solveMode == SolveMode::Leptic_MG) {
         for (int swaps = 0; swaps < m_options.maxSolverSwaps; ++swaps) {
             const Real preLepticResNorm = m_resNorms.back();
 
@@ -257,12 +345,7 @@ LevelHybridSolver::solveResidualEq(StateType&       a_cor,
             constexpr bool homogBCs     = true;
             constexpr bool setCorToZero = false;
 
-            const auto oldOptions = m_lepticSolverPtr->getOptions();
-            auto newOptions = oldOptions;
-            newOptions.verbosity = 0;
-            m_lepticSolverPtr->setOptions(newOptions);
             m_lepticSolverPtr->solve(a_cor, nullptr, a_res, a_time, homogBCs, setCorToZero);
-            m_lepticSolverPtr->setOptions(oldOptions);
 
             m_resNorms.insert(m_resNorms.end(),
                               m_lepticSolverPtr->getResNorms().begin() + 1,
@@ -304,17 +387,12 @@ LevelHybridSolver::solveResidualEq(StateType&       a_cor,
                 break;
             }
         }
-    } else if (solveMode == SolveMode::MG) {
+    } else if (m_solveMode == SolveMode::MG) {
         // Fully leptic problem. Just use leptic solver.
         constexpr bool homogBCs     = true;
         constexpr bool setCorToZero = false;
-        const auto oldOptions = m_mgSolverPtr->getOptions();
-        auto newOptions = oldOptions;
-        newOptions.verbosity = 4;
-        m_mgSolverPtr->setOptions(newOptions);
         m_solverStatus = m_mgSolverPtr->solve(
             a_cor, nullptr, a_res, a_time, homogBCs, setCorToZero);
-        m_mgSolverPtr->setOptions(oldOptions);
 
         // m_resNorms.insert(m_resNorms.end(),
         //                   m_mgSolverPtr->getResNorms().begin() + 1,
@@ -330,7 +408,8 @@ LevelHybridSolver::solveResidualEq(StateType&       a_cor,
 
     CH_assert(m_resNorms.size() == solverTypes.size());
 
-    if (m_options.verbosity >= 1) {
+    // Summarize convergence pattern.
+    if (m_solveMode == SolveMode::Leptic_MG && m_options.verbosity >= 1) {
         for (size_t iter = 0; iter < m_resNorms.size(); ++iter) {
             pout() << "iter " << iter
                    << ": |rel res| = " << m_resNorms[iter] / m_resNorms[0]
@@ -344,40 +423,40 @@ LevelHybridSolver::solveResidualEq(StateType&       a_cor,
 }
 
 
+// // -----------------------------------------------------------------------------
+// void
+// LevelHybridSolver::setDefaultOptions()
+// {
+//     const auto& proj = ProblemContext::getInstance()->proj;
+
+//     m_options.absTol         = proj.absTol;
+//     m_options.relTol         = proj.relTol;
+//     m_options.maxSolverSwaps = 10; // BUG: Hard-coded.
+//     m_options.normType       = proj.normType;
+//     m_options.verbosity      = proj.verbosity;
+//     m_options.hang           = proj.hang;
+
+//     m_options.mgOptions.absTol    = m_options.absTol;
+//     m_options.mgOptions.relTol    = m_options.relTol;
+//     m_options.mgOptions.hang      = m_options.hang;
+//     m_options.mgOptions.maxDepth  = -1;
+//     m_options.mgOptions.maxIters  = 10;
+//     m_options.mgOptions.normType  = m_options.normType;
+//     m_options.mgOptions.numCycles = -1;
+//     m_options.mgOptions.verbosity = 0;
+//     // Use default smoothing options.
+
+//     m_options.mgOptions.bottomOptions.verbosity = 0;
+//     // Use default convergence options.
+
+//     m_options.lepticOptions.horizOptions.verbosity = 0;
+//     m_options.lepticOptions.horizOptions.bottomOptions.verbosity = 0;
+// }
+
+
 // -----------------------------------------------------------------------------
-void
-LevelHybridSolver::setDefaultOptions()
-{
-    const auto& proj = ProblemContext::getInstance()->proj;
-
-    m_options.absTol         = proj.absTol;
-    m_options.relTol         = proj.relTol;
-    m_options.maxSolverSwaps = 10; // BUG: Hard-coded.
-    m_options.normType       = proj.normType;
-    m_options.verbosity      = proj.verbosity;
-    m_options.hang           = proj.hang;
-
-    m_options.mgOptions.absTol    = m_options.absTol;
-    m_options.mgOptions.relTol    = m_options.relTol;
-    m_options.mgOptions.hang      = m_options.hang;
-    m_options.mgOptions.maxDepth  = -1;
-    m_options.mgOptions.maxIters  = 10;
-    m_options.mgOptions.normType  = m_options.normType;
-    m_options.mgOptions.numCycles = -1;
-    m_options.mgOptions.verbosity = 0;
-    // Use default smoothing options.
-
-    m_options.mgOptions.bottomOptions.verbosity = 0;
-    // Use default convergence options.
-
-    m_options.lepticOptions.horizOptions.verbosity = 0;
-    m_options.lepticOptions.horizOptions.bottomOptions.verbosity = 0;
-}
-
-
-// -----------------------------------------------------------------------------
-std::vector<LevelHybridSolver::SolveMode>
-LevelHybridSolver::computeSolveModes(
+LevelHybridSolver::SolveMode
+LevelHybridSolver::computeSolveMode(
     std::shared_ptr<const MGOperator<StateType>>& a_mgOpPtr,
     const Options&                                a_options)
 {
@@ -407,15 +486,13 @@ LevelHybridSolver::computeSolveModes(
     // const bool useLineRelax = (coarsestAnisotropy > 2.0);
 
     // Set main solve mode.
-    constexpr size_t numSolveModeAttempts = 1;
-    std::vector<SolveMode> solveMode;
-    solveMode.reserve(numSolveModeAttempts);
+    SolveMode solveMode = SolveMode::Undefined;
     if (lepticity > 1.0) {
-        solveMode.push_back(SolveMode::Leptic);
+        solveMode = SolveMode::Leptic;
     } else if (lepticity > 0.2) { // eps in [1, ~30].
-        solveMode.push_back(SolveMode::Leptic_MG);
+        solveMode = SolveMode::Leptic_MG;
     } else {
-        solveMode.push_back(SolveMode::MG);
+        solveMode = SolveMode::MG;
     }
 
     return solveMode;
