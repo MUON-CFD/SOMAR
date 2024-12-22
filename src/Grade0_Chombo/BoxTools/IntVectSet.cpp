@@ -657,10 +657,10 @@ void IntVectSet::convert() const
 void IntVectSet::clearStaticMemory()
 {
   TreeIntVectSet::treeNodePool->clear();
-  TreeIntVectSet::index.clear();
-  TreeIntVectSet::parents.clear();
-  TreeIntVectSet::boxes.clear();
-  TreeIntVectSet::bufferOffset.clear();
+//   TreeIntVectSet::index.clear();
+//   TreeIntVectSet::parents.clear();
+//   TreeIntVectSet::boxes.clear();
+//   TreeIntVectSet::bufferOffset.clear();
 }
 
 //====================================================================

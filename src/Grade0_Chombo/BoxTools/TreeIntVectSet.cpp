@@ -20,7 +20,7 @@
 #include "NamespaceHeader.H"
 
 using std::ostream;
-using std::cout;
+//using std::cout;
 using std::endl;
 
 // The implementation of the tree here is a little
@@ -172,12 +172,20 @@ void TreeIntVectSet::define(const TreeIntVectSet& a_tivs)
 
 }
 
+
 void TreeIntVectSet::cloneNode(const TreeNode& src, TreeNode& dest)
 {
-  static Vector<const TreeNode*> otherParents;
-  if (parents.size() > otherParents.size())
+/*
+  int c1=otherParents.size(), c2=parents.size(), c3=index.size();
+  if (c2 > c1)
     otherParents.resize(parents.size());
 
+  if (c2 > c1)
+    index.resize(parents.size());
+
+  if(c3 > c2)
+    parents.resize(index.size());
+*/
   if (src.nodes ==0 || src.nodes == &full)
     {
       dest=src;
@@ -187,6 +195,7 @@ void TreeIntVectSet::cloneNode(const TreeNode& src, TreeNode& dest)
     {
       expandNode(dest);
     }
+
 
   otherParents[0] = &(src);
   parents[0]  = &(dest);
@@ -224,9 +233,9 @@ void TreeIntVectSet::clearTree(TreeNode& tree)
     tree.nodes = 0;
     return;
   }
-
-  static Vector<TreeNode*> parents_local;
-  static Vector<int>       index_local;
+/*
+  std::vector<TreeNode*> parents_local;
+  std::vector<int>       index_local;
   parents_local.resize(TreeIntVectSet::parents.size());
   index_local.resize(TreeIntVectSet::index.size());
   // Line below added by petermc, 11 Dec 2001, to avoid crash
@@ -235,37 +244,39 @@ void TreeIntVectSet::clearTree(TreeNode& tree)
     tree.nodes = 0;
     return;
   }
-
-  index_local[0] = 0;
+*/
+  int lindex[24]; //
+  lindex[0] = 0;
 
   int depth = 1;
 
-  parents_local[0] = &(tree);
-  index_local[1] = 0;
+  TreeNode* p1[24];
+  p1[0] = &(tree);
+  lindex[1] = 0;
   while (depth != 0)
     {
-      TreeNode* parent =  parents_local[depth-1];
-      int ind = index_local[depth];
+      TreeNode* parent =  p1[depth-1];
+      int ind = lindex[depth];
       //Vector<int>& indexRef = index;
       //Vector<TreeNode*>& parentRef = parents;
       TreeNode& current = parent->nodes[ind];
       if (current.nodes == 0 || current.nodes == &full)
         {
-          index_local[depth]++;
-          while (index_local[depth] == TIVS_NODESIZE)
+          lindex[depth]++;
+          while (lindex[depth] == TIVS_NODESIZE)
             {
-              index_local[depth] = 0;
+              lindex[depth] = 0;
               //delete[] parents[depth-1]->nodes;
-              treeNodePool->returnPtr(parents_local[depth-1]->nodes);
+              treeNodePool->returnPtr(p1[depth-1]->nodes);
               depth--;
-              index_local[depth]++;
+              lindex[depth]++;
             }
         }
       else
         {
-          parents_local[depth] = &(current);
+          p1[depth] = &(current);
           depth++;
-          index_local[depth] = 0;
+          lindex[depth] = 0;
         }
     }
   tree.nodes = 0;
@@ -288,98 +299,98 @@ void TreeIntVectSet::refine(int iref)
   m_spanBox.refine(iref);
   m_minBox.refine(iref);
   m_depth+=refinements;
-  unsigned int m=index.size();
-  m = Max((unsigned int)m_depth+1, m);
+/*
+  int m=index.size();
+  m = Max(m_depth+1, m);
   if (m > index.size())
     {
       index.resize(m);
       parents.resize(m);
       boxes.resize(m);
-          bufferOffset.resize(m);
+      //     bufferOffset.resize(m);
     }
+*/
 }
 
 void TreeIntVectSet::shift(const IntVect& iv)
 {
-  static Vector<Box> boxs;
-  int size;
+    Vector<Box> boxs;
+    size_t      size;
 
-  createBoxes(boxs, size);
-  clear();
-  for (int i=0; i < size; ++i)
-    {
-      boxs[i].shift(iv);
+    createBoxes(boxs, size);
+    clear();
+    for (size_t i = 0; i < size; ++i) {
+        boxs[i].shift(iv);
     }
-  for (int i=0; i<size; ++i)
-    {
-      *this |= boxs[i];
+    for (size_t i = 0; i < size; ++i) {
+        *this |= boxs[i];
     }
 }
 
-void TreeIntVectSet::grow(int igrow)
+void
+TreeIntVectSet::grow(int igrow)
 {
-  if (igrow == 0 ) return;
-  if (igrow < 0) MayDay::Error("TreeIntVectSet::grow(int) called with negative value");
+    if (igrow == 0) return;
+    if (igrow < 0)
+        MayDay::Error("TreeIntVectSet::grow(int) called with negative value");
 
-  static Vector<Box> boxs;
-  int size;
+    Vector<Box> boxs;
+    size_t      size;
 
-  createBoxes(boxs, size);
-  clear();
-  for (int i=0; i < size; ++i)
-    {
-      boxs[i].grow(igrow);
+    createBoxes(boxs, size);
+    clear();
+    for (size_t i = 0; i < size; ++i) {
+        boxs[i].grow(igrow);
     }
-  for (int i=0; i<size; ++i)
-    {
-      *this |= boxs[i];
+    for (size_t i = 0; i < size; ++i) {
+        *this |= boxs[i];
     }
 }
 
-void TreeIntVectSet::grow(int idir, int igrow)
+void
+TreeIntVectSet::grow(int idir, int igrow)
 {
-  if (igrow == 0 ) return;
-  if (igrow < 0) MayDay::Error("TreeIntVectSet::grow(int) called with negative value");
-  static Vector<Box> boxs;
-  int size;
+    if (igrow == 0) return;
+    if (igrow < 0)
+        MayDay::Error("TreeIntVectSet::grow(int) called with negative value");
+    Vector<Box> boxs;
+    size_t      size;
 
-  createBoxes(boxs, size);
-  clear();
-  for (int i=0; i<size; ++i)
-    {
-      boxs[i].grow(idir, igrow);
+    createBoxes(boxs, size);
+    clear();
+    for (size_t i = 0; i < size; ++i) {
+        boxs[i].grow(idir, igrow);
     }
-  for (int i=0; i<size; ++i)
-    {
-      *this |= boxs[i];
-    }
-}
-
-void TreeIntVectSet::growHi()
-{
-  static Vector<Box> boxs;
-  int size;
-
-  createBoxes(boxs, size);
-  clear();
-  for (int i=0; i < size; ++i)
-    {
-      boxs[i].setBig(boxs[i].bigEnd() + 1);
-      *this |= boxs[i];
+    for (size_t i = 0; i < size; ++i) {
+        *this |= boxs[i];
     }
 }
 
-void TreeIntVectSet::growHi(const int a_dir)
+void
+TreeIntVectSet::growHi()
 {
-  static Vector<Box> boxs;
-  int size;
+    Vector<Box> boxs;
+    size_t      size;
 
-  createBoxes(boxs, size);
-  clear();
-  for (int i=0; i < size; ++i)
-    {
-      boxs[i].growHi(a_dir);
-      *this |= boxs[i];
+    createBoxes(boxs, size);
+    clear();
+    for (size_t i = 0; i < size; ++i) {
+        boxs[i].setBig(boxs[i].bigEnd() + 1);
+        *this |= boxs[i];
+    }
+}
+
+void
+TreeIntVectSet::growHi(const int a_dir)
+{
+    Vector<Box> boxs;
+    size_t      size;
+
+    createBoxes(boxs, size);
+    clear();
+    for (size_t i = 0; i < size; ++i) {
+        boxs[i].growHi(a_dir);
+        *this |= boxs[i];
     }
 }
 
@@ -552,7 +563,7 @@ void TreeIntVectSet::swap(TreeIntVectSet& a_other)
 
 void TreeIntVectSet::coarsen(int icoarse)
 {
-  if (icoarse == 1) return;
+  if (icoarse == 1 || m_depth == 2) return;
   CH_assert(icoarse >= 1);
   int coarsenings = 1;
   int c = 2;
@@ -836,49 +847,55 @@ TreeIntVectSet& TreeIntVectSet::operator|=(const TreeIntVectSet& set)
       while (tmp.m_depth < m_depth) tmp.growTree();
       yourRoot = &(tmp.m_tree);
     }
+/*
+  int c1=P1.size();
+  int c2=P2.size();
+  int p = parents.size();  // threadprivate objects in OpenMP are invisible in gdb it seems
+  int i1= otherIndex.size();
+  if (p > c1)
+    P1.resize(p);
+  if (p > c2)
+    P2.resize(p);
+  if (p > i1)
+    otherIndex.resize(p);
 
-  static Vector<const TreeIntVectSet::TreeNode*> parents_other, parents_this;
-  static Vector<int> indexSet;
-  if (parents.size() > parents_other.size())
-    {
-      parents_other.resize(parents.size());
-      parents_this.resize(parents.size());
-      indexSet.resize(parents.size());
-    }
+ */
 
-  parents_other[0] = yourRoot;
-  parents_this[0] = &m_tree;
-  indexSet[1] = 0;
+  P2[0] = yourRoot;
+  P1[0] = &m_tree;
+  otherIndex[1] = 0;
   int depth = 1;
   while (depth!=0)
     {
-      const TreeNode* otherParent  = parents_other[depth-1];
-      TreeNode* thisParent   = (TreeNode*)parents_this[depth-1];
-      const TreeNode& otherCurrent = otherParent->nodes[indexSet[depth]];
-      TreeNode& thisCurrent  = thisParent->nodes[indexSet[depth]];
-
+      const TreeNode* otherParent  = P2[depth-1];
+      TreeNode* thisParent   = P1[depth-1];
+      const TreeNode& otherCurrent = otherParent->nodes[otherIndex[depth]];
+      TreeNode& thisCurrent  = thisParent->nodes[otherIndex[depth]];
+      //Box& parentBox  = boxes[depth-1];
+      //Box& currentBox = boxes[depth];
+      //quadrantBox(parentBox, otherIndex[depth], currentBox);
       if (otherCurrent.nodes == 0 || thisCurrent.nodes == &full)
         {
-          NEXT(indexSet, depth);
+          NEXT(otherIndex, depth);
         }
       else if (otherCurrent.nodes == &full)
         {
           clearTree(thisCurrent);
           thisCurrent = otherCurrent;
           // leave the rest of this node alone
-          NEXT(indexSet, depth);
+          NEXT(otherIndex, depth);
         }
       else if (thisCurrent.nodes == 0)
         {
           cloneNode(otherCurrent, thisCurrent);
-          NEXT(indexSet, depth);
+          NEXT(otherIndex, depth);
         }
       else  // not terminal node for either one, traverse deeper
         {
-          parents_other[depth] = &(otherCurrent);
-          parents_this[depth]  = &(thisCurrent);
+          P2[depth] = &(otherCurrent);
+          P1[depth]  = &(thisCurrent);
           depth++;
-          indexSet[depth] = 0;
+          otherIndex[depth] = 0;
         }
     }
   m_minBox.minBox(set.m_minBox);
@@ -895,45 +912,47 @@ bool TreeIntVectSet::operator==(const TreeIntVectSet& set) const
     {
       return set.m_tree.nodes == m_tree.nodes;
     }
+/*
+  int c1=P1.size();
+  int c2=P2.size();
+  int p = parents.size();  // threadprivate objects in OpenMP are invisible in gdb it seems
+  int i1= otherIndex.size();
+  if (p > c1)
+    P1.resize(p);
+  if (p > c2)
+    P2.resize(p);
+  if (p > i1)
+    otherIndex.resize(p);
 
-  static Vector<const TreeIntVectSet::TreeNode*> parents_other, parents_this;
-  static Vector<int> indexSet;
-  if (parents.size() > parents_other.size())
-    {
-      parents_other.resize(parents.size());
-      parents_this.resize(parents.size());
-      indexSet.resize(parents.size());
-    }
-
-  parents_other[0] = &(set.m_tree);
-  parents_this[0] = &m_tree;
-  indexSet[1] = 0;
+*/
+  otherParents[0] = &(set.m_tree);
+  P2[0] = &m_tree;
+  otherIndex[1] = 0;
   int depth = 1;
   while (depth!=0)
     {
-      const TreeNode* otherParent  = parents_other[depth-1];
-      TreeNode* thisParent   = (TreeNode*)parents_this[depth-1];
-      const TreeNode& otherCurrent = otherParent->nodes[indexSet[depth]];
-      TreeNode& thisCurrent  = thisParent->nodes[indexSet[depth]];
+      const TreeNode* otherParent  = otherParents[depth-1];
+      const TreeNode* thisParent   = P2[depth-1];
+      const TreeNode& otherCurrent = otherParent->nodes[otherIndex[depth]];
+      const TreeNode& thisCurrent  = thisParent->nodes[otherIndex[depth]];
 
       if (otherCurrent.nodes == 0 || otherCurrent.nodes == &full)
         {
           if (thisCurrent.nodes != otherCurrent.nodes) return false;
-          NEXT(indexSet, depth);
+          NEXT(otherIndex, depth);
         }
       else  // not terminal node for otherIVS, traverse deeper
         {
           if (thisCurrent.nodes == 0 || thisCurrent.nodes == &full) return false;
-          parents_other[depth] = &(otherCurrent);
-          parents_this[depth]  = &(thisCurrent);
+          P2[depth]            = &(otherCurrent);
+          otherParents[depth]  = &(thisCurrent);
           depth++;
-          indexSet[depth] = 0;
+          otherIndex[depth] = 0;
         }
     }
 
   return true;
 }
-
 
 bool TreeIntVectSet::operator<(const TreeIntVectSet& a_tivs) const
 {
@@ -971,7 +990,6 @@ bool TreeIntVectSet::operator<(const TreeIntVectSet& a_tivs) const
   }
   return false;
 }
-
 
 // old version that didn't rely on common centering techniques.....
 //
@@ -1044,28 +1062,31 @@ TreeIntVectSet& TreeIntVectSet::operator-=(const TreeIntVectSet& set)
     }
   if (m_tree.nodes == 0) return *this;
 
-  unsigned int depth = set.m_depth+1;
-  static Vector<int> index_local;
-  static Vector<const TreeIntVectSet::TreeNode*> parents_local;
-  static Vector<Box> boxes_local;
+  int depth = set.m_depth+1;
+/*
+  static std::vector<int> index_local;
+  static std::vector<const TreeIntVectSet::TreeNode*> parents_local;
+  static std::vector<Box> boxes_local;
+
   if (depth > index_local.size())
     {
       index_local.resize(depth);
       parents_local.resize(depth);
       boxes_local.resize(depth);
     }
-  index_local[0] = 0;
+*/
+  otherIndex[0] = 0;
   depth = 1;
-  parents_local[0] = &(set.m_tree);
-  boxes_local[0] = set.m_spanBox;
-  index_local[1] = 0;
+  otherParents[0] = &(set.m_tree);
+  otherBoxes[0] = set.m_spanBox;
+  otherIndex[1] = 0;
   while (depth != 0)
     {
-      const TreeNode* parent =  parents_local[depth-1];
-      int ind = index_local[depth];
+      const TreeNode* parent =  otherParents[depth-1];
+      int ind = otherIndex[depth];
       const TreeNode& current = parent->nodes[ind];
-      quadrantBox(boxes_local[depth-1], ind, boxes_local[depth]);
-      if (boxes_local[depth].intersectsNotEmpty(m_minBox))
+      quadrantBox(otherBoxes[depth-1], ind, otherBoxes[depth]);
+      if (otherBoxes[depth].intersectsNotEmpty(m_minBox))
         {
           if (current.nodes == 0 || current.nodes == &full)
             {
@@ -1075,31 +1096,31 @@ TreeIntVectSet& TreeIntVectSet::operator-=(const TreeIntVectSet& set)
               }
               else if (current.nodes == &TreeIntVectSet::full)
                 {
-                  this->operator-=(boxes_local[depth]);
+                  this->operator-=(otherBoxes[depth]);
                 }
-              index_local[depth]++;
-              while (index_local[depth] == TIVS_NODESIZE)
+              otherIndex[depth]++;
+              while (otherIndex[depth] == TIVS_NODESIZE)
                 {
-                  index_local[depth] = 0;
+                  otherIndex[depth] = 0;
                   depth--;
-                  index_local[depth]++;
+                  otherIndex[depth]++;
                 }
             }
           else
           {
-            parents_local[depth] = &(current);
+            otherParents[depth] = &(current);
             depth++;
-            index_local[depth] = 0;
+            otherIndex[depth] = 0;
           }
         }
       else
         {
-          index_local[depth]++;
-          while (index_local[depth] == TIVS_NODESIZE)
+          otherIndex[depth]++;
+          while (otherIndex[depth] == TIVS_NODESIZE)
             {
-              index_local[depth] = 0;
+              otherIndex[depth] = 0;
               depth--;
-              index_local[depth]++;
+              otherIndex[depth]++;
             }
         }
     }
@@ -1141,49 +1162,53 @@ TreeIntVectSet& TreeIntVectSet::operator&=(const TreeIntVectSet& set)
       while (tmp.m_depth < m_depth) tmp.growTree();
       yourRoot = &(tmp.m_tree);
     }
+/*
+  int c1=P1.size();
+  int c2=P2.size();
+  int p = parents.size();  // threadprivate objects in OpenMP are invisible in gdb it seems
+  int i1= otherIndex.size();
+  if (p > c1)
+    P1.resize(p);
+  if (p > c2)
+    P2.resize(p);
+  if (p > i1)
+    otherIndex.resize(p);
+ */
 
-  static Vector<const TreeIntVectSet::TreeNode*> parents_other, parents_this;
-  static Vector<int> indexSet;
-  if (parents.size() > parents_other.size())
-    {
-      parents_other.resize(parents.size());
-      parents_this.resize(parents.size());
-      indexSet.resize(parents.size());
-    }
 
-  parents_other[0] = yourRoot;
-  parents_this[0] = &m_tree;
-  indexSet[1] = 0;
+  P2[0] = yourRoot;
+  P1[0] = &m_tree;
+  otherIndex[1] = 0;
   int depth = 1;
   while (depth!=0)
     {
-      const TreeNode* otherParent  = parents_other[depth-1];
-      TreeNode* thisParent   = (TreeNode*)parents_this[depth-1];
-      const TreeNode& otherCurrent = otherParent->nodes[indexSet[depth]];
-      TreeNode& thisCurrent  = thisParent->nodes[indexSet[depth]];
+      const TreeNode* otherParent  = P2[depth-1];
+      TreeNode* thisParent   = P1[depth-1];
+      const TreeNode& otherCurrent = otherParent->nodes[otherIndex[depth]];
+      TreeNode& thisCurrent  = thisParent->nodes[otherIndex[depth]];
 
       if (otherCurrent.nodes == 0 || thisCurrent.nodes == 0)
         {
           clearTree(thisCurrent);
-          NEXT(indexSet, depth);
+          NEXT(otherIndex, depth);
         }
       else if (otherCurrent.nodes == &full)
         {
           // leave the rest of this node alone
-          NEXT(indexSet, depth);
+          NEXT(otherIndex, depth);
         }
       else if (thisCurrent.nodes == &full) // swap nodes
         {
           clearTree(thisCurrent);
           cloneNode(otherCurrent, thisCurrent);
-          NEXT(indexSet, depth);
+          NEXT(otherIndex, depth);
         }
       else  // not terminal node for either one, traverse deeper
         {
-          parents_other[depth] = &(otherCurrent);
-          parents_this[depth]  = &(thisCurrent);
+          P2[depth] = &(otherCurrent);
+          P1[depth]  = &(thisCurrent);
           depth++;
-          indexSet[depth] = 0;
+          otherIndex[depth] = 0;
         }
     }
   m_minBox &= set.m_minBox;
@@ -1306,32 +1331,34 @@ void TreeIntVectSet::nestingRegion(int radius, const Box& a_domain, int granular
 
   IntVect lower(-radius * IntVect::Unit), upper(IntVect::Unit * radius);
 
-  unsigned int depth  = m_depth+1;
-  static Vector<int> index_tmp;
-  static Vector<const TreeIntVectSet::TreeNode*> parents_tmp;
-  static Vector<Box> boxes_tmp;
-  if (depth > index_tmp.size())
+  int depth  = m_depth+1;
+/*
+  static std::vector<const TreeIntVectSet::TreeNode*> parents_tmp;
+  static std::vector<Box> boxes_tmp;
+
+  if (depth > otherIndex.size())
     {
-      index_tmp  .resize(depth+1);
+      otherIndex  .resize(depth+1);
       parents_tmp.resize(depth+1);
       boxes_tmp  .resize(depth+1);
     }
-  index_tmp[0] = 0;
+*/
+  otherIndex[0] = 0;
 
   depth = 1;
-  parents_tmp[0] = &(tmp.m_tree);
-  boxes_tmp[0] = m_spanBox;
-  index_tmp[1] = 0;
+  otherParents[0] = &(tmp.m_tree);
+  otherBoxes[0] = m_spanBox;
+  otherIndex[1] = 0;
   Box clobberBox;
   IntVect& lo = (IntVect&)(clobberBox.smallEnd());
   IntVect& hi = (IntVect&)(clobberBox.bigEnd());
   while (depth != 0)
     {
-      const TreeNode* parent =  parents_tmp[depth-1];
-      int ind = index_tmp[depth];
-      Box&  currentBox = boxes_tmp[depth];
+      const TreeNode* parent =  otherParents[depth-1];
+      int ind = otherIndex[depth];
+      Box&  currentBox = otherBoxes[depth];
       const TreeNode& current = parent->nodes[ind];
-      quadrantBox(boxes_tmp[depth-1], ind, currentBox);
+      quadrantBox(otherBoxes[depth-1], ind, currentBox);
       if (current.nodes == 0 || current.nodes == &full)
         {
           if (current.nodes == 0)
@@ -1352,19 +1379,19 @@ void TreeIntVectSet::nestingRegion(int radius, const Box& a_domain, int granular
             {
               //do nothing.
             }
-          index_tmp[depth]++;
-          while (index_tmp[depth] == TIVS_NODESIZE)
+          otherIndex[depth]++;
+          while (otherIndex[depth] == TIVS_NODESIZE)
             {
-              index_tmp[depth] = 0;
+              otherIndex[depth] = 0;
               depth--;
-              index_tmp[depth]++;
+              otherIndex[depth]++;
             }
         }
       else
         {
-          parents_tmp[depth] = &(current);
+          otherParents[depth] = &(current);
           depth++;
-          index_tmp[depth] = 0;
+          otherIndex[depth] = 0;
         }
     }
   if (granularity != 1)
@@ -1372,7 +1399,6 @@ void TreeIntVectSet::nestingRegion(int radius, const Box& a_domain, int granular
       this->refine(granularity);
     }
 }
-
 
 void TreeIntVectSet::nestingRegion(int radius, const ProblemDomain& a_domain, int granularity)
 {
@@ -1432,7 +1458,7 @@ void TreeIntVectSet::nestingRegion(int radius, const ProblemDomain& a_domain, in
             intersectBox.grow(dir,-radius);
         }
       IntVect shiftMult(domainBox.size());
-      for (unsigned int b=0; b<boxRep.size(); ++b)
+      for (size_t b=0; b<boxRep.size(); ++b)
         {
           Box image = boxRep[b];
           if (!intersectBox.contains(image))
@@ -1479,33 +1505,35 @@ void TreeIntVectSet::nestingRegion(int radius, const ProblemDomain& a_domain, in
 
   IntVect lower(-radius * IntVect::Unit), upper(IntVect::Unit * radius);
 
-  unsigned int depth  = m_depth+1;
-  Vector<int> index_tmp;
-  Vector<const TreeIntVectSet::TreeNode*> parents_tmp;
-  Vector<Box> boxes_tmp;
-  if (depth > index_tmp.size())
+  int depth  = m_depth+1;
+  //Vector<int> otherIndex;
+  //Vector<const TreeIntVectSet::TreeNode*> otherParents;
+  //Vector<Box> otherBoxes;
+/*
+  if (depth > otherBoxes.size())
     {
-      index_tmp  .resize(depth+1);
-      parents_tmp.resize(depth+1);
-      boxes_tmp  .resize(depth+1);
+      otherIndex  .resize(depth+1);
+      otherParents.resize(depth+1);
+      otherBoxes  .resize(depth+1);
     }
-  index_tmp[0] = 0;
+*/
+  otherIndex[0] = 0;
 
   depth = 1;
-  parents_tmp[0] = &(tmp.m_tree);
-  boxes_tmp[0] = tmp.m_spanBox;
-  index_tmp[0] = 0;
-  index_tmp[1] = 0;
+  otherParents[0] = &(tmp.m_tree);
+  otherBoxes[0] = tmp.m_spanBox;
+  otherIndex[0] = 0;
+  otherIndex[1] = 0;
   Box clobberBox;
   IntVect& lo = (IntVect&)(clobberBox.smallEnd());
   IntVect& hi = (IntVect&)(clobberBox.bigEnd());
   while (depth != 0)
     {
-      const TreeNode* parent =  parents_tmp[depth-1];
-      int ind = index_tmp[depth];
-      Box&  currentBox = boxes_tmp[depth];
+      const TreeNode* parent =  otherParents[depth-1];
+      int ind = otherIndex[depth];
+      Box&  currentBox = otherBoxes[depth];
       const TreeNode& current = parent->nodes[ind];
-      quadrantBox(boxes_tmp[depth-1], ind, currentBox);
+      quadrantBox(otherBoxes[depth-1], ind, currentBox);
       if (current.nodes == 0 || current.nodes == &full)
         {
           if (current.nodes == 0)
@@ -1526,19 +1554,19 @@ void TreeIntVectSet::nestingRegion(int radius, const ProblemDomain& a_domain, in
             {
               //do nothing.
             }
-          index_tmp[depth]++;
-          while (index_tmp[depth] == TIVS_NODESIZE)
+          otherIndex[depth]++;
+          while (otherIndex[depth] == TIVS_NODESIZE)
             {
-              index_tmp[depth] = 0;
+              otherIndex[depth] = 0;
               depth--;
-              index_tmp[depth]++;
+              otherIndex[depth]++;
             }
         }
       else
         {
-          parents_tmp[depth] = &(current);
+          otherParents[depth] = &(current);
           depth++;
-          index_tmp[depth] = 0;
+          otherIndex[depth] = 0;
         }
     }
   if (granularity != 1)
@@ -1815,14 +1843,16 @@ void TreeIntVectSet::growTree()
     m_spanBox.grow(m_spanBox.size(0)/2);
 
   m_depth++;
-  unsigned int m = m_depth+1;
+/*
+  int m = m_depth+1;
   if (m > index.size())
     {
       index.resize(m);
       parents.resize(m);
       boxes.resize(m);
-          bufferOffset.resize(m);
+      // bufferOffset.resize(m);
     }
+*/
 }
 
 // Basically, a BoxIterator function without the crap of
@@ -1886,7 +1916,6 @@ bool TreeIntVectSet::nextIntVect(const Box& box, IntVect& iv)
             } // end if dir != SpaceDim-1
         } // end if we've stepped past limit in direction dir
     } // end loop over directions >= 2
-
 
   // these assertions are turned off in "regular" Chombo
   CH_assert(iv<=box.bigEnd());
@@ -1998,7 +2027,6 @@ void TreeIntVectSet::quadrantBox(const Box& inputBox,
     }
 #endif
 
-
   CH_assert(!outputQuadrant.isEmpty());
   outputQuadrant.computeBoxLenNotEmpty();
 }
@@ -2021,7 +2049,6 @@ int TreeIntVectSet::numPts() const
   index[1] = 0;
   quadrantBox(boxes[depth-1], 0, boxes[depth]);
   long long int bxLength = boxes[depth].size(0);
-
 
   while (depth != 0)
     {
@@ -2064,56 +2091,51 @@ int TreeIntVectSet::numPts() const
 }
 Vector<Box> TreeIntVectSet::createBoxes() const
 {
-  static Vector<Box> buffer(200), rtn;
-  int size;
+  Vector<Box> buffer(200), rtn;
+  size_t size;
   createBoxes(buffer, size);
   rtn.resize(size, Box());
-  for (int i=0; i<size; ++i) rtn[i] = buffer[i];
+  for (size_t i=0; i<size; ++i) rtn[i] = buffer[i];
   return rtn;
 }
 
-void TreeIntVectSet::createBoxes(Vector<Box>& rtn, int& size) const
+void
+TreeIntVectSet::createBoxes(Vector<Box>& rtn, size_t& size) const
 {
-  size = 0;
-  if (m_tree.nodes == 0) return;
-  if (m_tree.nodes == &full)
-    {
-      if (rtn.size() < 1) rtn.resize(1, m_minBox);
-      else               rtn[0] = m_minBox;
-      size = 1;
-      return;
+    size = 0;
+    if (m_tree.nodes == 0) return;
+    if (m_tree.nodes == &full) {
+        if (rtn.size() < 1)
+            rtn.resize(1, m_minBox);
+        else
+            rtn[0] = m_minBox;
+        size = 1;
+        return;
     }
-  int depth = 1;
-  parents[0] = (TreeNode*)&m_tree;
-  boxes[0] = m_spanBox;
-  index[1] = 0;
-  while (depth != 0)
-    {
-      const TreeNode* parent =  parents[depth-1];
-      int ind = index[depth];
-      const TreeNode& current = parent->nodes[ind];
-      quadrantBox(boxes[depth-1], ind, boxes[depth]);
-      if (current.nodes == 0 || current.nodes == &full)
-        {
-          if (current.nodes == 0)
-            {
-              // do nothing
+    int depth  = 1;
+    parents[0] = (TreeNode*)&m_tree;
+    boxes[0]   = m_spanBox;
+    index[1]   = 0;
+    while (depth != 0) {
+        const TreeNode* parent  = parents[depth - 1];
+        int             ind     = index[depth];
+        const TreeNode& current = parent->nodes[ind];
+        quadrantBox(boxes[depth - 1], ind, boxes[depth]);
+        if (current.nodes == 0 || current.nodes == &full) {
+            if (current.nodes == 0) {
+                // do nothing
+            } else if (current.nodes == &full) {
+                if (rtn.size() > size)
+                    rtn[size] = boxes[depth];
+                else
+                    rtn.push_back(boxes[depth]);
+                ++size;
             }
-          else if (current.nodes == &full)
-            {
-              if (rtn.size() > (unsigned int)size)
-                rtn[size] = boxes[depth];
-              else
-                rtn.push_back(boxes[depth]);
-              ++size;
-            }
-          nextNode(depth);
-        }
-      else
-        {
-          parents[depth] = (TreeNode*)&(current);
-          depth++;
-          index[depth] = 0;
+            nextNode(depth);
+        } else {
+            parents[depth] = (TreeNode*)&(current);
+            depth++;
+            index[depth] = 0;
         }
     }
 }
@@ -2167,15 +2189,18 @@ void dumpTree(const TreeIntVectSet* set)
   if (set->m_tree.nodes == 0) return;
   if (set->m_tree.nodes == &TreeIntVectSet::full)
     {
-      cout << set->m_spanBox.smallEnd()
+      pout() << set->m_spanBox.smallEnd()
            <<"..."<<set->m_spanBox.bigEnd()<<"\n";
       return;
     }
-  unsigned int depth = set->m_depth+1;
-  static Vector<int> index;
-  static Vector<const TreeIntVectSet::TreeNode*> parents;
-  static Vector<Box> boxes;
-  if (depth > index.size())
+  int depth = set->m_depth+1;
+  Vector<int> index;
+  Vector<const TreeIntVectSet::TreeNode*> parents;
+  Vector<Box> boxes;
+  if (depth < 0) {
+    MayDay::Error("depth < 0");
+  }
+  if (static_cast<size_t>(depth) > index.size())
     {
       index.resize(depth);
       parents.resize(depth);
@@ -2196,15 +2221,15 @@ void dumpTree(const TreeIntVectSet* set)
         {
           if (current.nodes == 0)
             {
-              cout<<depth;
-              tab(cout, depth);
-              cout <<"0\n";
+              pout()<<depth;
+//              tab(pout(), depth);
+              pout() <<"0\n";
             }
           else if (current.nodes == &TreeIntVectSet::full)
             {
-              cout<<depth;
-              tab(cout, depth);
-              cout << boxes[depth].smallEnd()
+              pout()<<depth;
+//              tab(pout(), depth);
+              pout() << boxes[depth].smallEnd()
                    <<"..."<<boxes[depth].bigEnd()<<"\n";
             }
 
@@ -2218,9 +2243,9 @@ void dumpTree(const TreeIntVectSet* set)
         }
       else
         {
-          cout<<depth;
-          tab(cout, depth);
-          cout <<"+\n";
+          pout()<<depth;
+//          tab(pout(), depth);
+          pout() <<"+\n";
           parents[depth] = &(current);
           depth++;
           index[depth] = 0;
@@ -2289,27 +2314,26 @@ void TreeIntVectSet::compact() const
   index[0] = 0;
   int depth = 1;
 #if (CH_SPACEDIM <= 3)
-  static Vector<Tuple<TreeNode*, 8> > flags;
+  Tuple<TreeNode*, 8>  flags[24];
 #elif (CH_SPACEDIM == 4)
-  static Vector<Tuple<TreeNode*, 16> > flags;
+  Tuple<TreeNode*, 16>  flags[24];
 #elif (CH_SPACEDIM == 5)
-  static Vector<Tuple<TreeNode*, 32> > flags;
+  Tuple<TreeNode*, 32>  flags[24];
 #elif (CH_SPACEDIM == 6)
-  static Vector<Tuple<TreeNode*, 64> > flags;
+  Tuple<TreeNode*, 64>  flags[24];
 #else
   bad spacedim
 #endif
-
-  flags.resize(index.size());
   parents[0] = (TreeNode*)&(m_tree);
   index[1] = 0;
 
   while (depth != 0)
     {
+      TreeNode* parent =  parents[depth-1];
       int ind = index[depth];
       //Vector<int>& indexRef = index;  //debug aids
       //Vector<TreeNode*>& parentRef = parents; //debug aids
-      TreeNode& current = parents[depth-1]->nodes[ind];
+      TreeNode& current = parent->nodes[ind];
       flags[depth][ind] = current.nodes;
       if (current.nodes == 0 || current.nodes == &full)
         {
@@ -2320,9 +2344,9 @@ void TreeIntVectSet::compact() const
               while (i< TIVS_NODESIZE-1 && flags[depth][i] == flags[depth][i+1]) i++;
               if (i == TIVS_NODESIZE-1)
                 {
-                  TreeNode* parent = parents[depth-1];
-                  clearTree(*parent);
-                  parent->nodes = flags[depth][0];
+                  TreeNode* p = parents[depth-1];
+                  clearTree(*p);
+                  p->nodes = flags[depth][0];
                   flags[depth-1][index[depth-1]] = flags[depth][0] ;
                 }
               index[depth] = 0;
@@ -2342,7 +2366,6 @@ void TreeIntVectSet::compact() const
   // see if reverse of growing makes sense
 
 }
-
 
 int TreeIntVectSet::linearSize() const
 {
@@ -2423,7 +2446,8 @@ void TreeIntVectSet::linearOut(void* const a_outBuf) const
   parents[0] = (TreeNode*)&m_tree;
 
   index[1] = 0;
-  if (bufferOffset.size() < index.size()) bufferOffset.resize(index.size());
+  int bufferOffset[24];
+
   bufferOffset[0] = 0;
   int nextFree = TIVS_NODESIZE;
   while (depth != 0)
@@ -2473,13 +2497,15 @@ void TreeIntVectSet::linearIn(const void* const inBuf)
     {
       m_tree.nodes = &full;
     }
-  if (m_depth != -1 && m_depth > (int)index.size())
+/*
+  if (m_depth != -1 && m_depth > index.size())
     {
       index.resize(m_depth);
       parents.resize(m_depth);
       boxes.resize(m_depth);
-      bufferOffset.resize(m_depth);
+      // bufferOffset.resize(m_depth);
     }
+*/
   CH_XD::linearIn(m_minBox, buffer);
   buffer+=CH_XD::linearSize(m_minBox);
   CH_XD::linearIn(m_spanBox, buffer);
@@ -2498,7 +2524,8 @@ void TreeIntVectSet::linearIn(const void* const inBuf)
   parents[0] = (TreeNode*)&m_tree;
 
   index[1] = 0;
-  if (bufferOffset.size() < index.size()) bufferOffset.resize(index.size());
+  int bufferOffset[24];
+
   bufferOffset[0] = 0;
   while (depth != 0)
     {
@@ -2608,11 +2635,19 @@ void TreeIntVectSetIterator::findNextNode()
   m_depth = -1;
 }
 
-Vector<Box> TreeIntVectSet::boxes(2);
+
+int TreeIntVectSet::index[24];
+int TreeIntVectSet::otherIndex[24];
+Box TreeIntVectSet::boxes[24];
+Box TreeIntVectSet::otherBoxes[24];
+TreeIntVectSet::TreeNode* TreeIntVectSet::parents[24];
+TreeIntVectSet::TreeNode* TreeIntVectSet::P1[24];
+const TreeIntVectSet::TreeNode* TreeIntVectSet::otherParents[24];
+const TreeIntVectSet::TreeNode* TreeIntVectSet::P2[24];
+
+
+
 TreeIntVectSet::TreeNode TreeIntVectSet::full;
-Vector<int> TreeIntVectSet::index(2);
-Vector<int> TreeIntVectSet::bufferOffset(2);
-Vector<TreeIntVectSet::TreeNode*> TreeIntVectSet::parents(2);
 Pool TreeIntVectSet::treeNodePoolObject(sizeof(TreeNode[TIVS_NODESIZE]), "TreeIntVectSet Pool");
 Pool* TreeIntVectSet::treeNodePool = & TreeIntVectSet::treeNodePoolObject;
 #include "NamespaceFooter.H"

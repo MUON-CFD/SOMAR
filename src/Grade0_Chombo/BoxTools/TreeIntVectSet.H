@@ -167,7 +167,7 @@ public:
   /**
      Returns Vector<Box> representation of this IntVectSet.
   */
-  void createBoxes(Vector<Box>& boxes, int& size) const;
+  void createBoxes(Vector<Box>& boxes, size_t& size) const;
 
   ///
   bool contains(const IntVect& iv) const;
@@ -301,7 +301,6 @@ private:
   void remove(const Box& box, TreeIntVectSet* resdiual);
   void transfer(TreeNode& node, const Box& a_box);
 
-
   static int  oppositeQuadrant(int index);
   static bool nextIntVect(const Box& box, IntVect& iv);
   static void nextNode(int& currentDepth);
@@ -310,9 +309,20 @@ private:
   // that only change their size during grow() operations.  Keep them
   // around so that we don't have to create and destroy them on every function
   // call
-  static Vector<int> index, bufferOffset;
-  static Vector<TreeNode*> parents;
-  static Vector<Box> boxes;
+//  static Vector<int> index, otherIndex;
+//  static Vector<TreeNode*> parents, P1;
+//  static Vector<const TreeNode*> otherParents, P2;
+//  static Vector<Box> boxes, otherBoxes;
+  static int index[24], otherIndex[24];
+  static TreeNode* parents[24];
+  static TreeNode*  P1[24];
+  static const TreeNode* otherParents[24];
+  static const TreeNode* P2[24];
+  static Box boxes[24], otherBoxes[24];
+// #pragma omp threadprivate(boxes,otherBoxes)
+// #pragma omp threadprivate(parents,otherParents,P1,P2)
+// #pragma omp threadprivate(index, otherIndex)
+
 
   // xlC wasn't like this
   // so instead of a nice const static integer, we have a MACRO TIVS_NODESIZE
@@ -371,7 +381,7 @@ inline
 void TreeIntVectSetIterator::define(const TreeIntVectSet& ivs)
 {
   m_ivs = &ivs;
-  auto max = ivs.index.size();
+  size_t max = 24;
   //  if (max==10) printf("max=10 \n");
   if (boxes.size() < max)
     {
@@ -435,6 +445,16 @@ inline
 TreeIntVectSet::TreeIntVectSet(const Box& a_box)
 {
   define(a_box);
+}
+
+inline
+std::ostream& operator<<(std::ostream& os, const TreeIntVectSet& ivs)
+{
+    Vector<Box> b = ivs.createBoxes();
+    for (size_t i = 0; i < b.size(); ++i) {
+        os << b[i] << std::endl;
+    }
+    return os;
 }
 
 inline
