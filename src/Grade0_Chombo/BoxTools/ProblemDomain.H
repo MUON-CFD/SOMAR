@@ -62,6 +62,13 @@ public:
   /// Copy constructor
   ShiftIterator(const ShiftIterator &a_shiftIt);
 
+  /// Defining Constructor
+  /**
+     Builds a ShiftIterator based on the periodicity in
+     \em a_isPeriodic and also allows for multiple wraps
+  */
+  ShiftIterator(const bool* a_isPeriodic, const IntVect& a_numWraps );
+
   /// Destructor
   ~ShiftIterator();
 
@@ -70,6 +77,9 @@ public:
 
   /// Recompute shift vectors based on periodic directions
   void computeShifts(const bool *a_isPeriodic);
+
+  /// Recompute shift vectors based on periodic directions
+  void computeShifts(const bool* a_isPeriodic, const IntVect& a_numWraps);
 
   /// Returns the current shift unit vector
   inline IntVect operator()() const;
@@ -281,6 +291,12 @@ public:
   /**
    */
   bool isPeriodic() const;
+
+  /// Returns bool[SpaceDim vector of periodicity info
+  /**
+  */
+  const bool* isPeriodicVect() const
+  {return m_isPeriodic;}
 
   /// Returns the shiftIterator for this ProblemDomain
   /**
