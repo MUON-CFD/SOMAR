@@ -324,7 +324,7 @@ AMRNSLevel::preRegrid(int                        a_lBase,
                 << endl;
 
     // Save all data that will be regridded.
-    if (m_level > a_lBase && !a_newGrids.empty()) {
+    if (m_level > a_lBase && !a_newGrids[m_level].empty() && m_levGeoPtr) {
         const DisjointBoxLayout& grids = this->getBoxes();
 
         m_oldVelPtr.reset(new LevelData<FluxBox>(grids, m_velPtr->nComp(), m_velPtr->ghostVect()));
