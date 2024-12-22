@@ -171,11 +171,15 @@ LevelHybridSolver::define(
         m_options.mgOptions = m_mgSolverPtr->getOptions();
 
     } else if (useLeptic) {
+        m_options.lepticOptions.verbosity = m_options.verbosity;
+
         m_lepticSolverPtr.reset(new LevelLepticSolver);
         m_lepticSolverPtr->define(m_mgOpPtr, m_options.lepticOptions);
         m_options.lepticOptions = m_lepticSolverPtr->getOptions();
 
     } else if (useMG) {
+        m_options.mgOptions.verbosity = m_options.verbosity;
+
         m_mgSolverPtr.reset(new MGSolver<StateType>);
         m_mgSolverPtr->define(*m_mgOpPtr, m_options.mgOptions);
         m_options.mgOptions = m_mgSolverPtr->getOptions();

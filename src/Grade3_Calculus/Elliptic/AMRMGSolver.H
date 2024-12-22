@@ -79,12 +79,12 @@ public:
     AMRMGSolver ();
 
     /// Destructor
-    virtual ~AMRMGSolver ();
+    ~AMRMGSolver ();
 
     /// Set up this solver to solve L[phi] = rhs on levels a_lmin to a_lmax.
     /// If a_lmin > 0, then a_vAMRMGOps must also be defined on a_lmin - 1.
     /// a_vAMRMGOps can be defined or undefined on the levels we don't use.
-    virtual void
+    void
     define(Vector<std::shared_ptr<const AMRMGOpType>> a_vAMRMGOps,
            const size_t                               a_lmin,
            const size_t                               a_lmax,
@@ -94,35 +94,35 @@ public:
     /// If a_lmin > 0, then a_vAMRMGOps must also be defined on a_lmin - 1.
     /// a_vAMRMGOps can be defined or undefined on the levels we don't use.
     /// This version does not set Options, just in case you already did that.
-    virtual void
+    void
     define(Vector<std::shared_ptr<const AMRMGOpType>> a_vAMRMGOps,
            const size_t                               a_lmin,
            const size_t                               a_lmax);
 
     // Is this solver ready for use?
-    virtual bool
+    bool
     isDefined() const
     {
         return m_isDefined;
     }
 
     /// Free's memory. Leaves object unusable.
-    virtual void
+    void
     clear();
 
     /// Returns the exit status.
-    virtual SolverStatus
+    SolverStatus
     getSolverStatus() const
     {
         return m_solverStatus;
     }
 
     /// \brief Initializes all parameters with default values.
-    virtual void
+    void
     setDefaultOptions();
 
     /// Returns the current solver's options.
-    virtual const Options&
+    const Options&
     getOptions() const
     {
         return m_opt;
@@ -146,7 +146,7 @@ public:
      * @return     The SolverStatus object.
      *             This tells the caller if we converged.
      */
-    virtual SolverStatus
+    SolverStatus
     solve(Vector<StateType*>&             a_vphi,
           const Vector<const StateType*>& a_vrhs,
           const Real                      a_time,
@@ -158,7 +158,7 @@ protected:
     /// Relaxes L[e] = r over the AMR hierarchy with a V-Cycle.
     /// It is assumed the problem is homogeneous, so send in the residual eq.
     /// a_vphi needs to be set to zero before entry.
-    virtual void
+    void
     amrVCycle_residualEq(Vector<unique_ptr<StateType>>& a_e,
                          Vector<unique_ptr<StateType>>& a_r,
                          const Real                     a_time,
@@ -168,18 +168,18 @@ protected:
     /// Allocation + definition is potentially expensive, so I shoved it all
     /// into this function. If the expense is high, we'll see it in our
     /// profilers.
-    virtual void
+    void
     initializeSolve(const Vector<StateType*>&       a_vphi,
                     const Vector<const StateType*>& a_vrhs) const;
 
     /// Deallocation of temporaries.
-    virtual void
+    void
     finalizeSolve() const;
 
     /// Computes lhs = rhs - L[phi] from m_minSolveLevel to m_maxSolveLevel.
     /// This calls computeAMRResidualLevel on each level and computes the
     /// inf-norm.
-    virtual Real
+    Real
     computeAMRResidual(Vector<unique_ptr<StateType>>&  a_vres,
                        Vector<StateType*>&             a_vphi,
                        const Vector<const StateType*>& a_vrhs,
@@ -190,7 +190,7 @@ protected:
     /// Computes the residual at a single level using the appropriate version
     /// of AMROperator.
     /// a_finePhiPtr ghosts may be reset.
-    virtual void
+    void
     computeAMRResidualLevel(StateType&       a_res,
                             StateType*       a_finePhiPtr,
                             StateType&       a_phi,
@@ -203,7 +203,7 @@ protected:
     /// Eliminate high wavenumber errors on a_lev that will not be captured
     /// by the grids on a_lev - 1. This either calls the MG relax function
     /// or performs a mini V-cycle.
-    virtual void
+    void
     smoothDown(StateType&   a_cor,
                StateType&   a_res,
                const Real   a_time,
@@ -212,22 +212,22 @@ protected:
     /// Eliminate high wavenumber errors on a_lev that were not captured by
     /// the grids on a_lev - 1. This either calls the MG relax function or
     /// performs a mini V-cycle.
-    virtual void
+    void
     smoothUp(StateType&   a_cor,
              StateType&   a_res,
              const Real   a_time,
              const size_t a_lev) const;
 
     /// pout formatting utility.
-    virtual void
+    void
     indent(const int a_lev = -1) const;
 
     /// pout formatting utility.
-    virtual void
+    void
     unindent(const int a_lev = -1) const;
 
     /// References our exit status.
-    virtual SolverStatus&
+    SolverStatus&
     getSolverStatusRef() const
     {
         return m_solverStatus;

@@ -71,7 +71,7 @@ public:
     getQuickAndDirtyOptions();
 
     /// Returns the current solver's options.
-    inline virtual const Options&
+    inline const Options&
     getOptions() const {
         return m_options;
     }
@@ -91,7 +91,7 @@ public:
     /// use the MG hierarchy that's available.
     ///
     /// @warning This can only be called on an already-defined solver.
-    virtual void
+    void
     modifyOptionsExceptMaxDepth(const Options& a_opt);
     /// \}
 
@@ -126,7 +126,7 @@ public:
            const Options&                               a_opts);
 
     /// Simple check.
-    inline virtual bool
+    inline bool
     isDefined() const {
         return m_isDefined;
     }
