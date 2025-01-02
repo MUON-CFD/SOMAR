@@ -162,7 +162,7 @@ proj.relaxMethod        = 6             # [5] 5 = GSRB, 6 = VertLine
 # proj.maxIters           = 1             # [10]
 # proj.hang               = 0.001         # [1.0e-7]
 # proj.normType           = 2             # [2]
-proj.verbosity          = 1            # [4]
+# proj.verbosity          = 1            # [4]
 
 # proj.bottom_absTol              = 1.0e-12    # [1.0e-6]
 # proj.bottom_relTol              = 1.0e-12    # *[1.0e-4]
