@@ -1,7 +1,9 @@
 /*******************************************************************************
  *  SOMAR - Stratified Ocean Model with Adaptive Refinement
  *  Developed by Ed Santilli & Alberto Scotti
- *  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
+ *  Copyright (C) 2018
+ *    Jefferson (Philadelphia University + Thomas Jefferson University) and
+ *    University of North Carolina at Chapel Hill
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -19,7 +21,7 @@
  *  USA
  *
  *  For up-to-date contact information, please visit the repository homepage,
- *  https://github.com/MUON-CFD/SOMAR.
+ *  https://github.com/somarhub.
  ******************************************************************************/
 #include "AMRNSLevel.H"
 #include "LoadBalance.H"
@@ -46,7 +48,6 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
     const Box                domBox     = domain.domainBox();
     const Box                growDomBox = grow(domBox, IntVect::Unit);
     const DisjointBoxLayout& grids      = m_levGeoPtr->getBoxes();
-    const IntVect&           refRatio   = this->getFineRefRatio();
 
     // Find the domain's interior cells.
     Box domInteriorBox = domBox;
@@ -55,6 +56,15 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
             domInteriorBox.grow(-BASISV(dir));
         }
     }
+
+    // We will check differences in any dir that will eventually be refined.
+    const IntVect totalRefRatio = [&]() {
+        IntVect ref = IntVect::Unit;
+        for (size_t lev = m_level; lev < ctx->amr.refRatios.size() - 1; ++lev) {
+            ref *= ctx->amr.refRatios[lev];
+        }
+        return ref;
+    }();
 
     // Set all BCs.
     this->setBC(*m_statePtr, m_time);
@@ -88,10 +98,10 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
     // }
 
     // // Random tagging
-    // if (0) {
+    // if (1) {
     //     int levelTaggingLuck = rand() % 10 + 1;
 
-    //     if (levelTaggingLuck > 3) {
+    //     if (levelTaggingLuck > 6) {
     //         const IntVect& smallEnd = m_problem_domain.domainBox().smallEnd();
     //         const IntVect& size = m_problem_domain.size();
 
@@ -159,8 +169,6 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
 
     // Standard tagging...
 
-    TODONOTE("Should we check differences in dirs that we aren't refining?");
-
     // Tag on velocity differences
     const Real velTagTol = ctx->amr.velTagTol;
     if (velTagTol > 0.0) {
@@ -173,7 +181,7 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
                 const Box fcTagRegion = surroundingNodes(ccTagRegion, velComp);
                 Real vel0, dif;
 
-                if (refRatio[velComp] > 1) {
+                if (totalRefRatio[velComp] > 1) {
                     for(BoxIterator bit(ccTagRegion); bit.ok(); ++bit) {
                         const IntVect& cc = bit();
                         dif = abs(velFAB(cc+ef) - velFAB(cc));
@@ -187,7 +195,7 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
                     const int diffDir = (velComp + diffOffset) % SpaceDim;
                     const IntVect ed = BASISV(diffDir);
 
-                    if (refRatio[diffDir] == 1) continue; // Skip non-refined dirs.
+                    if (totalRefRatio[diffDir] == 1) continue; // Skip non-refined dirs.
 
                     for(BoxIterator bit(fcTagRegion); bit.ok(); ++bit) {
                         const IntVect& fc = bit();
@@ -215,7 +223,7 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
     }
 
     // Function to do tagging on generic CC data holder.
-    auto doQTagging = [&domInteriorBox, &a_tags, &refRatio](
+    auto doQTagging = [&domInteriorBox, &a_tags, &totalRefRatio](
                           const LevelData<FArrayBox>& a_q,
                           const Real                  a_tagTol) {
         if (a_tagTol > 0.0) {
@@ -227,7 +235,7 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
                 Real dif;
 
                 for (int dir = 0; dir < SpaceDim; ++dir) {
-                    if (refRatio[dir] == 1) continue; // Skip non-refined dirs.
+                    if (totalRefRatio[dir] == 1) continue; // Skip non-refined dirs.
 
                     for (BoxIterator bit(tagRegion); bit.ok(); ++bit) {
                         right = bit();
@@ -300,6 +308,15 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
         }
     }
 
+    if (ctx->ib.doIB && ctx->amr.tagIB) {
+        CH_verify(m_IBPtr);
+        IntVectSet tmpIVS;
+        m_IBPtr->addLocalIBStencil(tmpIVS);
+        for (IVSIterator ivsit(tmpIVS); ivsit.ok(); ++ivsit) {
+            a_tags |= ivsit();
+        }
+    }
+
     // Finalize.
     a_tags.grow(growTags);
     a_tags &= domBox;
@@ -340,6 +357,10 @@ AMRNSLevel::preRegrid(int                        a_lBase,
         // Convert vel to advecting velocity to help when refining.
         this->sendToAdvectingVelocity(*m_oldVelPtr, *m_oldVelPtr);
         debugCheckValidFaceOverlap(*m_oldVelPtr);
+    } else {
+        m_oldVelPtr.reset();
+        m_oldPPtr.reset();
+        m_oldQPtr.reset();
     }
 }
 
@@ -499,6 +520,14 @@ AMRNSLevel::postRegrid(int a_lbase)
     if (m_level == a_lbase && ctx->rhs.computeInitPressure) {
         this->initAMRPressure(0.5);
     }
+
+    // // Write diagnostic info.
+    // {
+    //     const auto validCells  = m_levGeoPtr->getBoxes().numCells();
+    //     const auto domainCells = m_levGeoPtr->getDomainBox().numPts();
+    //     const Real ratio       = Real(validCells) / Real(domainCells);
+    //     IO::tout(0) << "Level " << m_level << " ratio = " << ratio << std::endl;
+    // }
 }
 
 
@@ -571,10 +600,38 @@ AMRNSLevel::initLevelPressure(const Real a_dt)
     if constexpr (1) {
         // Cheap version...
         const auto saveOpts = m_levelProjSolverPtr->getOptions();
-        m_levelProjSolverPtr->modifyOptionsExceptMaxDepth(LevelProjSolver::getQuickAndDirtyOptions());
-        m_parkPtr->FEadvance(vel, p, q, m_time, m_dt, this);
-        m_levelProjSolverPtr->modifyOptionsExceptMaxDepth(saveOpts);
+        auto tempOpts = saveOpts;
 
+        // For Elliptic::LevelHybridSolver::Options
+        // tempOpts.absTol                 = 1.0e-300;
+        // tempOpts.relTol                 = 1.0e-300;
+        // tempOpts.maxSolverSwaps         = 1;
+        // tempOpts.mgOptions.absTol       = 1.0e-300;
+        // tempOpts.mgOptions.relTol       = 1.0e-300;
+        // tempOpts.mgOptions.maxIters     = 1;
+        // tempOpts.lepticOptions.absTol   = 1.0e-300;
+        // tempOpts.lepticOptions.relTol   = 1.0e-300;
+        // tempOpts.lepticOptions.maxOrder = 1;
+
+        // // I don't think these will really change the verbosity, but...
+        // tempOpts.verbosity                                          = 0;
+        // tempOpts.mgOptions.verbosity                                = 0;
+        // tempOpts.mgOptions.bottomOptions.verbosity                  = 0;
+        // tempOpts.lepticOptions.verbosity                            = 0;
+        // tempOpts.lepticOptions.horizOptions.verbosity               = 0;
+        // tempOpts.lepticOptions.horizOptions.bottomOptions.verbosity = 0;
+
+        // For Elliptic::MGSolver<LevelData<FArrayBox>>::Options
+        tempOpts.absTol   = 1.0e-300;
+        tempOpts.relTol   = 1.0e-300;
+        tempOpts.maxIters = 1;
+        // tempOpts.numCycles = 1;
+
+        m_levelProjSolverPtr->setOptions(tempOpts);
+
+        m_parkPtr->FEadvance(vel, p, q, m_time, m_dt, this);
+
+        m_levelProjSolverPtr->setOptions(saveOpts);
     } else {
         // Accurate version...
         m_parkPtr->advance(vel, p, q, m_time, m_dt, this);
