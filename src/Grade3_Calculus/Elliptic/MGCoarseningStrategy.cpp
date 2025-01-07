@@ -118,15 +118,20 @@ SemicoarseningStrategy::createMGRefSchedule(const DisjointBoxLayout& a_grids,
     mgRefSchedule.push_back(IntVect::Unit);
 
     // Dump schedule to pout.
-    if (m_verbosity > 4) {
-        pout() << "Semicoarsening mgRefSchedule:" << Format::indent();
-        for (size_t d = 0; d < mgRefSchedule.size(); ++d) {
-            pout() << "\nDepth = " << d << ",\tref = " << mgRefSchedule[d]
-                   << ",\tdx = " << mgDx[d]
-                   << ",\tiso = " << measureAnisotropy(mgDx[d]);
+    if (m_verbosity > 2) {
+        static std::vector<RealVect> writtenDx(0);
+        if (std::find(writtenDx.begin(), writtenDx.end(), curDx) == writtenDx.end()) {
+            pout() << "Semicoarsening mgRefSchedule:" << Format::indent();
+            for (size_t d = 0; d < mgRefSchedule.size(); ++d) {
+                pout() << "\nDepth = " << d << ",\tref = " << mgRefSchedule[d]
+                    << ",\tdx = " << mgDx[d]
+                    << ",\tiso = " << measureAnisotropy(mgDx[d]);
+            }
+            pout() << "\ncauseOfTermination = " << causeOfTermination << endl;
+            pout() << Format::unindent << '\n' << std::endl;
+
+            writtenDx.push_back(curDx);
         }
-        pout() << "\ncauseOfTermination = " << causeOfTermination << endl;
-        pout() << Format::unindent << "\n" << std::endl;
     }
 
     // Done!
