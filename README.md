@@ -1,20 +1,13 @@
 Welcome to the SOMAR repository!
 =====
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14609305.svg)](https://doi.org/10.5281/zenodo.14609305)
+
 SOMAR stands for The Stratified Ocean Model with Adaptive Refinement. It is free software using the [LGPL license](https://www.gnu.org/licenses/lgpl-2.1.html 'The GNU Lesser General Public License, version 2.1 applies.') and provided jointly by [Thomas Jefferson University's College of Humanities and Sciences](https://www.jefferson.edu/academics/colleges-schools-institutes/humanities-sciences.html 'TJU\'s CHS website') and [Arizona State University's School of Engineering of Matter, Transport, and Energy](https://semte.engineering.asu.edu/ 'ASU Engineering website').
 
-Release info
------
-The latest stable versions have been tagged as:
-- **Version 2.0-alpha1**: _COMING SOON_. This will be accompanied by a publication.
-- **Version 1.2-alpha1**: Introduces static mesh stretching and works with any number of levels.
-- **Version 1.1-alpha1**: Tested on simple Cartesian grids and 2 levels.
 
-Work is currently underway to incorporate the immersed boundary method of Charles Peskin into SOMAR to incorporate complex boundaries.
-
-
-Features
------
+Latest Features
+---------------
 - **Nonhydrostatic -** Our model solves the Boussinesq Navier-Stokes equations *without* the hydrostatic approximation in order to properly model the internal waves and tides that are ubiquitous in the ocean.
 
 
@@ -36,6 +29,9 @@ Features
 - **Python post-processing -** Analyzing SOMAR's output can be accomplished in [VisIt](https://visit-dav.github.io/visit-website/index.html 'The VisIt website'), [ParaView](https://www.paraview.org/ 'The ParaView website'), or with simple Python scripts. Python can also be used to create initial conditions, create custom force functions, and process data on-the-fly.
 
 - **Highly parallelizable -** SOMAR uses MPI and is build on the [Chombo framework.](https://commons.lbl.gov/display/chombo/Chombo+-+Software+for+Adaptive+Solutions+of+Partial+Differential+Equations)
+
+
+Work is currently underway to incorporate the immersed boundary method of Charles Peskin into SOMAR to incorporate complex boundaries.
 
 
 <!-- Software prerequisites

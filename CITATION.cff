@@ -20,7 +20,7 @@ authors:
     email: adscotti@asu.edu
     affiliation: Arizona State University
     orcid: 'https://orcid.org/0000-0001-8283-3070'
-# identifiers:
-#   - type: doi
-#     value: 10.5281/zenodo.1234
-# date-released: 2021-08-11
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.14609305
+date-released: 2025-01-02
