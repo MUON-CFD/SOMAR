@@ -325,9 +325,23 @@ AMRNSLevel::preRegrid(int                        a_lBase,
 {
     BEGIN_FLOWCHART();
 
-    IO::tout(0) << Format::pushFlags << Format::yellow
-                << "AMRNSLevel::preRegrid" << Format::none << Format::popFlags
-                << endl;
+    if (m_level > a_lBase) {
+        if (a_newGrids[m_level].empty() && !this->m_isActivated) {
+            // Do nothing
+        } else if (a_newGrids[m_level].empty() && this->m_isActivated) {
+            IO::tout(0) << Format::pushFlags << Format::yellow
+                        << "Level " << m_level << " is vanishing."
+                        << Format::none << Format::popFlags << endl;
+        } else if (!a_newGrids[m_level].empty() && !this->m_isActivated) {
+            IO::tout(0) << Format::pushFlags << Format::yellow
+                        << "Level " << m_level << " is activating."
+                        << Format::none << Format::popFlags << endl;
+        } else {
+            IO::tout(0) << Format::pushFlags << Format::yellow
+                        << "Level " << m_level << " is being regridded."
+                        << Format::none << Format::popFlags << endl;
+        }
+    }
 
     // Save all data that will be regridded.
     if (m_level > a_lBase && !a_newGrids[m_level].empty() && m_levGeoPtr) {
@@ -363,9 +377,6 @@ void
 AMRNSLevel::regrid(const Vector<Box>& a_new_grids)
 {
     BEGIN_FLOWCHART();
-
-    IO::tout(0) << Format::pushFlags << Format::yellow << "AMRNSLevel::regrid"
-                << Format::none << Format::popFlags << endl;
 
     if (s_verbosity >= 6) {
         pout() << "AMRNSLevel::regrid " << m_level
