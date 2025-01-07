@@ -1,9 +1,7 @@
 /*******************************************************************************
  *  SOMAR - Stratified Ocean Model with Adaptive Refinement
  *  Developed by Ed Santilli & Alberto Scotti
- *  Copyright (C) 2018
- *    Jefferson (Philadelphia University + Thomas Jefferson University) and
- *    University of North Carolina at Chapel Hill
+ *  Copyright (C) 2024 Thomas Jefferson University and Arizona State University
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -21,7 +19,7 @@
  *  USA
  *
  *  For up-to-date contact information, please visit the repository homepage,
- *  https://github.com/somarhub.
+ *  https://github.com/MUON-CFD/SOMAR.
  ******************************************************************************/
 #include "AMRNSLevel.H"
 #include "LoadBalance.H"
@@ -98,10 +96,10 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
     // }
 
     // // Random tagging
-    // if (1) {
+    // if (0) {
     //     int levelTaggingLuck = rand() % 10 + 1;
 
-    //     if (levelTaggingLuck > 6) {
+    //     if (levelTaggingLuck > 3) {
     //         const IntVect& smallEnd = m_problem_domain.domainBox().smallEnd();
     //         const IntVect& size = m_problem_domain.size();
 
@@ -308,15 +306,6 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
         }
     }
 
-    if (ctx->ib.doIB && ctx->amr.tagIB) {
-        CH_verify(m_IBPtr);
-        IntVectSet tmpIVS;
-        m_IBPtr->addLocalIBStencil(tmpIVS);
-        for (IVSIterator ivsit(tmpIVS); ivsit.ok(); ++ivsit) {
-            a_tags |= ivsit();
-        }
-    }
-
     // Finalize.
     a_tags.grow(growTags);
     a_tags &= domBox;
@@ -357,10 +346,10 @@ AMRNSLevel::preRegrid(int                        a_lBase,
         // Convert vel to advecting velocity to help when refining.
         this->sendToAdvectingVelocity(*m_oldVelPtr, *m_oldVelPtr);
         debugCheckValidFaceOverlap(*m_oldVelPtr);
-    } else {
-        m_oldVelPtr.reset();
-        m_oldPPtr.reset();
-        m_oldQPtr.reset();
+    // } else { // I don't think this is needed. It is done in regrid().
+    //     m_oldVelPtr.reset();
+    //     m_oldPPtr.reset();
+    //     m_oldQPtr.reset();
     }
 }
 
@@ -600,38 +589,10 @@ AMRNSLevel::initLevelPressure(const Real a_dt)
     if constexpr (1) {
         // Cheap version...
         const auto saveOpts = m_levelProjSolverPtr->getOptions();
-        auto tempOpts = saveOpts;
-
-        // For Elliptic::LevelHybridSolver::Options
-        // tempOpts.absTol                 = 1.0e-300;
-        // tempOpts.relTol                 = 1.0e-300;
-        // tempOpts.maxSolverSwaps         = 1;
-        // tempOpts.mgOptions.absTol       = 1.0e-300;
-        // tempOpts.mgOptions.relTol       = 1.0e-300;
-        // tempOpts.mgOptions.maxIters     = 1;
-        // tempOpts.lepticOptions.absTol   = 1.0e-300;
-        // tempOpts.lepticOptions.relTol   = 1.0e-300;
-        // tempOpts.lepticOptions.maxOrder = 1;
-
-        // // I don't think these will really change the verbosity, but...
-        // tempOpts.verbosity                                          = 0;
-        // tempOpts.mgOptions.verbosity                                = 0;
-        // tempOpts.mgOptions.bottomOptions.verbosity                  = 0;
-        // tempOpts.lepticOptions.verbosity                            = 0;
-        // tempOpts.lepticOptions.horizOptions.verbosity               = 0;
-        // tempOpts.lepticOptions.horizOptions.bottomOptions.verbosity = 0;
-
-        // For Elliptic::MGSolver<LevelData<FArrayBox>>::Options
-        tempOpts.absTol   = 1.0e-300;
-        tempOpts.relTol   = 1.0e-300;
-        tempOpts.maxIters = 1;
-        // tempOpts.numCycles = 1;
-
-        m_levelProjSolverPtr->setOptions(tempOpts);
-
+        m_levelProjSolverPtr->modifyOptionsExceptMaxDepth(LevelProjSolver::getQuickAndDirtyOptions());
         m_parkPtr->FEadvance(vel, p, q, m_time, m_dt, this);
+        m_levelProjSolverPtr->modifyOptionsExceptMaxDepth(saveOpts);
 
-        m_levelProjSolverPtr->setOptions(saveOpts);
     } else {
         // Accurate version...
         m_parkPtr->advance(vel, p, q, m_time, m_dt, this);
