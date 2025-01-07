@@ -23,6 +23,12 @@ time.maxSteps           = 5
 # time.maxDtGrow          = 1.5           # [1.5]      Negative value sets this to 1.0e8.
 # time.restartFile        =               # [commented out / no restart file]
 
+# time.useElementaryController = 0          # [0]
+# time.usePIController         = 0          # [0]
+# time.usePIDController        = 1          # [0]
+# time.absTol = 1.0e-4
+# time.relTol =
+
 
 #----------------------------------- Output -----------------------------------#
 output.plotInterval       = 1                   # [-1]       MUST SPECIFY THIS
@@ -116,8 +122,10 @@ rhs.salinityBCTypeHi = 1 1 1  # [1 1] 0 = Periodic, 1 = zero neum, 2 = zero neum
 #               0 = Zero everywhere,
 #               1 = Static Smag, 2 = Dynamic Smag, 3 = Ducrose
 # rhs.eddyViscMethod      = 0 0           # [0]
-# rhs.eddyPrandtl         = 1.0           # [1.0]
-# rhs.eddyScale           = 1.0 1.0 1.0   # [1.0 1.0 1.0]
+# rhs.eddyPrandtlT       = 1.0            # [1.0]
+# rhs.eddyPrandtlS       = 1.0            # [1.0]
+# rhs.eddyPrandtlScalars = 1.0            # [1.0]
+# rhs.eddyScale          = 1.0 1.0 0.0    # [1.0 1.0 1.0]
 
 
 #------------------------- Pressure projector details -------------------------#
