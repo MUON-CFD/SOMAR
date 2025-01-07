@@ -118,9 +118,6 @@ BaseParameters::createDefaults()
             s_defPtr->blockFactor =
                 min(s_defPtr->blockFactor, s_defPtr->maxBaseGridSize[dir]);
         }
-        pout() << "Setting blockFactor = " << s_defPtr->blockFactor << endl;
-        BasicIO::tout(0) << "Setting blockFactor = " << s_defPtr->blockFactor << endl;
-
     }
 
     // ...then, give the user a chance to override.
@@ -169,17 +166,17 @@ BaseParameters::chooseMaxBaseGridSize(IntVect&             a_maxBaseGridSize,
     int idealNumProc;
     powOf2Strategy(a_maxBaseGridSize, idealNumProc, isoDomain, nproc);
     a_maxBaseGridSize *= refToIsotropy;
-    IntVect splits = a_domain.size() / a_maxBaseGridSize;
+    // IntVect splits = a_domain.size() / a_maxBaseGridSize;
 
-    pout() << "Setting maxBaseGridSize = " << a_maxBaseGridSize << endl;
-    pout() << "This splits the domain into " << splits << " parts." << endl;
-    pout() << "The ideal number of MPI ranks to use is " << idealNumProc
-                << "." << endl;
+    // pout() << "Setting maxBaseGridSize = " << a_maxBaseGridSize << endl;
+    // pout() << "This splits the domain into " << splits << " parts." << endl;
+    // pout() << "The ideal number of MPI ranks to use is " << idealNumProc
+    //             << "." << endl;
 
-    BasicIO::tout(0) << "Setting maxBaseGridSize = " << a_maxBaseGridSize << endl;
-    BasicIO::tout(0) << "This splits the domain into " << splits << " parts." << endl;
-    BasicIO::tout(0) << "The ideal number of MPI ranks to use is " << idealNumProc
-                << "." << endl;
+    // BasicIO::tout(0) << "Setting maxBaseGridSize = " << a_maxBaseGridSize << endl;
+    // BasicIO::tout(0) << "This splits the domain into " << splits << " parts." << endl;
+    // BasicIO::tout(0) << "The ideal number of MPI ranks to use is " << idealNumProc
+    //             << "." << endl;
 
     // // We are done with maxBaseGridSize.
     // a_maxGridSize = 16 * a_refToIsotropy;
