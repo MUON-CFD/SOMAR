@@ -2,9 +2,7 @@
 # Visit https://bit.ly/cffinit to generate yours today!
 
 cff-version: 1.2.0
-title: >-
-  The Stratified Ocean Model with Adaptive Refinement
-  (SOMAR)
+title: '  The Stratified Ocean Model with Adaptive Refinement (SOMAR)'
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -13,7 +11,7 @@ authors:
   - given-names: Edward
     family-names: Santilli
     email: Edward.Santilli@jefferson.edu
-    affiliation: Jefferson East Falls
+    affiliation: Jefferson University - East Falls Campus
     orcid: 'https://orcid.org/0000-0001-7925-7252'
   - given-names: Alberto
     family-names: Scotti
@@ -23,4 +21,29 @@ authors:
 identifiers:
   - type: doi
     value: 10.5281/zenodo.14609305
-date-released: 2025-01-02
+    description: Software version used SOMARv2 paper (upcoming).
+repository-code: 'https://github.com/MUON-CFD/SOMAR'
+url: 'https://somar.readthedocs.io/'
+abstract: >-
+  Numerical studies of submesoscale ocean dynamics are
+  restricted by several challenges, including its vast range
+  of scales, nonhydrostatic features, and strong anisotropy.
+  The Stratified Ocean Model with Adaptive Refinement
+  (SOMAR) was developed to address many of these issues.
+  Recent improvements to SOMAR incorporate Runge-Kutta time
+  integration, Arakawa-C grids, new grid transfer methods,
+  and error controllers in an effort to increase the model's
+  fidelity and stability. In this paper, we detail these
+  recent improvements, establish SOMARv2's accuracy, and
+  demonstrate its utility as an efficient submesoscale
+  model.
+keywords:
+  - Numerical modeling
+  - Computational fluid dynamics
+  - Physical oceanography
+  - Adaptive mesh refinement
+  - Internal waves
+license: LGPL-2.1-or-later
+commit: a1dadce3e664650fd7e10328c5eebb6209992ae3
+version: v2.0.0
+date-released: '2015-01-02'
