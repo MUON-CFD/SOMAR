@@ -38,11 +38,13 @@ abstract: >-
   demonstrate its utility as an efficient submesoscale
   model.
 keywords:
-  - Numerical modeling
   - Computational fluid dynamics
-  - Physical oceanography
+  - Multiscale modeling
   - Adaptive mesh refinement
+  - Physical oceanography
   - Internal waves
+  - Navier Stokes Equations
+  - Incompressible flow
 license: LGPL-2.1-or-later
 commit: a1dadce3e664650fd7e10328c5eebb6209992ae3
 version: v2.0.0
