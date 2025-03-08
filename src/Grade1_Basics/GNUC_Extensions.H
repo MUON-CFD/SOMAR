@@ -36,9 +36,9 @@
 #		define __deprecated		__attribute__((deprecated))
 #	endif //__deprecated
 
-#	ifndef __error
-#		define __error(x)		__attribute__((error(x)))
-#	endif //__error
+// #	ifndef __error
+// #		define __error(x)		__attribute__((error(x)))
+// #	endif //__error
 
 #	ifndef __warning
 #		define __warning(x)		__attribute__((warning(x)))
@@ -102,9 +102,9 @@
 #		define __deprecated
 #	endif //__deprecated
 
-#	ifndef __error
-#		define __error(x)
-#	endif //__error
+// #	ifndef __error
+// #		define __error(x)
+// #	endif //__error
 
 #	ifndef __warning
 #		define __warning(x)
