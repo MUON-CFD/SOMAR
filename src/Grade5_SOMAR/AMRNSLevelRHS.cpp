@@ -220,78 +220,24 @@ AMRNSLevel::setExplicitRHS(LevelData<FluxBox>&   a_kvel,
     } // end scalars advection
 
 
-    // Eddy viscosity and diffusivity
-    LevelData<FArrayBox> eddyNu;
-    aliasLevelData(eddyNu, &a_q, m_statePtr->eddyNuInterval);
+    // Eddy viscosity
+    LevelData<FArrayBox> eddyNu(grids, 1, IntVect::Unit);
     this->computeEddyNu(eddyNu, cartVel, a_time);
 
-    // // Viscous forcing
-    // if (ctx->rhs.doViscousForcing) {
-    //     const RealVect nu = RealVect::Unit * ctx->rhs.nu;
-    //     const Real primaryScale   = ctx->rhs.doImplicitDiffusion ? 0.0 : 1.0;
-    //     const Real transposeScale = 1.0;
 
-    //     this->computeMomentumDiffusion(a_kvel,
-    //                                    momentumFlux,
-    //                                    cartVel,
-    //                                    nu,
-    //                                    eddyNu,
-    //                                    primaryScale,
-    //                                    transposeScale);
-
-    //     // Refluxing
-    //     if (ctx->rhs.doViscousRefluxing) {
-    //         this->incrementFluxRegisters(momentumFlux, a_refluxDt);
-    //     }
-    // } // end viscous forcing
-
-    // Viscous forcing (w/ debugging)
+    // Viscous forcing
     if (ctx->rhs.doViscousForcing) {
         const RealVect nu = RealVect::Unit * ctx->rhs.nu;
         const Real primaryScale   = ctx->rhs.doImplicitDiffusion ? 0.0 : 1.0;
         const Real transposeScale = 1.0;
 
-        // nu
-        LevelData<FluxBox> viscForce(grids, a_kvel.nComp(), a_kvel.ghostVect());
-        setValLevel(viscForce, 0.0);
-
-        LevelData<FArrayBox> zeroEddyNu(grids, 1, eddyNu.ghostVect());
-        setValLevel(zeroEddyNu, 0.0);
-
-        this->computeMomentumDiffusion(viscForce,
+        this->computeMomentumDiffusion(a_kvel,
                                        momentumFlux,
                                        cartVel,
                                        nu,
-                                       zeroEddyNu,
-                                       primaryScale,
-                                       transposeScale);
-
-        // auto maxViscForce = Analysis::pNorm(viscForce, 0);
-        // pout() << "max |visc force| = " << Format::scientific << maxViscForce << '\n';
-
-        for (dit.reset(); dit.ok(); ++dit) {
-            a_kvel[dit] += viscForce[dit];
-        }
-
-
-        // eddyVisc
-        setValLevel(viscForce, 0.0);
-        const RealVect zeroNu = RealVect::Zero;
-
-        this->computeMomentumDiffusion(viscForce,
-                                       momentumFlux,
-                                       cartVel,
-                                       zeroNu,
                                        eddyNu,
                                        primaryScale,
                                        transposeScale);
-
-        // maxViscForce = Analysis::pNorm(viscForce, 0);
-        // pout() << "max |eddy visc force| = " << Format::scientific << maxViscForce << '\n';
-
-        for (dit.reset(); dit.ok(); ++dit) {
-            a_kvel[dit] += viscForce[dit];
-        }
 
         // Refluxing
         if (ctx->rhs.doViscousRefluxing) {
@@ -436,6 +382,7 @@ AMRNSLevel::setExplicitRHS(LevelData<FluxBox>&   a_kvel,
         nanCheck(a_kvel);
     }
 
+
     // Tidal forcing -- Cartesian only
     // Applying this removes the barotropic component from the "pressure."
     if (ctx->rhs.doTidalForcing) {
@@ -455,6 +402,7 @@ AMRNSLevel::setExplicitRHS(LevelData<FluxBox>&   a_kvel,
             }
         }
     }
+
 
     // Coriolis forcing -- Cartesian only
     if (ctx->rhs.doCoriolisForcing &&
@@ -492,7 +440,7 @@ AMRNSLevel::setExplicitRHS(LevelData<FluxBox>&   a_kvel,
         }
     }
 
-    // debugCheckValidFaceOverlap(a_kvel);
+
     nanCheck(a_kvel);
     nanCheck(a_kq);
 
@@ -526,10 +474,10 @@ void
 AMRNSLevel::setImplicitRHS(LevelData<FluxBox>&   a_kvel,
                            LevelData<FArrayBox>& a_kq,
                            LevelData<FluxBox>&   a_vel,
-                           LevelData<FArrayBox>& a_p,
+                           LevelData<FArrayBox>& /* a_p */,
                            LevelData<FArrayBox>& a_q,
                            const Real            a_time,
-                           const Real            a_refluxDt)
+                           const Real            /* a_refluxDt */)
 {
     setValLevel(a_kvel, 0.0);
     setValLevel(a_kq, 0.0);
@@ -541,8 +489,7 @@ AMRNSLevel::setImplicitRHS(LevelData<FluxBox>&   a_kvel,
 
     LevelData<FluxBox> fcFluxes(grids, 1); // workspace
 
-    LevelData<FArrayBox> eddyNu;
-    aliasLevelData(eddyNu, &a_q, m_statePtr->eddyNuInterval);
+    LevelData<FArrayBox> eddyNu(grids, 1, IntVect::Unit);
     this->computeEddyNu(eddyNu, a_vel, a_time);
 
     // Viscous forcing
@@ -661,8 +608,7 @@ AMRNSLevel::solveImplicit(LevelData<FluxBox>&   a_vel,
 
     const DisjointBoxLayout& grids = m_levGeoPtr->getBoxes();
 
-    LevelData<FArrayBox> eddyNu;
-    aliasLevelData(eddyNu, &a_q, m_statePtr->eddyNuInterval);
+    LevelData<FArrayBox> eddyNu(grids, 1, IntVect::Unit);
     this->computeEddyNu(eddyNu, a_vel, a_time);
 
     // Compute dz values at z-faces.
@@ -696,8 +642,10 @@ AMRNSLevel::solveImplicit(LevelData<FluxBox>&   a_vel,
 
     // Temperature diffusion
     if (ctx->rhs.doTemperatureDiffusion) {
+        // T
         LevelData<FArrayBox> T;
         aliasLevelData(T, &a_q, m_statePtr->TInterval);
+        Subspace::addHorizontalExtrusion(T, 0, *m_TbarPtr, 0, 1, -1.0);
 
         // crseTPtr
         LevelData<FArrayBox> crseT;
@@ -712,12 +660,13 @@ AMRNSLevel::solveImplicit(LevelData<FluxBox>&   a_vel,
         }
         const LevelData<FArrayBox>* crseTPtr = m_level ? &crseT : nullptr;
 
+        // bcFuncPtr
         CH_assert(m_TbarPtr);
         const std::shared_ptr<BCTools::BCFunction> bcFuncPtr(
             new ScalarBC::BackgroundScalarWrapper(this->temperaturePhysBC(),
                                                   m_TbarPtr,
                                                   dzFABPtr));
-
+        // Diffuse
         this->solveScalarDiffusion(T,
                                    crseTPtr,
                                    {ctx->rhs.TKappa},
@@ -727,12 +676,17 @@ AMRNSLevel::solveImplicit(LevelData<FluxBox>&   a_vel,
                                    a_time,
                                    bcFuncPtr,
                                    "Temperature");
+
+        // Restore
+        Subspace::addHorizontalExtrusion(T, 0, *m_TbarPtr, 0, 1, 1.0);
     }
 
     // Salinity diffusion
     if (ctx->rhs.doSalinityDiffusion) {
+        // S
         LevelData<FArrayBox> S;
         aliasLevelData(S, &a_q, m_statePtr->SInterval);
+        Subspace::addHorizontalExtrusion(S, 0, *m_SbarPtr, 0, 1, -1.0);
 
         // crseSPtr
         LevelData<FArrayBox> crseS;
@@ -747,12 +701,14 @@ AMRNSLevel::solveImplicit(LevelData<FluxBox>&   a_vel,
         }
         const LevelData<FArrayBox>* crseSPtr = m_level ? &crseS : nullptr;
 
+        // bcFuncPtr
         CH_assert(m_SbarPtr);
         const std::shared_ptr<BCTools::BCFunction> bcFuncPtr(
             new ScalarBC::BackgroundScalarWrapper(this->salinityPhysBC(),
                                                   m_SbarPtr,
                                                   dzFABPtr));
 
+        // Diffuse
         this->solveScalarDiffusion(S,
                                    crseSPtr,
                                    {ctx->rhs.SKappa},
@@ -762,25 +718,30 @@ AMRNSLevel::solveImplicit(LevelData<FluxBox>&   a_vel,
                                    a_time,
                                    bcFuncPtr,
                                    "Salinity");
+
+        // Restore
+        Subspace::addHorizontalExtrusion(S, 0, *m_SbarPtr, 0, 1, 1.0);
     }
 
     // Scalars diffusion
     if (ctx->rhs.doScalarDiffusion && (this->numScalars() > 0)) {
+        // S (the scalars, not salinity)
         LevelData<FArrayBox> S;
         aliasLevelData(S, &a_q, m_statePtr->scalarsInterval);
 
         // crseSPtr
         LevelData<FArrayBox> crseS;
         if (m_level > 0) {
-            const auto* crsePtr          = this->crseNSPtr();
-            const auto& crseGrids        = crsePtr->getBoxes();
-            const bool  setBCs           = false;
+            const auto* crsePtr   = this->crseNSPtr();
+            const auto& crseGrids = crsePtr->getBoxes();
+            const bool  setBCs    = false;
 
             crseS.define(crseGrids, this->numScalars());
             crsePtr->fillScalar(crseS, a_time, setBCs);
         }
         const LevelData<FArrayBox>* crseSPtr = m_level ? &crseS : nullptr;
 
+        // vkappa
         const std::vector<Real> vkappa = [&]() {
             std::vector<Real> v(S.nComp(), 0.0);
             for (int comp = 0; comp < S.nComp(); ++comp)
@@ -788,6 +749,7 @@ AMRNSLevel::solveImplicit(LevelData<FluxBox>&   a_vel,
             return v;
         }();
 
+        // vEddyPrandtl
         const std::vector<Real> vEddyPrandtl = [&]() {
             std::vector<Real> v(S.nComp(), 0.0);
             for (int comp = 0; comp < S.nComp(); ++comp)
@@ -795,6 +757,7 @@ AMRNSLevel::solveImplicit(LevelData<FluxBox>&   a_vel,
             return v;
         }();
 
+        // Diffuse
         this->solveScalarDiffusion(S,
                                    crseSPtr,
                                    vkappa,
@@ -835,75 +798,19 @@ AMRNSLevel::computeMomentumDiffusion(LevelData<FluxBox>&         a_kvel,
     const DisjointBoxLayout& grids = m_levGeoPtr->getBoxes();
     DataIterator             dit   = grids.dataIterator();
 
-    // Compute J*grad[u] components. Last index will be Cartesian-based.
-    m_finiteDiffPtr->levelVectorGradient(a_momentumFlux, a_cartVel);
+    constexpr bool multByJ       = true;
+    constexpr bool makeCovariant = false;
+    this->rateOfStrain(a_momentumFlux,
+                       a_cartVel,
+                       multByJ,
+                       makeCovariant,
+                       0.5 * a_primaryScale,
+                       0.5 * a_transposeScale);
+
+    this->viscousStress(a_momentumFlux, a_momentumFlux, a_nu, a_eddyNu);
 
     for (dit.reset(); dit.ok(); ++dit) {
-        // In what follows, we are computing du^a/dt.
-        // a is the Cartesian velocity component that we are updating.
-
         for (int a = 0; a < SpaceDim; ++a) {
-            // 1. Convert J*grad[u] into 2*J*S^{ia}.
-
-            // Easy, diagonal elements first.
-            {
-                FArrayBox& SaaFAB = a_momentumFlux[a][a][dit];
-                SaaFAB *= (a_primaryScale + a_transposeScale);
-                checkForNAN(SaaFAB, SaaFAB.box());
-            }
-
-            // Off-diagonal comps need to be symmetrized.
-            for (int i = a + 1; i < SpaceDim; ++i) {
-                FArrayBox& SiaFAB = a_momentumFlux[i][a][dit];
-                FArrayBox& SaiFAB = a_momentumFlux[a][i][dit];
-                const Box& ecBox  = SiaFAB.box();
-
-                // Send last index to mapped basis.
-                FArrayBox dxdXiFAB(ecBox, 2);
-                m_levGeoPtr->getGeoSource().fill_dxdXi(dxdXiFAB, 0, a, dXi);
-                m_levGeoPtr->getGeoSource().fill_dxdXi(dxdXiFAB, 1, i, dXi);
-                SiaFAB.divide(dxdXiFAB, 0, 0, 1);
-                SaiFAB.divide(dxdXiFAB, 1, 0, 1);
-
-                // Symmetrize
-                FArrayBox tmpFAB(ecBox, 1);
-                tmpFAB.copy(SiaFAB);
-
-                SiaFAB *= a_primaryScale;
-                SiaFAB.plus(SaiFAB, a_transposeScale);
-
-                SaiFAB *= a_primaryScale;
-                SaiFAB.plus(tmpFAB, a_transposeScale);
-
-                // Send last index back to Cartesian basis.
-                SiaFAB.mult(dxdXiFAB, 0, 0, 1);
-                SaiFAB.mult(dxdXiFAB, 1, 0, 1);
-
-                checkForNAN(SiaFAB, ecBox);
-                checkForNAN(SaiFAB, ecBox);
-            } // i
-
-
-            // 2. Convert 2*S^{ia} into the viscous stresses for each i,
-            //    T^{ia} = (nu + eddyNu) * 2*J*S^{ia}.
-            for (int i = 0; i < SpaceDim; ++i) {
-                FArrayBox&       TiaFAB    = a_momentumFlux[i][a][dit];
-                const Real       nuDir     = a_nu[i];
-                const FArrayBox& eddyNuFAB = a_eddyNu[dit];
-                const Box&       region    = TiaFAB.box();
-
-                if (a == i) {
-                    FABAlgebra::CCmultCC(
-                        TiaFAB, 0, region, eddyNuFAB, 0, nuDir);
-                } else {
-                    FABAlgebra::ECmultCC(
-                        TiaFAB, 0, region, eddyNuFAB, 0, nuDir);
-                }
-                checkForNAN(TiaFAB, region);
-            }
-
-
-            // 3. Compute the viscous force and add it to a_kvel.
             FArrayBox& FaFAB = a_kvel[dit][a];
             const Box  fcBox = surroundingNodes(grids[dit], a);
             const Real scale = 1.0;
@@ -1037,7 +944,7 @@ AMRNSLevel::solveMomentumDiffusion(LevelData<FluxBox>&         a_cartVel,
         crseVel.define(crseGrids, 1, IntVect::Unit);
         crsePtr->fillVelocity(crseVel, a_time, setBCs);
     }
-    LevelData<FluxBox>* crseVelPtr = m_level ? &crseVel : nullptr;
+    const LevelData<FluxBox>* crseVelPtr = m_level ? &crseVel : nullptr;
     this->setVelBC(a_cartVel, a_time, false, crseVelPtr);
 
     // Create op
@@ -1083,8 +990,15 @@ AMRNSLevel::solveMomentumDiffusion(LevelData<FluxBox>&         a_cartVel,
         LevelData<FluxBox> kvel(grids, 1, IntVect::Unit);
         StaggeredFluxLD momentumFlux(grids);
         opPtr->setToZero(kvel);
-        this->computeMomentumDiffusion(
-            kvel, momentumFlux, a_cartVel, RealVect::Zero, a_totalNu, 1.0, 0.0);
+        const Real primaryScale   = 1.0;
+        const Real transposeScale = 0.0; // was done explicitly
+        this->computeMomentumDiffusion(kvel,
+                                       momentumFlux,
+                                       a_cartVel,
+                                       RealVect::Zero,
+                                       a_totalNu,
+                                       primaryScale,
+                                       transposeScale);
         opPtr->incr(a_cartVel, kvel, a_gammaDt);
     }
 

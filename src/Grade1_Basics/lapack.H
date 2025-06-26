@@ -31,6 +31,79 @@ extern "C" {
     // DLAMCH determines double precision machine parameters.
     double dlamch_ (char* CMACH);
 
+    /// @brief
+    ///  ILAENV is called from the LAPACK routines to choose problem-dependent
+    ///  parameters for the local environment.  See ISPEC for a description of
+    ///  the parameters.
+    /// @param [in] ISPEC Specifies the parameter to be returned as the value of
+    ///   ILAENV.
+    ///   = 1: the optimal blocksize; if this value is 1, an unblocked
+    ///        algorithm will give the best performance.
+    ///   = 2: the minimum block size for which the block routine
+    ///        should be used; if the usable block size is less than
+    ///        this value, an unblocked routine should be used.
+    ///   = 3: the crossover point (in a block routine, for N less
+    ///        than this value, an unblocked routine should be used)
+    ///   = 4: the number of shifts, used in the nonsymmetric
+    ///        eigenvalue routines (DEPRECATED)
+    ///   = 5: the minimum column dimension for blocking to be used;
+    ///        rectangular blocks must have dimension at least k by m,
+    ///        where k is given by ILAENV(2,...) and m by ILAENV(5,...)
+    ///   = 6: the crossover point for the SVD (when reducing an m by n
+    ///        matrix to bidiagonal form, if max(m,n)/min(m,n) exceeds
+    ///        this value, a QR factorization is used first to reduce
+    ///        the matrix to a triangular form.)
+    ///   = 7: the number of processors
+    ///   = 8: the crossover point for the multishift QR method
+    ///        for nonsymmetric eigenvalue problems (DEPRECATED)
+    ///   = 9: maximum size of the subproblems at the bottom of the
+    ///        computation tree in the divide-and-conquer algorithm
+    ///        (used by xGELSD and xGESDD)
+    ///   =10: ieee NaN arithmetic can be trusted not to trap
+    ///   =11: infinity arithmetic can be trusted not to trap
+    ///   12 <= ISPEC <= 16:
+    ///        xHSEQR or related subroutines,
+    ///        see IPARMQ for detailed explanation
+    /// @param [in] NAME The name of the calling subroutine, in either upper case or lower case.
+    /// @param [in] OPTS The character options to the subroutine NAME, concatenated
+    ///   into a single character string.  For example, UPLO = 'U',
+    ///   TRANS = 'T', and DIAG = 'N' for a triangular routine would
+    ///   be specified as OPTS = 'UTN'.
+    /// @param [in] N1
+    /// @param [in] N2
+    /// @param [in] N3
+    /// @param [in] N4 Problem dimensions for the subroutine NAME; these may not all be required.
+    /// @return
+    ///  if ILAENV >= 0: ILAENV returns the value of the parameter specified by ISPEC
+    ///  if ILAENV < 0:  if ILAENV = -k, the k-th argument had an illegal value.
+    ///
+    /// @details
+    ///  This version provides a set of parameters which should give good,
+    ///  but not optimal, performance on many of the currently available
+    ///  computers.  Users are encouraged to modify this subroutine to set
+    ///  the tuning parameters for their particular machine using the option
+    ///  and problem size information in the arguments.
+    ///
+    ///  The following conventions have been used when calling ILAENV from the
+    ///  LAPACK routines:
+    ///   1)  OPTS is a concatenation of all of the character options to
+    ///       subroutine NAME, in the same order that they appear in the
+    ///       argument list for NAME, even if they are not used in determining
+    ///       the value of the parameter specified by ISPEC.
+    ///   2)  The problem dimensions N1, N2, N3, N4 are specified in the order
+    ///       that they appear in the argument list for NAME.  N1 is used
+    ///       first, N2 second, and so on, and unused problem dimensions are
+    ///       passed a value of -1.
+    ///   3)  The parameter value returned by ILAENV is checked for validity in
+    ///       the calling subroutine.  For example, ILAENV is used to retrieve
+    ///       the optimal blocksize for STRTRI as follows:
+    ///  NB = ILAENV( 1, 'STRTRI', UPLO // DIAG, N, -1, -1, -1 )
+    ///  IF( NB.LE.1 ) NB = MAX( 1, N )
+    ///
+    ///  @warning This routine will not function correctly if it is converted to
+    ///   all lower case.  Converting it to all upper case is allowed.
+    int ilaenv_(int* ISPEC, char* NAME, char* OPTS, int* N1, int* N2, int* N3, int* N4);
+
     // DGBEQU computes row and column scalings intended to equilibrate an
     // M-by-N band matrix A and reduce its condition number.  R returns the
     // row scale factors and C the column scale factors, chosen to try to
@@ -142,16 +215,16 @@ extern "C" {
                   int* LDBB, double* Q, int* LDQ, double* VL, double* VU, int* IL, int* IU, double* ABSTOL, int* M,
                   double* W, double* Z, int* LDZ, double* WORK, int* IWORK, int* IFAIL, int* INFO);
 
-    // DSYSV computes the solution to a real system of linear equations
-    //   A * X = B,
-    // where A is an N-by-N symmetric matrix and X and B are N-by-NRHS
-    // matrices.
-
 
     // -------------------------------------------------------------------------
     /// \name Linear solve. Symmetric matrices
     /// \{
 
+    // DSYSV computes the solution to a real system of linear equations
+    //   A * X = B,
+    // where A is an N-by-N symmetric matrix and X and B are N-by-NRHS
+    // matrices.
+    //
     // The diagonal pivoting method is used to factor A as
     //   A = U * D * U**T,  if UPLO = 'U', or
     //   A = L * D * L**T,  if UPLO = 'L',
@@ -404,6 +477,23 @@ extern "C" {
     void
     dsyev_(char* JOBZ, char* UPLO, int* N, double* A, int* LDA,
            double* W, double* WORK, int* LWORK, int* INFO);
+
+    void
+    dsyevd_(char* JOBZ, char* UPLO, int* N, double* A, int* LDA,
+            double* W, double* WORK, int* LWORK, int* IWORK, int* LIWORK, int* INFO);
+
+    void
+    dsyevx_(char* JOBZ, char* RANGE, char* UPLO, int* N, double* A, int* LDA,
+            double* VL, double* VU, int* IL, int* IU, double* ABSTOL, int* M,
+            double* W, double* Z, int* LDZ, double* WORK, int* LWORK, int* IWORK,
+            int* IFAIL, int* INFO);
+
+    void
+    dsyevr_(char* JOBZ, char* RANGE, char* UPLO, int* N, double* A, int* LDA,
+            double* VL, double* VU, int* IL, int* IU, double* ABSTOL, int* M,
+            double* W, double* Z, int* LDZ, int* ISUPPZ,
+            double* WORK, int* LWORK, int* IWORK, int* LIWORK,
+            int* INFO);
 
     /// @brief Computes the eigenvalues and, optionally, the left and/or right
     /// eigenvectors for GE matrices

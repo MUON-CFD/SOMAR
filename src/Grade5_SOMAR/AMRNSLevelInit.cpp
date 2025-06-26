@@ -204,10 +204,6 @@ AMRNSLevel::initialData()
 
     // Call the workhorse.
     this->setICs(*m_statePtr);
-
-    LevelData<FArrayBox> eddyNu;
-    aliasLevelData(eddyNu, &(m_statePtr->q), m_statePtr->eddyNuInterval);
-    this->computeEddyNu(eddyNu, m_statePtr->vel, 1.0);
 }
 
 

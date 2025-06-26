@@ -52,7 +52,7 @@ public:
 
   virtual const LinearOperator &getOp() const { return *m_opPtr; } /*!< returns the LinearOperator associated with this solver*/
 
-/// The generic interface for a solve.
+  /// The generic interface for a solve.
   virtual int solve(HilbertSpace &a_phi, const HilbertSpace &a_rhs,
                     const Real a_time, const bool a_useHomogBCs,
                     const bool a_setPhiToZero) const = 0;
@@ -87,7 +87,7 @@ private:
 };
 
 /**
-*This does nothing! It's useful for debugging V-Cycles.
+* This does nothing! It's useful for debugging V-Cycles.
 */
 template <class T, class L>
 class CudaNullSolver : public EllipticSolver<T, L>
@@ -194,8 +194,6 @@ public:
    */
   virtual int solve(Hilbert &a_phi, const Hilbert &a_rhs, const Real a_time, const bool a_useHomogBCs, const bool a_setPhiToZero) const
   {
-
-
     cusp::monitor<Real> monitor(a_rhs(), this->m_opt.maxIters, this->m_opt.relTol, this->m_opt.absTol, false);
     cusp::krylov::bicgstab(*(this->m_opPtr->getOperatorMatrixPtr()), a_phi(), a_rhs(), monitor, *m_Precond);
     //cusp::krylov::gmres(*(this->m_opPtr->getOperatorMatrixPtr()), a_phi(), RHS(), 50, monitor, *m_Precond);
@@ -207,8 +205,6 @@ private:
   CuspBiCGStabSolver &operator=(const CuspBiCGStabSolver &that){};
 
   PreCond *m_Precond;
-
-
 };
 #define H9929fb0cc38edce433e3b0842ce1c397
 #include "CudaEllipticSolverImpl.hpp"

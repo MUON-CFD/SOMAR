@@ -116,8 +116,11 @@ AMRNSLevel::computeDt()
         Real viscDt = 1.0e100;
         Real diffDt = 1.0e100;
 
+        LevelData<FArrayBox> eddyNu(grids, 1);
+        this->computeEddyNu(eddyNu, m_statePtr->vel, m_time);
+
         for (dit.reset(); dit.ok(); ++dit) {
-            const FArrayBox& nuTFAB = m_statePtr->eddyNu[dit];
+            const FArrayBox& nuTFAB = eddyNu[dit];
             const Box&       valid  = grids[dit];
 
             // Compute cell widths.
@@ -227,43 +230,43 @@ AMRNSLevel::computeDt()
     } // end viscous / diffusive limiting.
 
 
-    // // Internal wave speed limit
-    // const bool doGravityForcing = ctx->rhs.doGravityForcing;
-    // if (doGravityForcing && m_hasStrat) {
-    //     const LevelData<FluxBox>& advVel = m_statePtr->vel;
+    // Internal wave speed limit
+    const bool doGravityForcing = ctx->rhs.doGravityForcing;
+    if (doGravityForcing && m_hasStrat) {
+        const LevelData<FluxBox>& advVel = m_statePtr->vel;
 
-    //     // Loop over grids and compute minDt.
-    //     Real iwsDt = 1.0e100;
-    //     for (dit.reset(); dit.ok(); ++dit) {
-    //         const Box& valid = grids[dit];
+        // Loop over grids and compute minDt.
+        Real iwsDt = 1.0e100;
+        for (dit.reset(); dit.ok(); ++dit) {
+            const Box& valid = grids[dit];
 
-    //         D_TERM(
-    //         FArrayBox c0iFAB(valid, SpaceDim);,
-    //         m_levGeoPtr->getGeoSource().fill_dXidx(c0iFAB, 0, 0, dXi, m_c1);,
-    //         m_levGeoPtr->getGeoSource().fill_dXidx(c0iFAB, 1, 1, dXi, m_c1);)
-    //         c0iFAB.setVal(0.0, SpaceDim - 1);
+            D_TERM(
+            FArrayBox c0iFAB(valid, SpaceDim);,
+            m_levGeoPtr->getGeoSource().fill_dXidx(c0iFAB, 0, 0, dXi, m_c1);,
+            m_levGeoPtr->getGeoSource().fill_dXidx(c0iFAB, 1, 1, dXi, m_c1);)
+            c0iFAB.setVal(0.0, SpaceDim - 1);
 
-    //         FArrayBox ccVelFAB(valid, SpaceDim);
-    //         for (int dir = 0; dir < SpaceDim; ++dir) {
-    //             Convert::Simple(ccVelFAB, dir, valid, advVel[dit][dir], 0);
-    //         }
+            FArrayBox ccVelFAB(valid, SpaceDim);
+            for (int dir = 0; dir < SpaceDim; ++dir) {
+                Convert::Simple(ccVelFAB, dir, valid, advVel[dit][dir], 0);
+            }
 
-    //         FORT_COMPUTEMINBVDT(
-    //             CHF_REAL(iwsDt),
-    //             CHF_CONST_FRA(c0iFAB),
-    //             CHF_CONST_FRA(ccVelFAB),
-    //             CHF_CONST_REALVECT(dXi),
-    //             CHF_BOX(valid));
+            FORT_COMPUTEMINBVDT(
+                CHF_REAL(iwsDt),
+                CHF_CONST_FRA(c0iFAB),
+                CHF_CONST_FRA(ccVelFAB),
+                CHF_CONST_REALVECT(dXi),
+                CHF_BOX(valid));
 
-    //         CH_assert(iwsDt >= 0.0);
-    //     }
+            CH_assert(iwsDt >= 0.0);
+        }
 
-    //     newDt = min(newDt, iwsDt);
+        newDt = min(newDt, iwsDt);
 
-    //     if (s_verbosity >= verbThresh) {
-    //         pout() << "dt internal wave speed limit = " << iwsDt << endl;
-    //     }
-    // }
+        if (s_verbosity >= verbThresh) {
+            pout() << "dt internal wave speed limit = " << iwsDt << endl;
+        }
+    }
 
     // Embedded RK controllers
     if (ctx->time.useElementaryController ||
@@ -460,7 +463,6 @@ AMRNSLevel::advance()
     //     pout() << "\nepsilon = " << epsilon << endl;
     // }
 
-
     // Report memory usage & timing info
     if (s_verbosity >= 2) {
         const Real memory = get_memory_usage_from_OS();
@@ -485,12 +487,12 @@ AMRNSLevel::advance()
 // Called from finest -> coarsest synced levels.
 // -----------------------------------------------------------------------------
 void
-AMRNSLevel::postTimeStep(int a_step)
+AMRNSLevel::postLevelTimeStep(int a_step)
 {
     BEGIN_FLOWCHART();
 
     if (s_verbosity >= 3) {
-        pout() << "postTimeStep on level " << m_level
+        pout() << "postLevelTimeStep on level " << m_level
             << " with dt = " << this->getLevel(0)->dt() << endl;
     }
 
@@ -531,7 +533,7 @@ AMRNSLevel::postTimeStep(int a_step)
         // 2. Sync projection
         if (ctx->proj.doSyncProj) {
             // Okay, I bet you're wondering why this is false!
-            // Well, it shouldn't be. This is just temporary to that the
+            // Well, it shouldn't be. This is just temporary so that the
             // pressure is not updated. In the future, I think we need to store
             // the sync pressure increment so that we can set CFI BCs properly.
             const bool sync = false;
@@ -550,6 +552,26 @@ AMRNSLevel::postTimeStep(int a_step)
 
     // Finally, write diagnostic info to terminal.
     this->printDiagnostics(a_step, false);
+
+    // Allow user to perform custom ops on the updated AMR state (e.g., preparing plots)
+    if (m_level == 0) {
+        // Gather AMR state.
+        std::vector<LevelData<FluxBox>*>   amrVel;
+        std::vector<LevelData<FArrayBox>*> amrP, amrQ;
+        this->allocateAndAliasVel(
+            amrVel, m_time, m_statePtr->vel.interval(), m_level);
+        this->allocateAndAliasPressure(
+            amrP, m_time, m_statePtr->p.interval(), m_level);
+        this->allocateAndAliasScalars(
+            amrQ, m_time, m_statePtr->q.interval(), m_level);
+
+        this->postCompositeTimeStep(amrVel, amrP, amrQ, m_time);
+
+        // Free memory
+        this->deallocate(amrQ);
+        this->deallocate(amrP);
+        this->deallocate(amrVel);
+    }
 }
 
 
@@ -591,150 +613,153 @@ void
 AMRNSLevel::explicitRefluxing(Vector<LevelData<FluxBox>*>&   a_amrVel,
                               Vector<LevelData<FArrayBox>*>& a_amrQ)
 {
-    const int             lbase      = m_level;
-    const int             lmax       = a_amrVel.size() - 1;
-    const Real            refluxDt   = m_dt;
-    const Real            refluxTime = m_time;
-    const ProblemContext* ctx        = ProblemContext::getInstance();
+    // Commented out because we need to take in the eddyVisc.
+    UNDEFINED_FUNCTION();
 
-    for (int l = lbase; l < lmax; ++l) {
-        const AMRNSLevel*        levPtr = this->getLevel(l);
-        const DisjointBoxLayout& grids  = levPtr->getBoxes();
-        DataIterator             dit    = grids.dataIterator();
-        const LevelGeometry&     levGeo = *(levPtr->m_levGeoPtr);
+    // const int             lbase      = m_level;
+    // const int             lmax       = a_amrVel.size() - 1;
+    // const Real            refluxDt   = m_dt;
+    // const Real            refluxTime = m_time;
+    // const ProblemContext* ctx        = ProblemContext::getInstance();
 
-        if (levPtr->m_velFluxRegPtr) {
-            LevelData<FluxBox>& cartVel     = *a_amrVel[l];
-            const int           numVelComps = cartVel.nComp();
-            const IntVect&      ghostVect   = cartVel.ghostVect();
+    // for (int l = lbase; l < lmax; ++l) {
+    //     const AMRNSLevel*        levPtr = this->getLevel(l);
+    //     const DisjointBoxLayout& grids  = levPtr->getBoxes();
+    //     DataIterator             dit    = grids.dataIterator();
+    //     const LevelGeometry&     levGeo = *(levPtr->m_levGeoPtr);
 
-            // Put reflux increment into dedicated holder.
-            LevelData<FluxBox> dvel(grids, numVelComps, ghostVect);
-            setValLevel(dvel, 0.0);
-            levPtr->m_velFluxRegPtr->reflux(dvel, 1.0);
-            levPtr->setVelBC(dvel, refluxTime, true);
+    //     if (levPtr->m_velFluxRegPtr) {
+    //         LevelData<FluxBox>& cartVel     = *a_amrVel[l];
+    //         const int           numVelComps = cartVel.nComp();
+    //         const IntVect&      ghostVect   = cartVel.ghostVect();
 
-            // Diffuse the momentum refluxing increment, if necessary.
-            if (ctx->rhs.doViscousForcing) {
-                const RealVect              nu = RealVect::Unit * ctx->rhs.nu;
-                const LevelData<FArrayBox>& eddyNu = levPtr->m_statePtr->eddyNu;
+    //         // Put reflux increment into dedicated holder.
+    //         LevelData<FluxBox> dvel(grids, numVelComps, ghostVect);
+    //         setValLevel(dvel, 0.0);
+    //         levPtr->m_velFluxRegPtr->reflux(dvel, 1.0);
+    //         levPtr->setVelBC(dvel, refluxTime, true);
 
-                // Diffuse.
-                StaggeredFluxLD    velFlux(grids);
-                LevelData<FluxBox> velDiv(grids, 1, IntVect::Unit);
-                levPtr->computeMomentumDiffusion(
-                    velDiv, velFlux, dvel, nu, eddyNu);
+    //         // Diffuse the momentum refluxing increment, if necessary.
+    //         if (ctx->rhs.doViscousForcing) {
+    //             const RealVect              nu = RealVect::Unit * ctx->rhs.nu;
+    //             const LevelData<FArrayBox>& eddyNu = levPtr->m_statePtr->eddyNu;
 
-                // Add to dvel.
-                for (dit.reset(); dit.ok(); ++dit) {
-                    for (int velComp = 0; velComp < SpaceDim; ++velComp) {
-                        dvel[dit][velComp].plus(velDiv[dit][velComp], refluxDt);
-                    }
-                } // dit
+    //             // Diffuse.
+    //             StaggeredFluxLD    velFlux(grids);
+    //             LevelData<FluxBox> velDiv(grids, 1, IntVect::Unit);
+    //             levPtr->computeMomentumDiffusion(
+    //                 velDiv, velFlux, dvel, nu, eddyNu);
 
-                levPtr->setVelBC(dvel, refluxTime, true);
-            } // if diffusing
+    //             // Add to dvel.
+    //             for (dit.reset(); dit.ok(); ++dit) {
+    //                 for (int velComp = 0; velComp < SpaceDim; ++velComp) {
+    //                     dvel[dit][velComp].plus(velDiv[dit][velComp], refluxDt);
+    //                 }
+    //             } // dit
 
-            // Update velocity.
-            for (dit.reset(); dit.ok(); ++dit) {
-                for (int velComp = 0; velComp < SpaceDim; ++velComp) {
-                    levGeo.divByJ(dvel[dit][velComp], dit());
-                    cartVel[dit][velComp].plus(dvel[dit][velComp], 1.0);
-                }
-            } // dit
-        } // if refluxing the momentum
+    //             levPtr->setVelBC(dvel, refluxTime, true);
+    //         } // if diffusing
 
-        if (levPtr->m_qFluxRegPtr) {
-            const int                   numQComps = a_amrQ[l]->nComp();
-            const IntVect&              ghostVect = a_amrQ[l]->ghostVect();
-            const LevelData<FArrayBox>& eddyNu = levPtr->m_statePtr->eddyNu;
+    //         // Update velocity.
+    //         for (dit.reset(); dit.ok(); ++dit) {
+    //             for (int velComp = 0; velComp < SpaceDim; ++velComp) {
+    //                 levGeo.divByJ(dvel[dit][velComp], dit());
+    //                 cartVel[dit][velComp].plus(dvel[dit][velComp], 1.0);
+    //             }
+    //         } // dit
+    //     } // if refluxing the momentum
 
-            // Define workspace.
-            LevelData<FluxBox>   qFlux(grids, 1);
-            LevelData<FArrayBox> qDiv(grids, 1);
+    //     if (levPtr->m_qFluxRegPtr) {
+    //         const int                   numQComps = a_amrQ[l]->nComp();
+    //         const IntVect&              ghostVect = a_amrQ[l]->ghostVect();
+    //         const LevelData<FArrayBox>& eddyNu = levPtr->m_statePtr->eddyNu;
 
-            // Put reflux increment into dedicated holder.
-            LevelData<FArrayBox> dq(grids, numQComps, ghostVect);
-            setValLevel(dq, 0.0);
-            levPtr->m_qFluxRegPtr->reflux(dq, 1.0);
-            levPtr->setScalarBC(dq, refluxTime, true);
+    //         // Define workspace.
+    //         LevelData<FluxBox>   qFlux(grids, 1);
+    //         LevelData<FArrayBox> qDiv(grids, 1);
 
-            // Diffuse the temperature refluxing increment.
-            if (ctx->rhs.doTemperatureDiffusion) {
-                const Real      kappa        = ctx->rhs.TKappa;
-                const Real      eddyPrandtlT = ctx->rhs.eddyPrandtlT;
-                const Interval& ivl          = levPtr->m_statePtr->TInterval;
-                const int       comp         = levPtr->m_statePtr->TComp;
+    //         // Put reflux increment into dedicated holder.
+    //         LevelData<FArrayBox> dq(grids, numQComps, ghostVect);
+    //         setValLevel(dq, 0.0);
+    //         levPtr->m_qFluxRegPtr->reflux(dq, 1.0);
+    //         levPtr->setScalarBC(dq, refluxTime, true);
 
-                LevelData<FArrayBox> dqComp;
-                aliasLevelData(dqComp, &dq, ivl);
+    //         // Diffuse the temperature refluxing increment.
+    //         if (ctx->rhs.doTemperatureDiffusion) {
+    //             const Real      kappa        = ctx->rhs.TKappa;
+    //             const Real      eddyPrandtlT = ctx->rhs.eddyPrandtlT;
+    //             const Interval& ivl          = levPtr->m_statePtr->TInterval;
+    //             const int       comp         = levPtr->m_statePtr->TComp;
 
-                levPtr->setTemperatureBC(dqComp, refluxTime, true);
-                levPtr->computeScalarDiffusion(
-                    qDiv, qFlux, dqComp, kappa, eddyNu, eddyPrandtlT);
+    //             LevelData<FArrayBox> dqComp;
+    //             aliasLevelData(dqComp, &dq, ivl);
 
-                for (dit.reset(); dit.ok(); ++dit) {
-                    levGeo.divByJ(qDiv[dit], dit());
-                    dq[dit].plus(qDiv[dit], refluxDt, 0, comp, 1);
-                }
-            }
+    //             levPtr->setTemperatureBC(dqComp, refluxTime, true);
+    //             levPtr->computeScalarDiffusion(
+    //                 qDiv, qFlux, dqComp, kappa, eddyNu, eddyPrandtlT);
 
-            // Diffuse the salinity refluxing increment.
-            if (ctx->rhs.doSalinityDiffusion) {
-                const Real      kappa        = ctx->rhs.SKappa;
-                const Real      eddyPrandtlS = ctx->rhs.eddyPrandtlS;
-                const Interval& ivl          = levPtr->m_statePtr->SInterval;
-                const int       comp         = levPtr->m_statePtr->SComp;
+    //             for (dit.reset(); dit.ok(); ++dit) {
+    //                 levGeo.divByJ(qDiv[dit], dit());
+    //                 dq[dit].plus(qDiv[dit], refluxDt, 0, comp, 1);
+    //             }
+    //         }
 
-                LevelData<FArrayBox> dqComp;
-                aliasLevelData(dqComp, &dq, ivl);
+    //         // Diffuse the salinity refluxing increment.
+    //         if (ctx->rhs.doSalinityDiffusion) {
+    //             const Real      kappa        = ctx->rhs.SKappa;
+    //             const Real      eddyPrandtlS = ctx->rhs.eddyPrandtlS;
+    //             const Interval& ivl          = levPtr->m_statePtr->SInterval;
+    //             const int       comp         = levPtr->m_statePtr->SComp;
 
-                levPtr->setSalinityBC(dqComp, refluxTime, true);
-                levPtr->computeScalarDiffusion(
-                    qDiv, qFlux, dqComp, kappa, eddyNu, eddyPrandtlS);
+    //             LevelData<FArrayBox> dqComp;
+    //             aliasLevelData(dqComp, &dq, ivl);
 
-                for (dit.reset(); dit.ok(); ++dit) {
-                    levGeo.divByJ(qDiv[dit], dit());
-                    dq[dit].plus(qDiv[dit], refluxDt, 0, comp, 1);
-                }
-            }
+    //             levPtr->setSalinityBC(dqComp, refluxTime, true);
+    //             levPtr->computeScalarDiffusion(
+    //                 qDiv, qFlux, dqComp, kappa, eddyNu, eddyPrandtlS);
 
-            // Diffuse the scalar refluxing increments.
-            if (ctx->rhs.doScalarDiffusion && levPtr->numScalars() > 0) {
-                const Interval& ivl       = levPtr->m_statePtr->scalarsInterval;
-                const size_t    startComp = ivl.begin();
-                const size_t    endComp   = ivl.end();
-                CH_assert(ivl.size() == levPtr->numScalars());
+    //             for (dit.reset(); dit.ok(); ++dit) {
+    //                 levGeo.divByJ(qDiv[dit], dit());
+    //                 dq[dit].plus(qDiv[dit], refluxDt, 0, comp, 1);
+    //             }
+    //         }
 
-                {
-                    LevelData<FArrayBox> dqComps;
-                    aliasLevelData(dqComps, &dq, ivl);
-                    levPtr->setScalarBC(dqComps, refluxTime, true);
-                }
+    //         // Diffuse the scalar refluxing increments.
+    //         if (ctx->rhs.doScalarDiffusion && levPtr->numScalars() > 0) {
+    //             const Interval& ivl       = levPtr->m_statePtr->scalarsInterval;
+    //             const size_t    startComp = ivl.begin();
+    //             const size_t    endComp   = ivl.end();
+    //             CH_assert(ivl.size() == levPtr->numScalars());
 
-                for (size_t comp = startComp; comp <= endComp; ++comp) {
-                    const Real sKappa = ctx->rhs.getScalarsKappa(comp);
-                    const Real eddyPr = ctx->rhs.getEddyPrandtlScalars(comp);
+    //             {
+    //                 LevelData<FArrayBox> dqComps;
+    //                 aliasLevelData(dqComps, &dq, ivl);
+    //                 levPtr->setScalarBC(dqComps, refluxTime, true);
+    //             }
 
-                    LevelData<FArrayBox> dqComp;
-                    aliasLevelData(dqComp, &dq, Interval(comp, comp));
+    //             for (size_t comp = startComp; comp <= endComp; ++comp) {
+    //                 const Real sKappa = ctx->rhs.getScalarsKappa(comp);
+    //                 const Real eddyPr = ctx->rhs.getEddyPrandtlScalars(comp);
 
-                    levPtr->computeScalarDiffusion(
-                        qDiv, qFlux, dqComp, sKappa, eddyNu, eddyPr);
+    //                 LevelData<FArrayBox> dqComp;
+    //                 aliasLevelData(dqComp, &dq, Interval(comp, comp));
 
-                    for (dit.reset(); dit.ok(); ++dit) {
-                        levGeo.divByJ(qDiv[dit], dit());
-                        dqComp[dit].plus(qDiv[dit], refluxDt);
-                    }
-                } // end loops over scalar comps (comp)
-            }
+    //                 levPtr->computeScalarDiffusion(
+    //                     qDiv, qFlux, dqComp, sKappa, eddyNu, eddyPr);
 
-            // Reflux q.
-            for (dit.reset(); dit.ok(); ++dit) {
-                (*a_amrQ[l])[dit].plus(dq[dit], 1.0);
-            }
-        } // end if flux reg defined
-    } // end loop over refluxed levels
+    //                 for (dit.reset(); dit.ok(); ++dit) {
+    //                     levGeo.divByJ(qDiv[dit], dit());
+    //                     dqComp[dit].plus(qDiv[dit], refluxDt);
+    //                 }
+    //             } // end loops over scalar comps (comp)
+    //         }
+
+    //         // Reflux q.
+    //         for (dit.reset(); dit.ok(); ++dit) {
+    //             (*a_amrQ[l])[dit].plus(dq[dit], 1.0);
+    //         }
+    //     } // end if flux reg defined
+    // } // end loop over refluxed levels
 }
 
 
@@ -938,7 +963,7 @@ AMRNSLevel::printDiagnostics(const int  a_step,
 
         const Real totalE = Integral::sum(amrE, *m_levGeoPtr);
         static Real lastTotalE = 0.0;
-        Real dEonE = (totalE - lastTotalE) / lastTotalE;
+        Real dE = (totalE - lastTotalE);
         lastTotalE = totalE;
 
         // Integrate T and S.
@@ -1031,13 +1056,13 @@ AMRNSLevel::printDiagnostics(const int  a_step,
                     << "│"
                     << std::setprecision(5) << std::setw(eWidth) << totalE;
         if (a_step > 0) {
-            if (dEonE <= 0.0) {
+            if (dE <= 0.0) {
                 IO::tout(0) << std::setprecision(3)
-                            << std::setw(elWidth) << dEonE;
+                            << std::setw(elWidth) << dE;
             } else {
                 IO::tout(0) << Format::hipurple
                             << std::setprecision(3)
-                            << std::setw(elWidth) << dEonE
+                            << std::setw(elWidth) << dE
                             << Format::none;
             }
         }

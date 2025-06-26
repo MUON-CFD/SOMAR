@@ -27,7 +27,7 @@
 #include "NamespaceHeader.H"
 
 class DataIterator;
-template<typename T> class zipDataIterator;
+template<typename T> struct zipDataIterator;
 class TimedDataIterator;
 class LayoutIterator;
 

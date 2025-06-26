@@ -99,7 +99,7 @@ protected:
     define(AnisotropicAMRLevel* a_coarser_level_ptr,
            const Box&           a_problem_domain,
            int                  a_level,
-           const IntVect&       a_ref_ratio) final;
+           const IntVect&       a_ref_ratio) override final;
 
     /// Full virtual constructor
     /// The factory will create the new AMRNSLevel object, then
@@ -109,7 +109,7 @@ protected:
     define(AnisotropicAMRLevel* a_coarse_level_ptr,
            const ProblemDomain& a_problem_domain,
            int                  a_level,
-           const IntVect&       a_ref_ratio);
+           const IntVect&       a_ref_ratio) override;
 
 public:
     /// Virtual destructor
@@ -117,34 +117,34 @@ public:
 
     /// Initializes this level to have the specified domain a_new_grids.
     virtual void
-    initialGrid(const Vector<Box> &a_new_grids);
+    initialGrid(const Vector<Box> &a_new_grids) override;
 
     /// Performs operations required after the grid has been defined but before
     /// data initialization. This will also be called after readCheckpointLevel
     /// during a restart procedure with argument a_restart set to true.
     /// Called from top -> bottom.
     virtual void
-    postInitialGrid(const bool a_restart);
+    postInitialGrid(const bool a_restart) override;
 
     /// Set initial conditions.
     /// This does some basic setup, but the real work is done by setICs.
     virtual void
-    initialData();
+    initialData() override;
 
     /// Tag cells during initialization.
     virtual void
-    tagCellsInit(IntVectSet &a_tags);
+    tagCellsInit(IntVectSet &a_tags) override;
 
     /// Perform initial projection and set up the initial pressure.
     /// This must be done over the entire hierarchy at once, so we wait until
     /// this is called on level 0 and do everything there.
     /// Called from top -> bottom.
     virtual void
-    postInitialize();
+    postInitialize() override;
 
     /// Returns maximum stable time step for this level with initial data.
     virtual Real
-    computeInitialDt();
+    computeInitialDt() override;
 
     /// Frees all memory on this level and clears grids. Called during
     /// construction, destruction, and regridding when a level vanishes. Note
@@ -183,26 +183,26 @@ public:
 
     /// Tag cells during runtime.
     virtual void
-    tagCells(IntVectSet &a_tags);
+    tagCells(IntVectSet &a_tags) override;
 
     /// Perform any pre-regridding ops -- lBase is the finest unchanged level
     /// This function will be called from the finest level downward to a_lBase.
     /// \note If a new level is about to be created, this function will be run
     /// on that level as well...even if it doesn't exist yet!
     virtual void
-    preRegrid(int a_lBase, const Vector<Vector<Box>> &a_newGrids);
+    preRegrid(int a_lBase, const Vector<Vector<Box>> &a_newGrids) override;
 
     /// Set up data on this level after regridding.
     /// Called from coarsest regridded level --> finest regridded level
     /// Load balancing occurs here.
     virtual void
-    regrid(const Vector<Box> &a_new_grids);
+    regrid(const Vector<Box> &a_new_grids) override;
 
     /// perform any post-regridding ops -- lBase is the finest unchanged level
     /// Called from finest regridded level --> a_lBase (coarsest regridded
     /// level - 1)
     virtual void
-    postRegrid(int a_lBase);
+    postRegrid(int a_lBase) override;
 
     /// Assigns procs to the new set of boxes.
     virtual DisjointBoxLayout
@@ -233,19 +233,34 @@ public:
 
     /// Computes the maximum stable timestep using the current state.
     virtual Real
-    computeDt();
+    computeDt() override;
 
     /// advance by one timestep (returns maximum allowable timestep)
     virtual Real
-    advance();
+    advance() override;
 
-    /// Things to do after a timestep.
-    /// a_step is the step number that is being completed.
-    /// Unlike in AnisotropicAMR.cpp, we start counting from 1.
-    /// \todo Maybe this should be merged with postStep. Or we should rename
-    /// them to be more descriptive.
+    /// @brief Checks if level is at a sync boundary. If so, performs sync ops,
+    /// sets BCs, and call postCompositeTimeStep when necessary.
+    /// @param[in] a_step The step being completed. We start counting from 1.
     virtual void
-    postTimeStep(int a_step);
+    postLevelTimeStep(int a_step) override final;
+
+    /// @brief ARKRHS override.
+    /// This function is called at the end of RKW3CN::advance(...) so that the
+    /// user can perform postprocessing. If not overridden in a physics class,
+    /// it does nothing.
+    /// @param[in] a_amrVel
+    /// @param[in] a_amrPressure
+    /// @param[in] a_amrScalars
+    /// @param[in] a_time
+    virtual void
+    postCompositeTimeStep(
+        const std::vector<LevelData<FluxBox>*>&   a_amrVel      [[maybe_unused]],
+        const std::vector<LevelData<FArrayBox>*>& a_amrPressure [[maybe_unused]],
+        const std::vector<LevelData<FArrayBox>*>& a_amrScalars  [[maybe_unused]],
+        const Real                                a_time        [[maybe_unused]]) const
+    {
+    }
 
     /// Refluxes via Q = Q + dQ where
     ///  dQ are the contents of the flux registers.
@@ -531,6 +546,11 @@ public:
     sendToCartesianVelocity(LevelData<FluxBox>&       a_cartVel,
                             const LevelData<FluxBox>& a_advVel) const;
 
+    /// BoxLayoutData version.
+    virtual void
+    sendToCartesianVelocity(BoxLayoutData<FluxBox>&       a_cartVel,
+                            const BoxLayoutData<FluxBox>& a_advVel) const;
+
     /// \brief Fills a data holder with the buoyancy given temperature and
     /// salinity.
     ///
@@ -701,8 +721,8 @@ public:
     /// a_ratio is the fractional distance through the sponge, a measure of the
     /// distance to the target boundary. You can use this function to make a
     /// linear ramp (a_ratio), a quadratic ramp (a_ratio * a_ratio), and so on.
-    /// Default = linear.
-    inline Real
+    /// Default = quadratic.
+    virtual inline Real
     spongeRampFunction(Real a_ratio) const
     {
         return a_ratio * a_ratio;
@@ -714,34 +734,60 @@ public:
     /// \name AMRNSLevelSGS.cpp
     /// \{
 
-    // /// @brief Computes JS^{ia}, where the last index is Cartesian-based.
-    // /// @param a_JSia            Note that by default, this is scaled by J!
-    // /// @param a_cartVel
-    // /// @param a_multByJ         True by default!
-    // /// @param a_makeCovariant   False by default. If true, JS_{ia} is returned.
-    // /// @param a_primaryScale    The coeff of the Grad[cartVel] term.
-    // /// @param a_transposeScale  The coeff of the Grad[cartVel]^T term.
-    // /// @note Careful, you may need to run the result through
-    // ///       LayoutTools::averageOverlappingValidFaces.
-    // virtual void
-    // rateOfStrain(StaggeredFluxLD&          a_JSia,
-    //              const LevelData<FluxBox>& a_cartVel,
-    //              const bool                a_multByJ        = true,
-    //              const bool                a_makeCovariant  = false,
-    //              const Real                a_primaryScale   = 0.5,
-    //              const Real                a_transposeScale = 0.5) const;
+    /// @brief Computes JS^{ia}, where the last index is Cartesian-based.
+    /// @param a_JSia            Note that by default, this is scaled by J!
+    /// @param a_cartVel
+    /// @param a_multByJ         True by default!
+    /// @param a_makeCovariant   False by default. If true, JS_{ia} is returned.
+    /// @param a_primaryScale    The coeff of the Grad[cartVel] term.
+    /// @param a_transposeScale  The coeff of the Grad[cartVel]^T term.
+    /// @note Careful, you may need to run the result through
+    ///       LayoutTools::averageOverlappingValidFaces.
+    virtual void
+    rateOfStrain(StaggeredFluxLD&          a_JSia,
+                 const LevelData<FluxBox>& a_cartVel,
+                 const bool                a_multByJ        = true,
+                 const bool                a_makeCovariant  = false,
+                 const Real                a_primaryScale   = 0.5,
+                 const Real                a_transposeScale = 0.5) const;
 
-    // /// @brief Computes T^{ia} = 2 * J * (nu + eddyNu) * S^{ia},
-    // ///        where the last index is Cartesian-based.
-    // /// @param a_Tia    Can be the same holder as a_Sia for an in-place calc.
-    // /// @param a_JSia   The results of rateOfStrain(...) with default options.
-    // /// @param a_nu     The kinematic viscosity in each direction.
-    // /// @param a_eddyNu The CC eddy viscosity. Zero if not using an LES.
     // virtual void
-    // viscousStress(StaggeredFluxLD&            a_Tia,
-    //               const StaggeredFluxLD&      a_JSia,
-    //               const RealVect&             a_nu,
-    //               const LevelData<FArrayBox>& a_eddyNu) const;
+    // rateOfStrain(LevelData<FArrayBox>&       a_Sab,
+    //              const LevelData<FArrayBox>& a_cartVel) const;
+
+    /// @brief Computes T^{ia} = 2 * J * (nu + eddyNu) * S^{ia},
+    ///        where the last index is Cartesian-based.
+    /// @param a_Tia    Can be the same holder as a_Sia for an in-place calc.
+    /// @param a_JSia   The results of rateOfStrain(...) with default options.
+    /// @param a_nu     The kinematic viscosity in each direction.
+    /// @param a_eddyNu The CC eddy viscosity. Zero if not using an LES.
+    virtual void
+    viscousStress(StaggeredFluxLD&            a_Tia,
+                  const StaggeredFluxLD&      a_JSia,
+                  const RealVect&             a_nu,
+                  const LevelData<FArrayBox>& a_eddyNu) const;
+
+    // /// @brief Experimental. Do not use!
+    // /// @details
+    // /// Let q = <q> + q', where q = the total and q' = its subgrid field.
+    // /// This function attemps to calculate
+    // ///     eps = 2 * (nu + eddyNu) * <S^{ab}' : S_{ab}'>.
+    // /// to compute q' from q, I am using the Ducros model's filter.
+    // /// My goal was to estimate the dissipative length scales, eta. When using
+    // /// an LES, eddyNu elevates the viscosity and increases eta. By comparing
+    // /// eta with a level's dx, dy, and dz, we can automate tagging and the
+    // /// refRatios. We'd tag if c * eta < dx (sim for dy and dz), where c is a
+    // /// scale factor > 1.0 that ensures we are capturing ~80% of the TKE. This
+    // /// will probably depend on Re or Ri.
+    // /// @param a_eps
+    // /// @param a_cartVel
+    // /// @param a_nu
+    // /// @param a_eddyNu
+    // virtual void
+    // energyDissipationRate(LevelData<FArrayBox>&       a_eps,
+    //                       const LevelData<FluxBox>&   a_cartVel,
+    //                       const Real                  a_nu,
+    //                       const LevelData<FArrayBox>& a_eddyNu) const;
 
     // This file only contains LES-specific routines. This does not include the
     // compute*Diffusion(...) functions, which are needed even without the LES.
@@ -785,7 +831,7 @@ public:
     /// \name AMRNSLevelRHS.cpp
     /// \{
 
-    /// ARKRHS override.
+    /// PARKRHS override.
     /// The explicit Navier-Stokes forcing. Be sure to set the comps with no
     /// forcing to zero. Q is non-const so that you can set BCs.
     ///
@@ -799,7 +845,7 @@ public:
                    LevelData<FArrayBox>& a_p,
                    LevelData<FArrayBox>& a_q,
                    const Real            a_time,
-                   const Real            a_refluxDt);
+                   const Real            a_refluxDt) override;
 
     /// \brief
     ///  Override this to modify the Navier-Stokes forces in a_kvel and a_kq.
@@ -830,7 +876,7 @@ public:
     }
 
 
-    /// ARKRHS override.
+    /// PARKRHS override.
     /// The implicit Navier-Stokes forcing. Be sure to set the comps with no
     /// forcing to zero. Q is non-const so that you can set BCs.
     ///
@@ -844,30 +890,58 @@ public:
                    LevelData<FArrayBox>& a_p,
                    LevelData<FArrayBox>& a_q,
                    const Real            a_time,
-                   const Real            a_refluxDt);
+                   const Real            a_refluxDt) override;
 
-    /// Solves [1 - gammaDt * D] Q^{n+1} = Q^{n} in place.
-    ///
-    /// a_vel is in the Cartesian basis.
+    /// PARKRHS override.
+    /// @brief Solves [1 - gammaDt * D] Q^{n+1} = Q^{n} in place.
+    /// @param [inout] a_cartVel  The Cartesian-based velocity.
+    /// @param [inout] a_q        The scalars
+    /// @param [in]    a_gammaDt  The diffusion operator's coeff.
+    /// @param [in]    a_newTime  The final time.
+    /// @param [in]    a_refluxDt Deprecated. Used when refluxing.
     virtual void
-    solveImplicit(LevelData<FluxBox>&   a_vel,
+    solveImplicit(LevelData<FluxBox>&   a_cartVel,
                   LevelData<FArrayBox>& a_q,
                   const Real            a_gammaDt,
-                  const Real            a_time,
-                  const Real            a_refluxDt);
+                  const Real            a_newTime,
+                  const Real            a_refluxDt) override;
 
-    /// Computes viscous force and fluxes for the FC momentum (aka velocity).
-    /// a_kvel and a_momentumFlux will be overwritten.
-    /// Flux registers will not be updated. That is left to the caller.
-    /// Result will not be scaled by 1/J. That is left to the caller.
+    /// @brief Computes viscous force and fluxes for the FC momentum (aka velocity).
+    /// @param[out] a_kvel           The viscous force * J (see details). This is overwritten.
+    /// @param[out] a_momentumFlux   The viscous fluxes. This is overwritten.
+    /// @param[in]  a_cartVel        The Cartesian-based, FC velocity.
+    /// @param[in]  a_nu             The possibly anisotropic kinematic viscosity.
+    /// @param[in]  a_eddyNu         The CC eddy viscosity. Set to 0 if not using an LES.
+    /// @param[in]  a_primaryScale   See details.
+    /// @param[in]  a_transposeScale See details.
+    ///
+    /// @details
+    ///  This calculates du^a/dt = \nabla_i [2*J*S^{ia}], where
+    ///  S^{ia} = primaryScale * \nabla^i u^a + transposeScale * \nabla_a u^i
+    ///  is the rate of strain tensor, i is a mapped-coordinate index, a is a
+    ///  Cartesian-coordinate index, and the scales are provided by the user.
+    ///  The default scales of 1.0 and 1.0 provide the standard Navier-Stokes
+    ///  viscous forcing.
+    ///
+    ///  Flux registers will not be updated. That is left to the caller.
+    ///
+    ///  a_kvel must be defined upon input and will be scaled by J upon exit.
+    ///  It is up to the caller to divide by J to produce a properly-scaled force.
+    ///
+    ///  a_momentumFlux must be defined upon input and will be scaled by J upon
+    ///  exit. This is appropriate for fluxes and I recommend you leave it.
+    ///
+    /// @note
+    ///  The primary and transpose scales are, by default, 1.0. This is not the
+    ///  same as the default scales of rateOfStrain. Be careful!
     virtual void
     computeMomentumDiffusion(LevelData<FluxBox>&         a_kvel,
                              StaggeredFluxLD&            a_momentumFlux,
                              const LevelData<FluxBox>&   a_cartVel,
                              const RealVect&             a_nu,
                              const LevelData<FArrayBox>& a_eddyNu,
-                             const Real                  a_primaryScale   = 1.0,
-                             const Real                  a_transposeScale = 1.0) const;
+                             const Real                  a_primaryScale = 1.0,
+                             const Real a_transposeScale = 1.0) const;
 
     /// Computes diffusive force and fluxes for any CC scalar.
     /// a_kq and a_qFlux will be overwritten.
@@ -917,18 +991,6 @@ public:
     incrementFluxRegisters(const LevelData<FluxBox>& a_flux,
                            const Interval&           a_regInterval,
                            const Real                a_refluxDt);
-
-    /// ARKRHS override.
-    /// This function is called at the end of RKW3CN::advance(...) so that the
-    /// user can perform postprocessing. If not overridden in a physics class, it
-    /// does nothing.
-    virtual void
-    postStep(const LevelData<FluxBox>&   a_vel  __nowarn_unused,
-             const LevelData<FArrayBox>& a_p    __nowarn_unused,
-             const LevelData<FArrayBox>& a_q    __nowarn_unused,
-             const Real                  a_time __nowarn_unused) const
-    {
-    }
     /// \}
 
 
@@ -999,7 +1061,7 @@ public:
     /// \name AMRNSLevelProject.cpp
     /// \{
 
-    /// ARKRHS override.
+    /// PARKRHS override.
     /// Use an approximation of p to project. Do not solve for p.
     /// The p provided is the lagged pressure computed in the previous RK stage.
     ///
@@ -1008,9 +1070,9 @@ public:
     projectPredict(LevelData<FluxBox>&   a_vel,
                    LevelData<FArrayBox>& a_p,
                    const Real            a_time,
-                   const Real            a_projDt);
+                   const Real            a_projDt) override;
 
-    /// ARKRHS override.
+    /// PARKRHS override.
     /// Solve for p and project. This will be an incremental solve
     /// since we already called projectPredict using the lagged p.
     ///
@@ -1022,7 +1084,7 @@ public:
                    LevelData<FArrayBox>& a_p,
                    const Real            a_time,
                    const Real            a_projDt,
-                   const Real            a_gammaDt = 0.0);
+                   const Real            a_gammaDt = 0.0) override;
 
     /// Project m_statePtr->vel the top level to *this.
     /// If a_sync is true, m_statePtr->p will be updated. Otherwise, the phi
@@ -1033,7 +1095,6 @@ public:
     /// the projector, wrap your call to this function in an if statement.
     virtual void
     projectDownToThis(const bool a_sync = false);
-
     /// \}
 
     // -------------------------------------------------------------------------
@@ -1043,35 +1104,35 @@ public:
     /// write checkpoint header
     virtual void
     writeCheckpointHeader(HeaderData&        a_handle,
-                          const std::string& a_fileName) const;
+                          const std::string& a_fileName) const override;
 
     /// write checkpoint data for this level
     virtual void
-    writeCheckpointLevel(const std::string& a_fileName, int level) const;
+    writeCheckpointLevel(const std::string& a_fileName, int level) const override;
 
     /// read checkpoint header
     virtual void
-    readCheckpointHeader(const std::string& a_filename);
+    readCheckpointHeader(const std::string& a_filename) override;
 
     /// read checkpoint data for this level
     virtual void
-    readCheckpointLevel(const std::string& a_filename);
+    readCheckpointLevel(const std::string& a_filename) override;
 
     /// Open plotfile. Only called on level 0.
     virtual void
-    openFile(const std::string& a_filename, const bool checkpoint) const;
+    openFile(const std::string& a_filename, const bool checkpoint) const override;
 
     /// Close plotfile. Only called on level 0.
     virtual void
-    closeFile(const std::string& a_filename ) const;
+    closeFile(const std::string& a_filename ) const override;
 
     /// Write plotfile header. Only called on level 0.
     virtual void
-    writePlotHeader(HeaderData& a_handle, const std::string& a_fileName) const;
+    writePlotHeader(HeaderData& a_handle, const std::string& a_fileName) const override;
 
     /// Write plotfile data for this level. Called from bottom->top.
     virtual void
-    writePlotLevel(const std::string& a_fileName, int level) const;
+    writePlotLevel(const std::string& a_fileName, int level) const override;
 
     /// \}
 
@@ -1227,7 +1288,7 @@ public:
                              int                            a_lbase = 0,
                              int                            a_lmax  = -1);
 
-    /// m_qPtr version of allocateAndAlias. See it's comments for details.
+    /// m_qPtr version of allocateAndAliasPressure. See it's comments for details.
     virtual void
     allocateAndAliasScalars(Vector<LevelData<FArrayBox>*>& a_amrData,
                             const Real                     a_time,
@@ -1235,7 +1296,7 @@ public:
                             int                            a_lbase = 0,
                             int                            a_lmax  = -1);
 
-    /// m_velPtr version of allocateAndAlias. See it's comments for details.
+    /// m_velPtr version of allocateAndAliasPressure. See it's comments for details.
     virtual void
     allocateAndAliasVel(Vector<LevelData<FluxBox>*>& a_amrData,
                         const Real                   a_time,
@@ -1408,7 +1469,7 @@ protected:
 
     // typedef ForwardEuler PARKType;
     // typedef SDC PARKType;
-    // typedef RKW3CN PARKType;
+    // typedef RKW3CN PARKType;  // BUG: Unstable in FocusingIW runs.
 
     PARKType *m_parkPtr;
 

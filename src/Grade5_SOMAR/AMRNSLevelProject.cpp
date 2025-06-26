@@ -74,7 +74,7 @@ AMRNSLevel::projectPredict(LevelData<FluxBox>&   a_vel,
     const bool               writeToPout      = (s_verbosity >= 1);
     const int                normType         = ctx->proj.normType;
     const DisjointBoxLayout& grids            = m_levGeoPtr->getBoxes();
-    const Real               pressureTime     = a_time;  // - 0.5 * a_projDt;
+    const Real               pressureTime     = a_time;
     constexpr bool           unprojectCrseVel = false;
 
     // Prepare data on the coarser level.
@@ -137,10 +137,10 @@ AMRNSLevel::projectPredict(LevelData<FluxBox>&   a_vel,
     m_projOpPtr->levelDivergence(divVel, a_vel);
     nanCheck(divVel);
 
-    Real vol;
     const Real initDivNorm = m_projOpPtr->norm(divVel, normType);
-    const Real initDivInt  = Integral::sum(vol, divVel, *m_levGeoPtr);
-    const Real initBdryInt = Integral::bdrySum(a_vel, *m_levGeoPtr);
+    // Real vol;
+    // const Real initDivInt  = Integral::sum(vol, divVel, *m_levGeoPtr);
+    // const Real initBdryInt = Integral::bdrySum(a_vel, *m_levGeoPtr);
 
     // Compute Grad[p].
     LevelData<FluxBox> gradP(grids, 1);
@@ -171,8 +171,8 @@ AMRNSLevel::projectPredict(LevelData<FluxBox>&   a_vel,
     nanCheck(divVel);
 
     const Real finalDivNorm = m_projOpPtr->norm(divVel, normType);
-    const Real finalDivInt  = Integral::sum(divVel, *m_levGeoPtr);
-    const Real finalBdryInt = Integral::bdrySum(a_vel, *m_levGeoPtr);
+    // const Real finalDivInt  = Integral::sum(divVel, *m_levGeoPtr);
+    // const Real finalBdryInt = Integral::bdrySum(a_vel, *m_levGeoPtr);
 
     if (finalDivNorm > initDivNorm) {
         // Lagged pressure failed. Use one FMG iter to drive divVel down.
@@ -190,8 +190,9 @@ AMRNSLevel::projectPredict(LevelData<FluxBox>&   a_vel,
                    << Format::pushFlags
                    << Format::indent()
                    << Format::scientific;
-            pout() << "\npre  |Div[vel]|_" << normType << " = " << initDivNorm
-                   << "\npost |Div[vel]|_" << normType << " = " << finalDivNorm2
+            pout() << "\nInitial   |Div[vel]|_" << normType << " = " << initDivNorm
+                   << "\nLagged    |Div[vel]|_" << normType << " = " << finalDivNorm
+                   << "\nCorrected |Div[vel]|_" << normType << " = " << finalDivNorm2
                    << '\n';
             pout() << Format::unindent
                    << Format::popFlags
@@ -200,12 +201,12 @@ AMRNSLevel::projectPredict(LevelData<FluxBox>&   a_vel,
     } else {
         // Write diagnostics.
         if (writeToPout) {
-            bool writeIntegrals = false;
-            writeIntegrals |= (initBdryInt >= 1.0e-6);
-            writeIntegrals |= (initDivInt >= 1.0e-6);
-            writeIntegrals |= (finalBdryInt >= 1.0e-6);
-            writeIntegrals |= (finalDivInt >= 1.0e-6);
-            writeIntegrals |= (finalDivNorm >= initDivNorm / 10.0);
+            // bool writeIntegrals = false;
+            // writeIntegrals |= (initBdryInt >= 1.0e-6);
+            // writeIntegrals |= (initDivInt >= 1.0e-6);
+            // writeIntegrals |= (finalBdryInt >= 1.0e-6);
+            // writeIntegrals |= (finalDivInt >= 1.0e-6);
+            // writeIntegrals |= (finalDivNorm >= initDivNorm / 10.0);
 
             pout() << "MAC lagged projection:"
                    << Format::pushFlags
@@ -219,8 +220,8 @@ AMRNSLevel::projectPredict(LevelData<FluxBox>&   a_vel,
             //            << "\npost Integral[DivVel dV] = " << finalDivVelInt;
             // }
 
-            pout() << "\npre  |Div[vel]|_" << normType << " = " << initDivNorm
-                   << "\npost |Div[vel]|_" << normType << " = " << finalDivNorm
+            pout() << "\nInitial |Div[vel]|_" << normType << " = " << initDivNorm
+                   << "\nLagged  |Div[vel]|_" << normType << " = " << finalDivNorm
                    << "\n";
 
             pout() << Format::unindent
@@ -243,11 +244,11 @@ AMRNSLevel::projectPredict(LevelData<FluxBox>&   a_vel,
 
 // -----------------------------------------------------------------------------
 void
-AMRNSLevel::projectCorrect(LevelData<FluxBox>&   a_vel,
-                           LevelData<FArrayBox>& a_p,
-                           const Real            a_time,
-                           const Real            a_projDt,
-                           const Real            a_gammaDt)
+AMRNSLevel::projectCorrect(LevelData<FluxBox>&         a_vel,
+                           LevelData<FArrayBox>&       a_p,
+                           const Real                  a_time,
+                           const Real                  a_projDt,
+                           [[maybe_unused]] const Real a_gammaDt)
 {
     BEGIN_FLOWCHART();
 
@@ -327,21 +328,26 @@ AMRNSLevel::projectCorrect(LevelData<FluxBox>&   a_vel,
         m_projOpPtr->levelGradient(gradPhi, phi, nullptr, a_time, true, true);
         nanCheck(gradPhi);
 
-        // Project a_vel and update a_p.
+        // Project velocity.
         for (dit.reset(); dit.ok(); ++dit) {
             D_TERM(
             a_vel[dit][0].plus(gradPhi[dit][0], -1.0);,
             a_vel[dit][1].plus(gradPhi[dit][1], -1.0);,
             a_vel[dit][2].plus(gradPhi[dit][2], -1.0);)
-
-            a_p[dit].plus(phi[dit], 1.0 / a_projDt);
-            // if (!RealCmp::isZero(a_gammaDt) && ctx->rhs.doViscousForcing &&
-            //     ctx->rhs.doImplicitDiffusion) {
-            //     a_p[dit].plus(divVel[dit], a_gammaDt * ctx->rhs.nu / a_projDt);
-            // }
         }
         nanCheck(a_vel);
-        nanCheck(a_p);
+
+        // Update pressure, unless dt == 0.
+        if (!RealCmp::isZero(a_projDt)) {
+            for (dit.reset(); dit.ok(); ++dit) {
+                a_p[dit].plus(phi[dit], 1.0 / a_projDt);
+                // if (!RealCmp::isZero(a_gammaDt) && ctx->rhs.doViscousForcing &&
+                //     ctx->rhs.doImplicitDiffusion) {
+                //     a_p[dit].plus(divVel[dit], a_gammaDt * ctx->rhs.nu / a_projDt);
+                // }
+            }
+            nanCheck(a_p);
+        }
     }
 
     // Compute final divergence and diagnostics.

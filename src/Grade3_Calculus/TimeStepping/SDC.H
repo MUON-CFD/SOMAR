@@ -25,6 +25,8 @@
 #define ___SDC_H__INCLUDED___
 
 #include "PARKRHS.H"
+#include "SOMAR_Constants.H"
+
 
 // Make generic:
 //  Low-order base integrator. (Can use PARK.)
@@ -62,11 +64,28 @@ private:
 
 
 
-
+/// @brief The Spectral Deferred Corrections timestepping scheme.
+/// @details
+/// We start with a simple Forward/Backward Euler method, then each correction
+///   increases the order of accuracy by 1.
+/// NumNodes = number of nodes (times) in the quadrature scheme ∈ [3,7]
+/// NumNodes - 1 = The number of substeps.
+/// MaxCorrections ∈ [0, NumNodes - 1].
+///   If MaxCorrections = 0, the error of the final result is order dt^2.
+///   If MaxCorrections = 1, the error of the final result is order dt^3.
+///   ...
+///   The error of the final result is order dt^{2 + MaxCorrections}.
+///   Setting MaxCorrections >= NumNodes shouldn't hurt or help the result.
+/// In the literature, our method with K = MaxCorrections + 1 = NumNodes total
+///   iterations is called SISDC^K_K.
+/// The error is estimated as the difference between subsequent corrections.
+///   Therefore, the error estimate will appear to be O(dt^{corrections - 1})
+///   and the true error will be smaller than reported.
 class SDC
 {
 public:
-    static constexpr size_t NumNodes = 4;
+    static constexpr size_t NumNodes       = 4;
+    static constexpr size_t MaxCorrections = NumNodes - 1;
     using Quadrature = LobattoQuadrature<NumNodes>;
 
     /// Constructor
@@ -127,8 +146,7 @@ public:
                  const bool a_useImplicit,
                  const bool a_useElementary,
                  const bool a_usePI,
-                 const bool a_usePID) const
-    {return 0.0;}
+                 const bool a_usePID) const;
 
 
     /// Returns true if we can use the time interp functions.
@@ -241,12 +259,6 @@ protected:
             const LevelData<FArrayBox>& a_qOld,
             const Real                  a_oldTime);
 
-    // /// @brief Sets m_dt, m_newTime, m_quadNodes, m_quadWeights.
-    // ///  Must call this after calling setOldQ.
-    // /// @param a_dt
-    // void
-    // setQuadratureNodes(const Real a_dt);
-
 
     /// \name Static utilities
     /// \{
@@ -292,7 +304,6 @@ protected:
          LevelData<FArrayBox>&       a_x,
          const Real                  a_b,
          const LevelData<FArrayBox>& a_y);
-
     /// \}
 
     DisjointBoxLayout m_grids;
@@ -324,7 +335,91 @@ protected:
     bool m_Q0Ready;
     bool m_finalForcesReady;
     bool m_interpDataReady;
+
+    /// \name Error controller functions and data
+    /// \{
+    struct ErrorHistoryElem
+    {
+        ErrorHistoryElem()
+        : hasValue(false), time(quietNAN), dt(quietNAN), localError(quietNAN) {}
+
+        ErrorHistoryElem(const Real a_time, const Real a_dt, const Real a_localError)
+        : hasValue(true), time(a_time), dt(a_dt), localError(a_localError) {}
+
+        bool hasValue;
+        Real time;
+        Real dt;
+        Real localError;
+    };
+    mutable std::array<ErrorHistoryElem, 3> m_errorHistory; // array idx 0 is newest.
+    mutable std::array<Real, 3>             m_controllerHistory; // For limiting.
+
+    /// @brief Pushes a new element to a stack, throwing away the oldest element.
+    /// @tparam E          The type of the new element.
+    /// @tparam N          The number of elements on the fixed-size stack.
+    /// @param a_newElem   The new element to put in a_hsitory[0].
+    /// @param a_history   The stack.
+    /// @param a_isNewTime If this is false, a_history[0] will be overwritten and
+    ///                    nothing else will change -- there will be no "push."
+    template<typename E, size_t N>
+    static void
+    pushToHistory(const E&          a_newElem,
+                    std::array<E, N>& a_history,
+                    const bool        a_isNewTime);
+
+    // /// @brief The controller limiter of Doderlind and Wang,
+    // /// doi:10.1016/j.cam.2005.03.008, eq. 10.
+    // /// @param a_proposedController        The controller to be limited.
+    // /// @param a_lastController            The controller that was used in the last timestep.
+    // /// @param a_maxGrowth                 Roughly the maximum amount of controller growth/shrinkage.
+    // /// @return The new, limited controller.
+    // static Real
+    // softLimiter(Real       a_proposedController,
+    //             const Real a_lastController,
+    //             const Real a_maxGrowth = 1.0);
+
+    // /// @brief A simple controller limiter restricts the growth/shrinkage to be
+    // /// within [a_maxShrinkage, a_maxGrowth].
+    // /// @param a_proposedController The controller to be limited.
+    // /// @param a_lastController     The controller that was used in the last timestep.
+    // /// @param a_maxShrinkage
+    // /// @param a_maxGrowth
+    // /// @return The new, limited controller.
+    // static Real
+    // hardLimiter(Real       a_proposedController,
+    //             const Real a_lastController,
+    //             const Real a_maxShrinkage = 0.5,
+    //             const Real a_maxGrowth    = 2.0);
+
+    // /// @brief
+    // /// @param a_proposedController  The controller to be limited.
+    // /// @param a_oldController       The controller that was used in the last timestep.
+    // /// @param a_reallyOldController The controller that was used in two timesteps ago.
+    // /// @param a_dampingFactor       <= 0 produces no damping. 1 = very strong damping.
+    // /// @return The new, limited controller.
+    // static Real
+    // oscillationLimiter(Real       a_proposedController,
+    //                     const Real a_oldController,
+    //                     const Real a_reallyOldController,
+    //                     const Real a_dampingFactor = 0.5);
+    /// \}
 };
 
+
+
+// -----------------------------------------------------------------------------
+template <typename E, size_t N>
+void
+SDC::pushToHistory(const E&          a_newElem,
+                   std::array<E, N>& a_history,
+                   const bool        a_isNewTime)
+{
+    if (a_isNewTime) {
+        for (size_t i = N - 1; i > 0; --i) {
+            a_history[i] = a_history[i - 1];
+        }
+    }
+    a_history[0] = a_newElem;
+}
 
 #endif //!___SDC_H__INCLUDED___

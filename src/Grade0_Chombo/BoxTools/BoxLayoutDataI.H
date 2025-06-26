@@ -983,6 +983,99 @@ void BoxLayoutData<T>::addTo(const Interval& a_srcComps,
   LDaddOp<T> addOp;
   makeItSo(a_srcComps, *this, a_dest, a_destComps, a_copier, addOp);
 }
+#ifdef CH_USE_PYTHON
+template <typename T>
+  PyObject* BoxLayoutData<T>::pack()  {
+    static_assert(std::is_same<T, FluxBox>::value || std::is_same<T, FArrayBox>::value,
+                  " LevelData<T>::pack() is defined only for FluxBoxes and FArrayBoxes");
+    //Box Domain = this->disjointBoxLayout().physDomain().domainBox();
+    Box Domain(IntVect::Zero, IntVect::Unit);
+    PyObject *pDomain = Domain.pack();
 
+    DataIterator dit = this->dataIterator();
+    PyObject *pLDFABs = PyTuple_New(dit.size());
+    PyObject *pLDBoxes = PyTuple_New(this->boxLayout().size());
+    PyObject *pIDs = PyTuple_New(this->boxLayout().size());
+
+    int i = 0;
+    for (dit.reset(); dit.ok(); ++dit, ++i) {
+      T &A = this->operator[](dit);
+      PyObject *pFAB = A.pack();
+      PyTuple_SetItem(pLDFABs, i, pFAB);
+    }
+    LayoutIterator lit = this->boxLayout().layoutIterator();
+    i = 0;
+    for (lit.reset(); lit.ok(); ++lit, ++i) {
+      Box B = this->boxLayout()[lit];
+      PyObject *pBox = B.pack();
+      int PID=this->boxLayout().procID(lit());
+      PyObject *pId= PyTuple_New(2);
+      PyTuple_SetItem(pId, 0, PyLong_FromLong((int)PID));
+      PyTuple_SetItem(pId, 1, PyUnicode_FromString(std::string("int").c_str()));
+
+
+      PyTuple_SetItem(pLDBoxes, i, pBox);
+      PyTuple_SetItem(pIDs, i, pId);
+    }
+
+    PyObject *pArg = PyTuple_New(3 + 1);
+    PyTuple_SetItem(pArg, 0, pLDFABs);
+    PyTuple_SetItem(pArg, 1, pLDBoxes);
+    PyTuple_SetItem(pArg, 2, pIDs);
+    PyTuple_SetItem(pArg, 3, pDomain);
+
+    std::string Label =
+        std::is_same<T, FluxBox>::value ? "LevelDataFluxBox" : "LevelDataFAB";
+    PyObject *pLabel = PyUnicode_FromString(Label.c_str());
+    PyTuple_SetItem(pArg, 4, pLabel);
+    return pArg;
+  }
+
+  template <typename T>
+  PyObject* BoxLayoutData<T>::pack() const  {
+    static_assert(std::is_same<T, FluxBox>::value || std::is_same<T, FArrayBox>::value,
+                  " LevelData<T>::pack() is defined only for FluxBoxes and FArrayBoxes");
+    // Box Domain = this->disjointBoxLayout().physDomain().domainBox();
+    Box Domain(IntVect::Zero, IntVect::Unit);
+    PyObject *pDomain = Domain.pack();
+
+    DataIterator dit = this->dataIterator();
+    PyObject *pLDFABs = PyTuple_New(dit.size());
+    PyObject *pLDBoxes = PyTuple_New(this->boxLayout().size());
+    PyObject *pIDs = PyTuple_New(this->boxLayout().size());
+
+    int i = 0;
+    for (dit.reset(); dit.ok(); ++dit, ++i) {
+      const T &A = this->operator[](dit);
+      PyObject *pFAB = A.pack();
+      PyTuple_SetItem(pLDFABs, i, pFAB);
+    }
+    LayoutIterator lit = this->boxLayout().layoutIterator();
+    i = 0;
+    for (lit.reset(); lit.ok(); ++lit, ++i) {
+      Box B = this->boxLayout()[lit];
+      PyObject *pBox = B.pack();
+      int PID=this->boxLayout().procID(lit());
+      PyObject *pId= PyTuple_New(2);
+      PyTuple_SetItem(pId, 0, PyLong_FromLong((int)PID));
+      PyTuple_SetItem(pId, 1, PyUnicode_FromString(std::string("int").c_str()));
+
+
+      PyTuple_SetItem(pLDBoxes, i, pBox);
+      PyTuple_SetItem(pIDs, i, pId);
+    }
+
+    PyObject *pArg = PyTuple_New(4 + 1);
+    PyTuple_SetItem(pArg, 0, pLDFABs);
+    PyTuple_SetItem(pArg, 1, pLDBoxes);
+    PyTuple_SetItem(pArg, 2, pIDs);
+    PyTuple_SetItem(pArg, 3, pDomain);
+    std::string Label =
+        std::is_same<T, FluxBox>::value ? "LevelDataFluxBox" : "LevelDataFAB";
+    PyObject *pLabel = PyUnicode_FromString(Label.c_str());
+    PyTuple_SetItem(pArg, 4, pLabel);
+    return pArg;
+  }
+  #endif
 #include "NamespaceFooter.H"
 #endif

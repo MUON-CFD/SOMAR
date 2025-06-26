@@ -45,8 +45,8 @@ AMRNSLevel::createVelPhysBC(const int a_dir, const Side::LoHiSide& a_side) const
 
 // -----------------------------------------------------------------------------
 BCTools::BCFunction*
-AMRNSLevel::createPressurePhysBC(const int             a_dir,
-                                 const Side::LoHiSide& a_side) const
+AMRNSLevel::createPressurePhysBC(const int             /* a_dir */,
+                                 const Side::LoHiSide& /* a_side */) const
 {
     return new BCTools::HomogNeumBC;
 }
@@ -89,6 +89,13 @@ AMRNSLevel::createTemperaturePhysBC(const int             a_dir,
             "For CUSTOM BCs, you must override "
             "AMRNSLevel::createTemperatureBC.");
         return nullptr;
+
+    } else if (btype == RHSParameters::TempBCType::ZERO_DIRI_ON_PERT) {
+        // Temp = background value.
+        // Homogeneous Dirichlet BCs on Tpert.
+        // Dirichlet BCs on T: T = Tbar.
+        CH_assert(m_TbarPtr);
+        return new ScalarBC::HomogDiriOnPert(m_TbarPtr, *m_levGeoPtr);
 
     } else {
         MAYDAYERROR("tempBCType["
@@ -133,6 +140,13 @@ AMRNSLevel::createSalinityPhysBC(const int             a_dir,
         CH_assert(m_SbarPtr);
         return new ScalarBC::NormalGradient(*m_SbarPtr, *m_levGeoPtr);
 
+    } else if (btype == RHSParameters::SalinityBCType::ZERO_DIRI_ON_PERT) {
+        // Salinity = background value.
+        // Homogeneous Dirichlet BCs on Spert.
+        // Dirichlet BCs on S: S = Sbar.
+        CH_assert(m_SbarPtr);
+        return new ScalarBC::HomogDiriOnPert(m_SbarPtr, *m_levGeoPtr);
+
     } else if (btype == RHSParameters::SalinityBCType::CUSTOM) {
         MAYDAYERROR(
             "For CUSTOM BCs, you must override AMRNSLevel::createSalinityBC.");
@@ -150,8 +164,8 @@ AMRNSLevel::createSalinityPhysBC(const int             a_dir,
 
 // -----------------------------------------------------------------------------
 BCTools::BCFunction*
-AMRNSLevel::createScalarsPhysBC(const int             a_dir,
-                                const Side::LoHiSide& a_side) const
+AMRNSLevel::createScalarsPhysBC(const int             /* a_dir */,
+                                const Side::LoHiSide& /* a_side */) const
 {
     if (this->numScalars() > 0) {
         const ProblemDomain& domain = this->getDomain();
@@ -474,6 +488,14 @@ AMRNSLevel::setVelBC(LevelData<FluxBox>&       a_vel,
 
     // Fill ghosts at corners of domain. This must happen last!
     BCTools::extrapDomainCorners(a_vel, 2);
+
+#ifndef NDEBUG
+    for (dit.reset(); dit.ok(); ++dit) {
+        for (int velComp = 0; velComp < SpaceDim; ++velComp) {
+            checkForNAN(a_vel[dit][velComp], a_vel[dit][velComp].box());
+        }
+    }
+#endif
 }
 
 
@@ -542,7 +564,7 @@ AMRNSLevel::setPressureBC(LevelData<FArrayBox>&       a_p,
         a_p.exchange(m_statePtr->pExCopier);
     } else {
         Copier cp;
-        m_statePtr->pDefineExCopier(cp, a_p);
+        State::pDefineExCopier(cp, a_p);
         a_p.exchange(cp);
     }
 
@@ -556,7 +578,7 @@ AMRNSLevel::setPressureBC(LevelData<FArrayBox>&       a_p,
         a_p.exchange(m_statePtr->pExCornerCopier);
     } else {
         CornerCopier ccp;
-        m_statePtr->pDefineExCornerCopier(ccp, a_p);
+        State::pDefineExCornerCopier(ccp, a_p);
         a_p.exchange(ccp);
     }
 
@@ -629,22 +651,22 @@ AMRNSLevel::setTemperatureBC(LevelData<FArrayBox>&       a_T,
         }
     }
 
-    // Do exchange #1 or perturbation.
-    // This must be done before we potentially call BCTools::neum.
+    // Do exchange #1 on perturbation.
+    // This must be done before we potentially apply Neumann BCs.
     Subspace::addHorizontalExtrusion(a_T, 0, *m_TbarPtr, 0, 1, -1.0);
     if (hasGhosts) {
         if (exCopiersAreCached) {
             a_T.exchange(m_statePtr->qExCopier);
         } else {
             Copier cp;
-            m_statePtr->qDefineExCopier(cp, a_T);
+            State::qDefineExCopier(cp, a_T);
             a_T.exchange(cp);
         }
     }
     Subspace::addHorizontalExtrusion(a_T, 0, *m_TbarPtr, 0, 1, 1.0);
 
     // Set physical BCs.
-    // This is where we would potentially call BCTools::neum.
+    // This is where we would potentially apply Neumann BCs.
     this->setTemperaturePhysBC(a_T, a_time, a_homogBCs);
 
     // Do exchange #2 on perturbation.
@@ -655,7 +677,7 @@ AMRNSLevel::setTemperatureBC(LevelData<FArrayBox>&       a_T,
             a_T.exchange(m_statePtr->qExCornerCopier);
         } else {
             CornerCopier ccp;
-            m_statePtr->qDefineExCornerCopier(ccp, a_T);
+            State::qDefineExCornerCopier(ccp, a_T);
             a_T.exchange(ccp);
         }
     }
@@ -731,21 +753,21 @@ AMRNSLevel::setSalinityBC(LevelData<FArrayBox>&       a_S,
     }
 
     // Do exchange #1 on perturbation.
-    // This must be done before we potentially call BCTools::neum.
+    // This must be done before we potentially apply Neumann BCs.
     Subspace::addHorizontalExtrusion(a_S, 0, *m_SbarPtr, 0, 1, -1.0);
     if (hasGhosts) {
         if (exCopiersAreCached) {
             a_S.exchange(m_statePtr->qExCopier);
         } else {
             Copier cp;
-            m_statePtr->qDefineExCopier(cp, a_S);
+            State::qDefineExCopier(cp, a_S);
             a_S.exchange(cp);
         }
     }
     Subspace::addHorizontalExtrusion(a_S, 0, *m_SbarPtr, 0, 1, 1.0);
 
     // Set physical BCs.
-    // This is where we would potentially call BCTools::neum.
+    // This is where we would potentially apply Neumann BCs.
     this->setSalinityPhysBC(a_S, a_time, a_homogBCs);
 
     // Do exchange #2 on perturbation.
@@ -756,7 +778,7 @@ AMRNSLevel::setSalinityBC(LevelData<FArrayBox>&       a_S,
             a_S.exchange(m_statePtr->qExCornerCopier);
         } else {
             CornerCopier ccp;
-            m_statePtr->qDefineExCornerCopier(ccp, a_S);
+            State::qDefineExCornerCopier(ccp, a_S);
             a_S.exchange(ccp);
         }
     }
@@ -839,7 +861,7 @@ AMRNSLevel::setScalarBC(LevelData<FArrayBox>&       a_s,
             a_s.exchange(m_statePtr->qExCopier);
         } else {
             Copier cp;
-            m_statePtr->qDefineExCopier(cp, a_s);
+            State::qDefineExCopier(cp, a_s);
             a_s.exchange(cp);
         }
     }
@@ -854,7 +876,7 @@ AMRNSLevel::setScalarBC(LevelData<FArrayBox>&       a_s,
             a_s.exchange(m_statePtr->qExCornerCopier);
         } else {
             CornerCopier ccp;
-            m_statePtr->qDefineExCornerCopier(ccp, a_s);
+            State::qDefineExCornerCopier(ccp, a_s);
             a_s.exchange(ccp);
         }
     }

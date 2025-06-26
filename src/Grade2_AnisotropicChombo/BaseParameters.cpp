@@ -105,20 +105,22 @@ BaseParameters::createDefaults()
                             s_defPtr->nxOffset + s_defPtr->nx - IntVect::Unit,
                             s_defPtr->isPeriodic);
 
-    // Set automated values...
-    {
-        // maxBaseGridSize
-        chooseMaxBaseGridSize(s_defPtr->maxBaseGridSize,
-                              s_defPtr->domain,
-                              s_defPtr->L);
+    // // Set automated values...
+    // {
+    //     // maxBaseGridSize
+    //     chooseMaxBaseGridSize(s_defPtr->maxBaseGridSize,
+    //                           s_defPtr->domain,
+    //                           s_defPtr->L);
 
-        // blockFactor
-        s_defPtr->blockFactor = 32;
-        for(int dir = 0; dir < SpaceDim; ++dir) {
-            s_defPtr->blockFactor =
-                min(s_defPtr->blockFactor, s_defPtr->maxBaseGridSize[dir]);
-        }
-    }
+    //     // blockFactor
+    //     s_defPtr->blockFactor = 32;
+    //     for(int dir = 0; dir < SpaceDim; ++dir) {
+    //         s_defPtr->blockFactor =
+    //             min(s_defPtr->blockFactor, s_defPtr->maxBaseGridSize[dir]);
+    //     }
+    // }
+    TODONOTE("Removed automated maxBaseGridSize and blockFactor.");
+    CH_verify(pp.contains("maxBaseGridSize") && pp.contains("blockFactor"));
 
     // ...then, give the user a chance to override.
     {

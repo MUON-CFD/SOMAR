@@ -108,9 +108,7 @@ public:
          const IntVect&       a_ghost,
          bool                 a_exchange = false,
          IntVect              a_shift    = IntVect::Zero) override;
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+
   ///
   virtual void clear() override;
 

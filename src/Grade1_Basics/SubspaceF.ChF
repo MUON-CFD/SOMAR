@@ -112,14 +112,14 @@ c ------------------------------------------------------------------------------
 
 
 C ---------------------------------------------------------------------
-C     Computes destFAB(i,j)   = srcFAB(0,j)   in 2D
-C     and      destFAB(i,j,k) = srcFAB(0,0,k) in 3D.
+C     Computes dest(i,j)   = src(0,j)   in 2D
+C     and      dest(i,j,k) = src(0,0,k) in 3D.
 C
-C     srcFAB MUST be flat and its horizontal indices nust be zero.
+C     src MUST be flat and its horizontal indices nust be zero.
 C ---------------------------------------------------------------------
       subroutine HorizontalExtrusion (
-     &      CHF_FRA[destFAB],
-     &      CHF_CONST_FRA[srcFAB],
+     &      CHF_FRA[dest],
+     &      CHF_CONST_FRA[src],
      &      CHF_BOX[destBox],
      &      CHF_CONST_INT[numComps])
 
@@ -127,12 +127,35 @@ C ---------------------------------------------------------------------
       integer comp
       REAL_T val;
 
+#if CH_SPACEDIM == 2
+      ! Is src properly bounded, flat?
+      CH_assert((isrclo0.eq.0));
+      CH_assert((isrchi0.eq.0));
+      CH_assert(((isrclo1.le.idestBoxlo1) .and. (idestBoxhi1.le.isrchi1)))
+
+      ! is dest properly bounded?
+      CH_assert(((idestlo0.le.idestBoxlo0) .and. (idestBoxhi0.le.idesthi0)))
+      CH_assert(((idestlo1.le.idestBoxlo1) .and. (idestBoxhi1.le.idesthi1)))
+#else
+      ! Is src properly bounded, flat?
+      CH_assert((isrclo0.eq.0));
+      CH_assert((isrchi0.eq.0));
+      CH_assert((isrclo1.eq.0));
+      CH_assert((isrchi1.eq.0));
+      CH_assert(((isrclo2.le.idestBoxlo2) .and. (idestBoxhi2.le.isrchi2)))
+
+      ! is dest properly bounded?
+      CH_assert(((idestlo0.le.idestBoxlo0) .and. (idestBoxhi0.le.idesthi0)))
+      CH_assert(((idestlo1.le.idestBoxlo1) .and. (idestBoxhi1.le.idesthi1)))
+      CH_assert(((idestlo2.le.idestBoxlo2) .and. (idestBoxhi2.le.idesthi2)))
+#endif
+
       do comp = 0, numComps - 1
         VERTDO(destBox,i,j,k)
-          val = srcFAB(VERTIX(i,j,k), comp)
+          val = src(VERTIX(i,j,k), comp)
           HORIZDOY(destBox,i,j,k)
             HORIZDOX(destBox,i,j,k)
-              destFAB(CHF_IX[i;j;k], comp) = val
+              dest(CHF_IX[i;j;k], comp) = val
         CHF_ENDDO
       enddo
 
@@ -141,15 +164,15 @@ C ---------------------------------------------------------------------
 
 
 C ---------------------------------------------------------------------
-C     Computes destFAB(i,j)   += scale * srcFAB(0,j)   in 2D
-C     and      destFAB(i,j,k) += scale * srcFAB(0,0,k) in 3D.
+C     Computes dest(i,j)   += scale * src(0,j)   in 2D
+C     and      dest(i,j,k) += scale * src(0,0,k) in 3D.
 C
 C     This assumes dest has been initialized with data (or zeros).
-C     srcFAB MUST be flat and its horizontal indices nust be zero.
+C     src MUST be flat and its horizontal indices nust be zero.
 C ---------------------------------------------------------------------
       subroutine AddHorizontalExtrusion (
-     &      CHF_FRA[destFAB],
-     &      CHF_CONST_FRA[srcFAB],
+     &      CHF_FRA[dest],
+     &      CHF_CONST_FRA[src],
      &      CHF_BOX[destBox],
      &      CHF_CONST_INT[numComps],
      &      CHF_CONST_REAL[scale])
@@ -158,12 +181,35 @@ C ---------------------------------------------------------------------
       integer comp
       REAL_T val;
 
+#if CH_SPACEDIM == 2
+      ! Is src properly bounded, flat?
+      CH_assert((isrclo0.eq.0));
+      CH_assert((isrchi0.eq.0));
+      CH_assert(((isrclo1.le.idestBoxlo1) .and. (idestBoxhi1.le.isrchi1)))
+
+      ! is dest properly bounded?
+      CH_assert(((idestlo0.le.idestBoxlo0) .and. (idestBoxhi0.le.idesthi0)))
+      CH_assert(((idestlo1.le.idestBoxlo1) .and. (idestBoxhi1.le.idesthi1)))
+#else
+      ! Is src properly bounded, flat?
+      CH_assert((isrclo0.eq.0));
+      CH_assert((isrchi0.eq.0));
+      CH_assert((isrclo1.eq.0));
+      CH_assert((isrchi1.eq.0));
+      CH_assert(((isrclo2.le.idestBoxlo2) .and. (idestBoxhi2.le.isrchi2)))
+
+      ! is dest properly bounded?
+      CH_assert(((idestlo0.le.idestBoxlo0) .and. (idestBoxhi0.le.idesthi0)))
+      CH_assert(((idestlo1.le.idestBoxlo1) .and. (idestBoxhi1.le.idesthi1)))
+      CH_assert(((idestlo2.le.idestBoxlo2) .and. (idestBoxhi2.le.idesthi2)))
+#endif
+
       do comp = 0, numComps - 1
         VERTDO(destBox,i,j,k)
-          val = scale * srcFAB(VERTIX(i,j,k), comp)
+          val = scale * src(VERTIX(i,j,k), comp)
           HORIZDOY(destBox,i,j,k)
             HORIZDOX(destBox,i,j,k)
-              destFAB(CHF_IX[i;j;k], comp) = destFAB(CHF_IX[i;j;k], comp) + val
+              dest(CHF_IX[i;j;k], comp) = dest(CHF_IX[i;j;k], comp) + val
         CHF_ENDDO
       enddo
 

@@ -199,13 +199,13 @@ struct HomogDiriBC : public BCTools::BCFunction {
     operator()(FArrayBox&            a_alpha,
                FArrayBox&            a_beta,
                FArrayBox&            a_bcFAB,
-               const FArrayBox&      a_stateFAB,
-               const FArrayBox&      a_xFAB,
-               const DataIndex&      a_di,
-               const int             a_bdryDir,
-               const Side::LoHiSide& a_side,
-               const Real            a_time,
-               const bool            a_homogBCs) const override
+               const FArrayBox&      /* a_stateFAB */,
+               const FArrayBox&      /* a_xFAB */,
+               const DataIndex&      /* a_di */,
+               const int             /* a_bdryDir */,
+               const Side::LoHiSide& /* a_side */,
+               const Real            /* a_time */,
+               const bool            /* a_homogBCs */) const override
     {
         a_alpha.setVal(1.0);
         a_beta.setVal(0.0);
@@ -220,13 +220,13 @@ struct HomogNeumBC : public BCTools::BCFunction {
     operator()(FArrayBox&            a_alpha,
                FArrayBox&            a_beta,
                FArrayBox&            a_bcFAB,
-               const FArrayBox&      a_stateFAB,
-               const FArrayBox&      a_xFAB,
-               const DataIndex&      a_di,
-               const int             a_bdryDir,
-               const Side::LoHiSide& a_side,
-               const Real            a_time,
-               const bool            a_homogBCs) const override
+               const FArrayBox&      /* a_stateFAB */,
+               const FArrayBox&      /* a_xFAB */,
+               const DataIndex&      /* a_di */,
+               const int             /* a_bdryDir */,
+               const Side::LoHiSide& /* a_side */,
+               const Real            /* a_time */,
+               const bool            /* a_homogBCs */) const override
     {
         a_alpha.setVal(0.0);
         a_beta.setVal(1.0);

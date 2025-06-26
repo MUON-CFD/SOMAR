@@ -134,13 +134,13 @@ public:
 
     ///
     virtual SolverStatus
-    solve(StateType&       a_phi,
-          const StateType* a_crsePhiPtr,
-          const StateType& a_rhs,
-          const Real       a_time,
-          const bool       a_useHomogBCs,
-          const bool       a_setPhiToZero,
-          const Real       a_convergenceMetric = -1.0) const
+    solve(StateType&       /* a_phi */,
+          const StateType* /* a_crsePhiPtr */,
+          const StateType& /* a_rhs */,
+          const Real       /* a_time */,
+          const bool       /* a_useHomogBCs */,
+          const bool       /* a_setPhiToZero */,
+          [[maybe_unused]] const Real a_convergenceMetric = -1.0) const
     {
         return this->getSolverStatus();
     }

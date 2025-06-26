@@ -54,6 +54,7 @@ public:
     Real              TpertTagTol;
     Real              SpertTagTol;
     std::vector<Real> scalarsTagTol;
+    std::vector<Real> eddyNuTagTol;
     int               growTags;
 
     // You shouldn't need to call this. AnisotropicAMR will do it for you.

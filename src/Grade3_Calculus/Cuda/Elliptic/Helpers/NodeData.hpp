@@ -131,7 +131,6 @@ public:
     Real r = this->dotProduct(VolEl);
     VolEl.setVal(r);
 
-
     this->incr(VolEl,-1.0);
 
     return r;

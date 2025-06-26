@@ -106,7 +106,7 @@ public:
     /// then this function should remove c_1*e^1.
     /// (Typically, you would just remove the average.)
     virtual void
-    removeKernel(StateType& a_phi) const override
+    removeKernel(StateType& /* a_phi */) const override
     {
         CH_verify(!RealCmp::isZero(m_alpha));
     }

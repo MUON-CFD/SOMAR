@@ -151,7 +151,7 @@ template<typename T, int N> inline IndexTM<T,N>::IndexTM(const T *a_a)
   memcpy(m_vect, a_a, N*sizeof(T));
 }
 
-template<typename T, int N> inline IndexTM<T,N>::IndexTM(const char* a_reference) 
+template<typename T, int N> inline IndexTM<T,N>::IndexTM(const char* a_reference)
   : GenericArithmeticable< T, IndexTM<T,N> >(this)
 {
   if     (a_reference[0] == 48) setAll(0);
@@ -268,21 +268,21 @@ template<typename T, int N> inline T IndexTM<T,N>::product () const
 }
 
 template<typename T, int N> template<typename OP> bool IndexTM<T,N>::operatorCompare(const IndexTM<T,N> & a_p,
-                                                                                     const OP           & a_op) const
+                                                                                     const OP           & /* a_op */) const
 {
   return Metaprograms::pointwiseCompare<N,T,OP>(m_vect,a_p.m_vect);
 }
 
 
 template<typename T, int N> template<typename OP> inline IndexTM<T,N>& IndexTM<T,N>::operatorOpEquals(const T  & a_s,
-                                                                                                      const OP & a_op)
+                                                                                                      const OP & /* a_op */)
 {
   Metaprograms::Transform<N,T,OP>()(m_vect,a_s);
   return *this;
 }
 
 template<typename T, int N> template<typename OP> inline IndexTM<T,N>& IndexTM<T,N>::operatorOpEquals(const IndexTM<T,N> & a_p,
-                                                                                                      const OP           & a_op)
+                                                                                                      const OP           & /* a_op */)
 {
   Metaprograms::Transform<N,T,OP>()(m_vect,a_p.m_vect);
   return *this;

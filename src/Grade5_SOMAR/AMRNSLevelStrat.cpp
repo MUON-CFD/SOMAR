@@ -191,21 +191,29 @@ AMRNSLevel::setStratificationMembers()
 
                 // Provided data must span domain.
                 if (vz.front() > zmin) {
-                    MAYDAYERROR(
-                        "Your setStratification function should set at least one "
-                        "point at or below zmin = "
-                        << zmin
-                        << " so that SOMAR can properly interpolate throughout the "
-                        "domain.");
+                    if (RealCmp::eq(vz.front(), zmin)) {
+                        vz.front() = zmin - smallReal;
+                    } else {
+                        MAYDAYERROR( std::scientific <<
+                            "Your setStratification function should set at least one "
+                            "point at or below zmin = "
+                            << zmin
+                            << " so that SOMAR can properly interpolate throughout the "
+                            "domain. You provided z = [" << vz.front() << ", " << vz.back() << "]");
+                    }
                 }
 
                 if (vz.back() < zmax) {
-                    MAYDAYERROR(
-                        "Your setStratification function should set at least one "
-                        "point at or above zmax = "
-                        << zmax
-                        << " so that SOMAR can properly interpolate throughout the "
-                        "domain.");
+                    if (RealCmp::eq(vz.back(), zmax)) {
+                        vz.back() = zmax + smallReal;
+                    } else {
+                        MAYDAYERROR(
+                            "Your setStratification function should set at least one "
+                            "point at or above zmax = "
+                            << zmax
+                            << " so that SOMAR can properly interpolate throughout the "
+                            "domain. You provided z = [" << vz.front() << ", " << vz.back() << "]");
+                    }
                 }
             }
             const size_t Nz = vz.size();

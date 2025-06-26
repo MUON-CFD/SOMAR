@@ -133,6 +133,7 @@ FiniteDiff::partialD(FArrayBox&       a_pd,
 void
 FiniteDiff::computeSlopes(FArrayBox&       a_pd,
                           const int        a_pdComp,
+                          const Box&       a_destBox,
                           const FArrayBox& a_phi,
                           const int        a_phiComp,
                           const Box&       a_validPhiBox,
@@ -145,20 +146,35 @@ FiniteDiff::computeSlopes(FArrayBox&       a_pd,
     CH_assert(0 <= a_pdComp && a_pdComp < a_pd.nComp());
     CH_assert(0 <= a_phiComp && a_phiComp < a_phi.nComp());
 
-    CH_assert(a_pd.box().type() == a_phi.box().type());
+    CH_assert(a_phi.box().type() == a_pd.box().type());
+    CH_assert(a_phi.box().type() == a_destBox.type());
     CH_assert(a_phi.box().type() == a_validPhiBox.type());
 
-    CH_assert(a_validPhiBox.contains(a_pd.box()));
+    CH_assert(a_pd.box().contains(a_destBox));
+    CH_assert(a_phi.box().contains(a_validPhiBox));
+    CH_assert(a_validPhiBox.contains(a_destBox));
 
     Box loBox, centerBox, hiBox;
     if (a_validPhiBox.type(a_derivDir) == IndexType::CELL) {
-        loBox     = adjCellLo(a_validPhiBox, a_derivDir, -1) & a_pd.box();
-        centerBox = grow(a_validPhiBox, -BASISV(a_derivDir)) & a_pd.box();
-        hiBox     = adjCellHi(a_validPhiBox, a_derivDir, -1) & a_pd.box();
+        centerBox = a_destBox;
+        if (centerBox.smallEnd(a_derivDir) == a_validPhiBox.smallEnd(a_derivDir)) {
+            centerBox.growLo(a_derivDir, -1);
+            loBox = adjCellLo(centerBox, a_derivDir, 1);
+        }
+        if (centerBox.bigEnd(a_derivDir) == a_validPhiBox.bigEnd(a_derivDir)) {
+            centerBox.growHi(a_derivDir, -1);
+            hiBox = adjCellHi(centerBox, a_derivDir, 1);
+        }
     } else {
-        loBox     = bdryLo(a_validPhiBox, a_derivDir, 1)     & a_pd.box();
-        centerBox = grow(a_validPhiBox, -BASISV(a_derivDir)) & a_pd.box();
-        hiBox     = bdryHi(a_validPhiBox, a_derivDir, 1)     & a_pd.box();
+        centerBox = a_destBox;
+        if (centerBox.smallEnd(a_derivDir) == a_validPhiBox.smallEnd(a_derivDir)) {
+            loBox = bdryLo(centerBox, a_derivDir, 1);
+            centerBox.growLo(a_derivDir, -1);
+        }
+        if (centerBox.bigEnd(a_derivDir) == a_validPhiBox.bigEnd(a_derivDir)) {
+            hiBox = bdryHi(centerBox, a_derivDir, 1);
+            centerBox.growHi(a_derivDir, -1);
+        }
     }
 
     CH_assert(loBox.isEmpty() || a_phi.box().contains(loBox));

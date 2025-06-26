@@ -4,9 +4,6 @@
 
 
 // -----------------------------------------------------------------------------
-// The Swiss Army knife. Performs basic, 2nd-order averages.
-// Used to convert a CC FAB to FC FAB and so on.
-// -----------------------------------------------------------------------------
 void
 Convert::Simple (FArrayBox&       a_dest,
                  const Interval&  a_destIvl,
@@ -57,9 +54,6 @@ Convert::Simple (FArrayBox&       a_dest,
 
 
 // -----------------------------------------------------------------------------
-// The Swiss Army knife. Performs basic, 2nd-order averages.
-// Used to convert a CC FAB to FC FAB and so on.
-// -----------------------------------------------------------------------------
 void
 Convert::Simple (FArrayBox&       a_dest,
                  const int        a_destComp,
@@ -74,9 +68,6 @@ Convert::Simple (FArrayBox&       a_dest,
 
 
 // -----------------------------------------------------------------------------
-// The Swiss Army knife. Performs basic, 2nd-order averages.
-// Used to convert a CC FAB to FC FAB and so on.
-// -----------------------------------------------------------------------------
 void
 Convert::Simple (FArrayBox&       a_dest,
                  const Box&       a_destBox,
@@ -87,9 +78,6 @@ Convert::Simple (FArrayBox&       a_dest,
 
 
 // -----------------------------------------------------------------------------
-// The Swiss Army knife. Performs basic, 2nd-order averages.
-// Used to convert a CC FAB to FC FAB and so on.
-// -----------------------------------------------------------------------------
 void
 Convert::Simple (FArrayBox&       a_dest,
                  const FArrayBox& a_src)
@@ -99,9 +87,55 @@ Convert::Simple (FArrayBox&       a_dest,
 
 
 // -----------------------------------------------------------------------------
-// This version requires a_src.nComp() == SpaceDim * a_dest.nComp().
-// Comp c, FC in the d direction of a_dest is interpolated from comp
-// d + SpaceDim*c of a_dest.
+void
+Convert::FourthOrder(FArrayBox&       a_dest,
+                     const Interval&  a_destIvl,
+                     const Box&       a_destBox,
+                     const FArrayBox& a_src,
+                     const Interval&  a_srcIvl)
+{
+    // Gather some needed info.
+    const int      ncomp       = a_destIvl.size();
+    const Box&     srcBox      = a_src.box();
+    const IntVect& srcBoxType  = srcBox.type();
+    const IntVect& destBoxType = a_destBox.type();
+
+#ifndef NDEBUG
+    // Sanity checks
+    CH_assert(a_destIvl.size() == a_srcIvl.size());
+
+    for (int dir = 0; dir < SpaceDim; ++dir) {
+        if (srcBoxType[dir] == 0 && destBoxType[dir] == 1) {
+            CH_assert(srcBox.smallEnd(dir) <  a_destBox.smallEnd(dir) - 1);
+            CH_assert(srcBox.  bigEnd(dir) >= a_destBox.  bigEnd(dir) + 1);
+        } else if (srcBoxType[dir] == 1 && destBoxType[dir] == 0) {
+            CH_assert(srcBox.smallEnd(dir) <= a_destBox.smallEnd(dir) - 1);
+            CH_assert(srcBox.  bigEnd(dir) >  a_destBox.  bigEnd(dir) + 1);
+        } else {
+            CH_assert(srcBox.smallEnd(dir) <= a_destBox.smallEnd(dir) - 1);
+            CH_assert(srcBox.  bigEnd(dir) >= a_destBox.  bigEnd(dir) + 1);
+        }
+    }
+#endif // !NDEBUG
+
+    // Loop over FAB components and recenter each.
+    for (int comp = 0; comp < ncomp; ++comp) {
+        const int destComp = a_destIvl.begin() + comp;
+        const int  srcComp =  a_srcIvl.begin() + comp;
+
+        CH_assert(a_dest.interval().contains(destComp));
+        CH_assert( a_src.interval().contains( srcComp));
+
+        FORT_CONVERT_FOURTHORDER (
+            CHF_FRA1(a_dest, destComp),
+            CHF_BOX(a_destBox),
+            CHF_CONST_INTVECT(destBoxType),
+            CHF_CONST_FRA1(a_src, srcComp),
+            CHF_CONST_INTVECT(srcBoxType));
+    }
+}
+
+
 // -----------------------------------------------------------------------------
 void
 Convert::CellsToFaces(FluxBox&         a_destFlub,
@@ -122,10 +156,6 @@ Convert::CellsToFaces(FluxBox&         a_destFlub,
 }
 
 
-// -----------------------------------------------------------------------------
-// This version requires a_src.nComp() == SpaceDim * a_dest.nComp().
-// Comp c, FC in the d direction of a_dest is interpolated from comp
-// d + SpaceDim*c of a_dest.
 // -----------------------------------------------------------------------------
 void
 Convert::CellsToFaces (LevelData<FluxBox>&         a_dest,
@@ -156,11 +186,6 @@ Convert::CellsToFaces (LevelData<FluxBox>&         a_dest,
 }
 
 
-// -----------------------------------------------------------------------------
-// This version takes each comp of CC a_src and sends it to a comp of FC
-// a_dest. For example, if a_src has 2 comps, then a_dest must also have
-// 2 comps. Comp c of a_src will be sent to comp c of a_dest and will be
-// interpolated to each face of the original cell.
 // -----------------------------------------------------------------------------
 void
 Convert::CellsToAllFaces (FluxBox&         a_destFlub,
@@ -196,13 +221,6 @@ Convert::CellsToAllFaces (LevelData<FluxBox>&         a_dest,
 }
 
 
-// -----------------------------------------------------------------------------
-// This version takes each comp and centering of FC a_src and sends it
-// to a comp of CC a_dest. Suppose a_src has 2 comps, then a_dest
-// must have 2*SpaceDim comps. If a_fcIsFastest == true, then comp c,
-// FC in the d direction of a_src, will be sent to comp d + SpaceDim*c of
-// a_dest. Otherwise, it wil be sent to comp c + a_src.nCpmp()*d.
-// This works on the overlap of the src and dest boxes.
 // -----------------------------------------------------------------------------
 void
 Convert::FacesToCells (LevelData<FArrayBox>&     a_dest,
@@ -248,3 +266,59 @@ Convert::FacesToCells (LevelData<FArrayBox>&     a_dest,
     } // dit
 }
 
+
+// -----------------------------------------------------------------------------
+void
+Convert::FacesToCellsFourthOrder(LevelData<FArrayBox>&     a_dest,
+                                 const LevelData<FluxBox>& a_src,
+                                 const bool                a_fcIsFastest)
+{
+    CH_assert(a_dest.nComp() == SpaceDim * a_src.nComp());
+    CH_assert(a_dest.getBoxes().compatible(a_src.getBoxes()));
+
+    // I think this will fail if there is no ghost layer in the src.
+    // Without a ghost, we will not fill the lower valid cells.
+    // CH_assert(a_src.ghostVect() >= IntVect::Unit);
+
+    const int numSrcComps = a_src.nComp();
+    DataIterator dit = a_dest.dataIterator();
+
+    for (dit.reset(); dit.ok(); ++dit) {
+        FArrayBox& destFAB = a_dest[dit];
+        const FluxBox& srcFB = a_src[dit];
+        int destComp = 0;
+
+        if (a_fcIsFastest) {
+            for (int srcComp = 0; srcComp < numSrcComps; ++srcComp) {
+                const Interval srcIvl(srcComp, srcComp);
+
+                for (int fcDir = 0; fcDir < SpaceDim; ++fcDir) {
+                    const Interval destIvl(destComp, destComp);
+
+                    Box b(srcFB.box());
+                    b &= destFAB.box();
+
+                    Convert::FourthOrder(
+                        destFAB, destIvl, b, srcFB[fcDir], srcIvl);
+
+                    ++destComp;
+                } // fcdir
+            } // srcComp
+        } else {
+            for (int fcDir = 0; fcDir < SpaceDim; ++fcDir) {
+                for (int srcComp = 0; srcComp < numSrcComps; ++srcComp) {
+                    const Interval srcIvl(srcComp, srcComp);
+                    const Interval destIvl(destComp, destComp);
+
+                    Box b(srcFB.box());
+                    b &= destFAB.box();
+
+                    Convert::FourthOrder(
+                        destFAB, destIvl, b, srcFB[fcDir], srcIvl);
+
+                    ++destComp;
+                } // srcComp
+            } // fcDir
+        } // if / if not fcIsFastest
+    } // dit
+}

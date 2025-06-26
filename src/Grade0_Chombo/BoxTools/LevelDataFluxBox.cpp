@@ -102,9 +102,9 @@ LevelData<FluxBox>::LevelData(const DisjointBoxLayout&    dp,
         m_exCornerCopier2[d].defineInvalidCornerExchange2(
             m_disjointBoxLayout, m_ghost, d);
 
-        FABAliasFlBxDataFactory factory(this, this->interval(), d);
+        FABAliasFlBxDataFactory aliasFactory(this, this->interval(), d);
         m_alias[d].define(
-            m_disjointBoxLayout, this->nComp(), m_ghost, factory);
+            m_disjointBoxLayout, this->nComp(), m_ghost, aliasFactory);
     }
 }
 
@@ -171,9 +171,9 @@ LevelData<FluxBox>::define(const DisjointBoxLayout&    dp,
         m_exCornerCopier2[d].defineInvalidCornerExchange2(
             m_disjointBoxLayout, m_ghost, d);
 
-        FABAliasFlBxDataFactory factory(this, this->interval(), d);
+        FABAliasFlBxDataFactory aliasFactory(this, this->interval(), d);
         m_alias[d].define(
-            m_disjointBoxLayout, this->nComp(), m_ghost, factory);
+            m_disjointBoxLayout, this->nComp(), m_ghost, aliasFactory);
     }
 }
 
@@ -184,6 +184,13 @@ LevelData<FluxBox>::define(const LevelData<FluxBox>&   da,
                            const DataFactory<FluxBox>& a_factory)
 {
     CH_TIME("LevelData<FluxBox>::define(LevelData<FluxBox>,factory)");
+
+    if (this == &da) {
+        MayDay::Error(
+            "LevelData<FluxBox>::define(const LevelData<FluxBox>& da, ...) "
+            "called with 'this'");
+    }
+
     // clear exchange copier if it's already been defined
     if (this->m_isdefined) {
         D_TERM(
@@ -207,7 +214,12 @@ LevelData<FluxBox>::define(const LevelData<FluxBox>&   da,
         m_exCopier[2].clear();)
     }
     this->m_isdefined = true;
-    if (this == &da) return;
+
+    // // I think this is an error. If this == &da, then we should either
+    // //  1. not clear the copiers and aliases and leave everything alone or
+    // //  2. redefine everything, this time using the factory.
+    // if (this == &da) return;
+
     m_disjointBoxLayout = da.m_disjointBoxLayout;
     this->m_boxLayout   = da.m_disjointBoxLayout;
     this->m_comps       = da.m_comps;
@@ -229,9 +241,9 @@ LevelData<FluxBox>::define(const LevelData<FluxBox>&   da,
         m_exCornerCopier2[d].defineInvalidCornerExchange2(
             m_disjointBoxLayout, m_ghost, d);
 
-        FABAliasFlBxDataFactory factory(this, this->interval(), d);
+        FABAliasFlBxDataFactory aliasFactory(this, this->interval(), d);
         m_alias[d].define(
-            m_disjointBoxLayout, this->nComp(), m_ghost, factory);
+            m_disjointBoxLayout, this->nComp(), m_ghost, aliasFactory);
     }
 }
 
@@ -243,6 +255,13 @@ LevelData<FluxBox>::define(const LevelData<FluxBox>&   da,
                            const DataFactory<FluxBox>& a_factory)
 {
     CH_TIME("LevelData<FluxBox>::define(LevelData<FluxBox>,comps,factory)");
+
+    if (this == &da) {
+        MayDay::Error(
+            "LevelData<FluxBox>::define(const LevelData<FluxBox>& da, ...) "
+            "called with 'this'");
+    }
+
     // clear exchange copier if it's already been defined
     if (this->m_isdefined) {
         D_TERM(
@@ -266,11 +285,7 @@ LevelData<FluxBox>::define(const LevelData<FluxBox>&   da,
         m_exCopier[2].clear();)
     }
     this->m_isdefined = true;
-    if (this == &da) {
-        MayDay::Error(
-            " LevelData<FluxBox>::define(const LevelData<FluxBox>& da, const "
-            "Interval& comps) called with 'this'");
-    }
+
     CH_assert(comps.size() > 0);
     // this line doesn't make any sense!
     // CH_assert(comps.end()<=this->m_comps);
@@ -299,9 +314,9 @@ LevelData<FluxBox>::define(const LevelData<FluxBox>&   da,
         m_exCornerCopier2[d].defineInvalidCornerExchange2(
             m_disjointBoxLayout, m_ghost, d);
 
-        FABAliasFlBxDataFactory factory(this, this->interval(), d);
+        FABAliasFlBxDataFactory aliasFactory(this, this->interval(), d);
         m_alias[d].define(
-            m_disjointBoxLayout, this->nComp(), m_ghost, factory);
+            m_disjointBoxLayout, this->nComp(), m_ghost, aliasFactory);
     }
 }
 

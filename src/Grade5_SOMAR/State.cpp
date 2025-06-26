@@ -37,7 +37,7 @@ State::State(const int a_numScalars)
 , m_qptr(nullptr)
 //
 , numScalars(a_numScalars)
-, numQComps(numScalars + 3)
+, numQComps(numScalars + 2)
 //
 , velComp(0)
 , velInterval(0, 0)
@@ -47,12 +47,10 @@ State::State(const int a_numScalars)
 //
 , TComp(numScalars)
 , SComp(numScalars + 1)
-, eddyNuComp(numScalars + 2)
 //
 , scalarsInterval(0, numScalars - 1)
 , TInterval(TComp, TComp)
 , SInterval(SComp, SComp)
-, eddyNuInterval(eddyNuComp, eddyNuComp)
 //
 , TSInterval(TComp, SComp)
 {
@@ -70,7 +68,7 @@ State::State(const State& a_src)
 , m_qptr(a_src.m_qptr)
 //
 , numScalars(a_src.numScalars)
-, numQComps(numScalars + 3)
+, numQComps(numScalars + 2)
 //
 , velComp(0)
 , velInterval(0, 0)
@@ -80,12 +78,10 @@ State::State(const State& a_src)
 //
 , TComp(numScalars)
 , SComp(numScalars + 1)
-, eddyNuComp(numScalars + 2)
 //
 , scalarsInterval(0, numScalars - 1)
 , TInterval(TComp, TComp)
 , SInterval(SComp, SComp)
-, eddyNuInterval(eddyNuComp, eddyNuComp)
 //
 , TSInterval(TComp, SComp)
 {
@@ -163,14 +159,14 @@ State::attachToQ(LevelData<FluxBox>&   a_vel,
     grids = a_vel.getBoxes();
     dit = grids.dataIterator();
 
-    this->velDefineExCopier(velExCopier, a_vel);
-    this->pDefineExCopier(pExCopier, a_p);
-    this->qDefineExCopier(qExCopier, a_q);
+    State::velDefineExCopier(velExCopier, a_vel);
+    State::pDefineExCopier(pExCopier, a_p);
+    State::qDefineExCopier(qExCopier, a_q);
 
-    this->velDefineExCornerCopier1(velExCornerCopier1, a_vel);
-    this->velDefineExCornerCopier2(velExCornerCopier2, a_vel);
-    this->pDefineExCornerCopier(pExCornerCopier, a_p);
-    this->qDefineExCornerCopier(qExCornerCopier, a_q);
+    State::velDefineExCornerCopier1(velExCornerCopier1, a_vel);
+    State::velDefineExCornerCopier2(velExCornerCopier2, a_vel);
+    State::pDefineExCornerCopier(pExCornerCopier, a_p);
+    State::qDefineExCornerCopier(qExCornerCopier, a_q);
 
     aliasLevelData(vel, m_velptr, m_velptr->interval());
     aliasLevelData(p, m_pptr, m_pptr->interval());
@@ -180,7 +176,6 @@ State::attachToQ(LevelData<FluxBox>&   a_vel,
     }
     aliasLevelData(T, m_qptr, TInterval);
     aliasLevelData(S, m_qptr, SInterval);
-    aliasLevelData(eddyNu, m_qptr, eddyNuInterval);
 }
 
 // -----------------------------------------------------------------------------
@@ -216,7 +211,6 @@ State::detachFromQ()
     scalars.clear();
     T.clear();
     S.clear();
-    eddyNu.clear();
 
     // This MUST be last!
     m_velptr = nullptr;
@@ -278,7 +272,7 @@ State::alias(LevelData<FArrayBox>& a_q, const Interval& a_ivl)
 // -----------------------------------------------------------------------------
 void
 State::velDefineExCopier(std::array<StaggeredCopier, CH_SPACEDIM>& a_exCopier,
-                         const LevelData<FluxBox>&                 a_vel) const
+                         const LevelData<FluxBox>&                 a_vel)
 {
     for (int d = 0; d < SpaceDim; ++d) {
         constexpr bool doValidCorners = true;
@@ -294,7 +288,7 @@ State::velDefineExCopier(std::array<StaggeredCopier, CH_SPACEDIM>& a_exCopier,
 // -----------------------------------------------------------------------------
 void
 State::pDefineExCopier(Copier&                     a_exCopier,
-                       const LevelData<FArrayBox>& a_p) const
+                       const LevelData<FArrayBox>& a_p)
 {
     a_exCopier.exchangeDefine(a_p.getBoxes(), a_p.ghostVect());
     a_exCopier.trimEdges(a_p.getBoxes(), a_p.ghostVect());
@@ -307,7 +301,7 @@ State::pDefineExCopier(Copier&                     a_exCopier,
 // -----------------------------------------------------------------------------
 void
 State::qDefineExCopier(Copier&                     a_exCopier,
-                       const LevelData<FArrayBox>& a_q) const
+                       const LevelData<FArrayBox>& a_q)
 {
     a_exCopier.exchangeDefine(a_q.getBoxes(), a_q.ghostVect());
     a_exCopier.trimEdges(a_q.getBoxes(), a_q.ghostVect());
@@ -320,7 +314,7 @@ State::qDefineExCopier(Copier&                     a_exCopier,
 void
 State::velDefineExCornerCopier1(
     std::array<StaggeredCopier, CH_SPACEDIM>& a_exCopier,
-    const LevelData<FluxBox>&                 a_vel) const
+    const LevelData<FluxBox>&                 a_vel)
 {
     for (int d = 0; d < SpaceDim; ++d) {
         a_exCopier[d].defineInvalidCornerExchange1(
@@ -335,7 +329,7 @@ State::velDefineExCornerCopier1(
 void
 State::velDefineExCornerCopier2(
     std::array<StaggeredCopier, CH_SPACEDIM>& a_exCopier,
-    const LevelData<FluxBox>&                 a_vel) const
+    const LevelData<FluxBox>&                 a_vel)
 {
     for (int d = 0; d < SpaceDim; ++d) {
         a_exCopier[d].defineInvalidCornerExchange2(
@@ -349,7 +343,7 @@ State::velDefineExCornerCopier2(
 // -----------------------------------------------------------------------------
 void
 State::pDefineExCornerCopier(CornerCopier&               a_exCopier,
-                             const LevelData<FArrayBox>& a_p) const
+                             const LevelData<FArrayBox>& a_p)
 {
     // The underscores prevent shadowing member variables.
     const DisjointBoxLayout& _grids     = a_p.getBoxes();
@@ -364,7 +358,7 @@ State::pDefineExCornerCopier(CornerCopier&               a_exCopier,
 // -----------------------------------------------------------------------------
 void
 State::qDefineExCornerCopier(CornerCopier&               a_exCopier,
-                             const LevelData<FArrayBox>& a_q) const
+                             const LevelData<FArrayBox>& a_q)
 {
     // The underscores prevent shadowing member variables.
     const DisjointBoxLayout& _grids     = a_q.getBoxes();

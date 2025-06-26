@@ -190,12 +190,10 @@ PARK<RKC>::PARK(const DisjointBoxLayout& a_grids,
                 m_needsAssemblyProjection |= !RealCmp::isZero(m_zetaI[s][j]);
             }
         }
-        // POUT(m_needsAssembly);
-        // POUT(m_needsAssemblyProjection);
     }
-    // TODONOTE("m_needsAssemblyProjection is hardcoded to true.");
-    // m_needsAssembly = true;
-    // m_needsAssemblyProjection = true;
+    TODONOTE("m_needsAssemblyProjection is hardcoded to true.");
+    m_needsAssembly = true;
+    m_needsAssemblyProjection = true;
 
     CH_verify(!s_removeDivFromK || m_needsAssemblyProjection);
 
@@ -650,135 +648,6 @@ PARK<RKC>::advance(LevelData<FluxBox>&   a_vel,
         // static std::vector<Real> verr1(0);
         // verr1.push_back(std::max(velErrNorm1[0], velErrNorm1[1]));
         // POUT(verr1);
-    }
-
-    if (0 && this->hasEmbeddedScheme()) {
-        // E_projected
-        LevelData<FluxBox> vel(m_grids, 1, m_velGhostVect);
-        this->copy(vel, a_vel);
-        LevelData<FArrayBox> E_projected(m_grids, 1);
-        for (DataIterator dit(m_grids); dit.ok(); ++dit) {
-            for (BoxIterator bit(m_grids[dit]); bit.ok(); ++bit) {
-                const IntVect cc = bit();
-                const RealVect ccvel(D_DECL(
-                    0.5 * (vel[dit][0](cc) + vel[dit][0](cc + BASISV(0))),
-                    0.5 * (vel[dit][1](cc) + vel[dit][1](cc + BASISV(1))),
-                    0.5 * (vel[dit][2](cc) + vel[dit][2](cc + BASISV(2)))
-                ));
-                E_projected[dit](cc) = 0.5 * ccvel.vectorLengthSq();
-            }
-        }
-        const Real E_projected_scale = Analysis::pNorm(E_projected, 2);
-        POUT(E_projected_scale);
-
-
-        // E
-        this->copy(vel, m_vel[0]);
-        for (int j = 0; j < RKC::numStages; ++j) {
-            this->plus(vel, m_dt * RKC::bE[j], m_kvelE[j]);
-            this->plus(vel, m_dt * RKC::bI[j], m_kvelI[j]);
-        }
-        LevelData<FArrayBox> E(m_grids, 1);
-        for (DataIterator dit(m_grids); dit.ok(); ++dit) {
-            for (BoxIterator bit(m_grids[dit]); bit.ok(); ++bit) {
-                const IntVect cc = bit();
-                const RealVect ccvel(D_DECL(
-                    0.5 * (vel[dit][0](cc) + vel[dit][0](cc + BASISV(0))),
-                    0.5 * (vel[dit][1](cc) + vel[dit][1](cc + BASISV(1))),
-                    0.5 * (vel[dit][2](cc) + vel[dit][2](cc + BASISV(2)))
-                ));
-                E[dit](cc) = 0.5 * ccvel.vectorLengthSq();
-            }
-        }
-        const Real E_scale = Analysis::pNorm(E, 2);
-        POUT(E_scale);
-
-
-        // Ehat
-        this->copy(vel, m_vel[0]);
-        for (int j = 0; j < RKC::numStages; ++j) {
-            this->plus(vel, m_dt * RKC::bEhat[j], m_kvelE[j]);
-            this->plus(vel, m_dt * RKC::bIhat[j], m_kvelI[j]);
-        }
-        LevelData<FArrayBox> Ehat(m_grids, 1);
-        for (DataIterator dit(m_grids); dit.ok(); ++dit) {
-            for (BoxIterator bit(m_grids[dit]); bit.ok(); ++bit) {
-                const IntVect cc = bit();
-                const RealVect ccvel(D_DECL(
-                    0.5 * (vel[dit][0](cc) + vel[dit][0](cc + BASISV(0))),
-                    0.5 * (vel[dit][1](cc) + vel[dit][1](cc + BASISV(1))),
-                    0.5 * (vel[dit][2](cc) + vel[dit][2](cc + BASISV(2)))
-                ));
-                Ehat[dit](cc) = 0.5 * ccvel.vectorLengthSq();
-            }
-        }
-        const Real Ehat_scale = Analysis::pNorm(Ehat, 2);
-        POUT(Ehat_scale);
-
-
-        // Ehat_semiprojected
-        LevelData<FArrayBox> p(m_grids, 1, m_pGhostVect);
-        this->copy(p, a_p);
-        a_rhsPtr->projectPredict(vel, p, m_newTime, m_dt);
-        LevelData<FArrayBox> Ehat_semiprojected(m_grids, 1);
-        for (DataIterator dit(m_grids); dit.ok(); ++dit) {
-            for (BoxIterator bit(m_grids[dit]); bit.ok(); ++bit) {
-                const IntVect cc = bit();
-                const RealVect ccvel(D_DECL(
-                    0.5 * (vel[dit][0](cc) + vel[dit][0](cc + BASISV(0))),
-                    0.5 * (vel[dit][1](cc) + vel[dit][1](cc + BASISV(1))),
-                    0.5 * (vel[dit][2](cc) + vel[dit][2](cc + BASISV(2)))
-                ));
-                Ehat_semiprojected[dit](cc) = 0.5 * ccvel.vectorLengthSq();
-            }
-        }
-        const Real Ehat_semiprojected_scale = Analysis::pNorm(Ehat_semiprojected, 2);
-        POUT(Ehat_semiprojected_scale);
-
-
-        // Ehat_projected
-        a_rhsPtr->projectCorrect(vel, p, m_newTime, m_dt);
-        LevelData<FArrayBox> Ehat_projected(m_grids, 1);
-        for (DataIterator dit(m_grids); dit.ok(); ++dit) {
-            for (BoxIterator bit(m_grids[dit]); bit.ok(); ++bit) {
-                const IntVect cc = bit();
-                const RealVect ccvel(D_DECL(
-                    0.5 * (vel[dit][0](cc) + vel[dit][0](cc + BASISV(0))),
-                    0.5 * (vel[dit][1](cc) + vel[dit][1](cc + BASISV(1))),
-                    0.5 * (vel[dit][2](cc) + vel[dit][2](cc + BASISV(2)))
-                ));
-                Ehat_projected[dit](cc) = 0.5 * ccvel.vectorLengthSq();
-            }
-        }
-        const Real Ehat_projected_scale = Analysis::pNorm(Ehat_projected, 2);
-        POUT(Ehat_projected_scale);
-
-
-        // E - Ehat
-        LevelData<FArrayBox> dE(m_grids, 1);
-        this->copy(dE, E);
-        this->plus(dE, -1.0, Ehat);
-        pout() << "|E - E_hat| = " << Analysis::pNorm(dE, 2) << '\n';
-
-        // E_projected - Ehat_semiprojected
-        this->copy(dE, E_projected);
-        this->plus(dE, -1.0, Ehat_semiprojected);
-        pout() << "|E_projected - Ehat_semiprojected| = " << Analysis::pNorm(dE, 2) << '\n';
-
-        // E_projected - Ehat_projected
-        this->copy(dE, E_projected);
-        this->plus(dE, -1.0, Ehat_projected);
-        pout() << "|E_projected - Ehat_projected| = " << Analysis::pNorm(dE, 2) << '\n';
-
-        // E_projected - E
-        this->copy(dE, E_projected);
-        this->plus(dE, -1.0, E);
-        pout() << "|E_projected - E| = " << Analysis::pNorm(dE, 2) << '\n';
-
-        // Ehat_projected - Ehat
-        this->copy(dE, Ehat_projected);
-        this->plus(dE, -1.0, Ehat);
-        pout() << "|Ehat_projected - Ehat| = " << Analysis::pNorm(dE, 2) << '\n';
     }
 }
 

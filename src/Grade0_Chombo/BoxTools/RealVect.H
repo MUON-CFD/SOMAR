@@ -52,24 +52,32 @@ public:
   */
   /*@{*/
 
-  ///
-  /**
-     Construct a RealVect whose components are zero.
-  */
-  RealVect () noexcept;
+    // These make RealVects trivially copyable.
+    constexpr RealVect(const RealVect& rhs)  noexcept = default;
+    RealVect(RealVect&& rhs)                 noexcept = default;
+    RealVect& operator=(const RealVect& rhs) noexcept = default;
+    RealVect& operator=(RealVect&& rhs)      noexcept = default;
+    ~RealVect()                              noexcept = default;
 
-  explicit RealVect (const Vector<Real>&);
 
-  ///
-  /**
-     Construct a RealVect given the specific values for its
-     coordinates.  D_DECL6 is a macro that sets the constructor to
-     take CH_SPACEDIM arguments.
-  */
-  constexpr RealVect(
-      D_DECL6(Real i, Real j, Real k, Real l, Real m, Real n)) noexcept
-  : vect{ D_DECL6(i, j, k, l, m, n) }
-  {
+    ///
+    /**
+       Construct a RealVect whose components are zero.
+    */
+    RealVect() noexcept;
+
+    explicit RealVect(const Vector<Real>&);
+
+    ///
+    /**
+       Construct a RealVect given the specific values for its
+       coordinates.  D_DECL6 is a macro that sets the constructor to
+       take CH_SPACEDIM arguments.
+    */
+    constexpr RealVect(
+        D_DECL6(Real i, Real j, Real k, Real l, Real m, Real n)) noexcept
+    : vect{ D_DECL6(i, j, k, l, m, n) }
+    {
   }
 
   ///
@@ -96,12 +104,6 @@ public:
    static std::string numpyName() {return std::to_string(SpaceDim)+"DRealVect";}
 
 #endif
-  ///
-  /**
-     The copy constructor.
-  */
-  constexpr RealVect (const RealVect& rhs) noexcept;
-
 
  ///
   /**
@@ -120,12 +122,6 @@ public:
           vect[d] = (Real)iv[d];
       }
   }
-
-  ///
-  /**
-     The assignment operator.
-  */
-  RealVect& operator= (const RealVect& rhs) noexcept;
 
   ///
   /**
@@ -594,12 +590,6 @@ inline constexpr Real RealVect::operator[] (int i) const
 {
   CH_assert(i>=0 && i < SpaceDim);
   return vect[i];
-}
-
-inline constexpr RealVect::RealVect(const RealVect& iv) noexcept
-: vect{ D_DECL6(
-      iv.vect[0], iv.vect[1], iv.vect[2], iv.vect[3], iv.vect[4], iv.vect[5]) }
-{
 }
 
 inline

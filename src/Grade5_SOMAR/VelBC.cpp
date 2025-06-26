@@ -145,9 +145,9 @@ Inflow::operator()(FArrayBox&       a_alpha,
                    const FArrayBox& a_stateFAB,
                    const FArrayBox& a_xFAB,
                    const DataIndex& /*a_di*/,
-                   const int             a_bdryDir,
-                   const Side::LoHiSide& a_side,
-                   const Real            a_time,
+                   const int             /* a_bdryDir */,
+                   const Side::LoHiSide& /* a_side */,
+                   const Real            /* a_time */,
                    const bool            a_homogBCs) const
 {
     a_alpha.setVal(1.0);

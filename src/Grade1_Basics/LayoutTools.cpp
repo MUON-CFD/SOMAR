@@ -346,6 +346,41 @@ SliceTransform::operator() (const Box& a_inputBox)
 
 
 // *****************************************************************************
+// The SwapTransform class
+// *****************************************************************************
+
+// -----------------------------------------------------------------------------
+SwapTransform::SwapTransform(const std::vector<Box>& a_oldBoxes,
+                             const std::vector<Box>& a_newBoxes)
+: m_oldBoxes(a_oldBoxes), m_newBoxes(a_newBoxes)
+{
+    // If the a_oldBoxes was pre-sorted, this should be fast.
+    const auto p = sortPermutation(m_oldBoxes);
+    applyPermutation(m_oldBoxes, p);
+    applyPermutation(m_newBoxes, p);
+}
+
+
+// -----------------------------------------------------------------------------
+Box
+SwapTransform::operator()(const Box& a_inputBox)
+{
+    const auto lower =
+        std::lower_bound(m_oldBoxes.begin(), m_oldBoxes.end(), a_inputBox);
+
+    if (lower == m_oldBoxes.end()) {
+        MAYDAYERROR(
+            "SwapTransform is being asked to transform an unrecognized Box. Make "
+            "sure you are trying to transform a BoxLayout whose Boxes were "
+            "identical to those provided in a_oldBoxes.\n\tinputBox = "
+            << a_inputBox << "\n\toldBoxes = " << m_oldBoxes);
+    }
+
+    return m_newBoxes[std::distance(m_oldBoxes.begin(), lower)];
+}
+
+
+// *****************************************************************************
 // Face overlap tools.
 // *****************************************************************************
 
@@ -359,6 +394,11 @@ public:
     virtual void
     define(const DisjointBoxLayout& a_grids,
            const int                a_fcDir);
+
+private:
+    // This tells C++ that our public define was meant to be an override, not
+    // an overload. *These* are the overloads.
+    using StaggeredCopier::define;
 };
 
 
@@ -488,7 +528,7 @@ protected:
 
 // -----------------------------------------------------------------------------
 void
-ValidFaceOverlapCheckOp::linearIn(FArrayBox&      a_arg,
+ValidFaceOverlapCheckOp::linearIn(FArrayBox&      a_arg, // This is the dest FAB.
                                   void*           a_buf,
                                   const Box&      a_R,
                                   const Interval& a_comps) const
@@ -638,6 +678,61 @@ checkValidFaceOverlap(const LevelData<FluxBox>& a_data,
 
         checkValidFaceOverlap(dataComp, fcDir, a_file, a_line);
     }
+
+    // const auto& grids = a_data.getBoxes();
+
+    // for (int fcDir = 0; fcDir < SpaceDim; ++fcDir) {
+    //     LevelData<FArrayBox> ccData(grids, 1, BASISV(fcDir));
+
+    //     for (DataIterator dit(grids); dit.ok(); ++dit) {
+    //         ccData[dit].setVal(0.0);
+
+    //         for (SideIterator sit; sit.ok(); ++sit) {
+    //             const Box bx = bdryBox(grids[dit], fcDir, sit());
+
+    //             ccData[dit].shiftHalf(fcDir, sign(sit()));
+    //             ccData[dit].copy(a_data[dit][fcDir], bx);
+
+    //             ccData[dit].shift(fcDir, -sign(sit()));
+    //             ccData[dit].copy(a_data[dit][fcDir], bx);
+
+    //             ccData[dit].shiftHalf(fcDir, sign(sit()));
+    //         }
+    //     }
+
+    //     Copier cp;
+    //     cp.exchangeDefine(grids, ccData.ghostVect());
+    //     cp.trimEdges(grids, ccData.ghostVect());
+    //     ccData.exchange(cp);
+
+    //     for (DataIterator dit(grids); dit.ok(); ++dit) {
+    //         for (SideIterator sit; sit.ok(); ++sit) {
+    //             const Box fcBdryBox = bdryBox(grids[dit], fcDir, sit(), 1);
+    //             const int isign = sign(sit());
+
+    //             FArrayBox errorFAB(fcBdryBox, a_data.nComp());
+
+    //             ccData[dit].shiftHalf(fcDir, isign);
+    //             errorFAB.copy(ccData[dit], fcBdryBox);
+    //             ccData[dit].shift(fcDir, -isign);
+    //             errorFAB.minus(ccData[dit], fcBdryBox, 0, 0, a_data.nComp());
+    //             ccData[dit].shiftHalf(fcDir, isign);
+
+    //             const auto maxError = errorFAB.norm(0);
+    //             if ((maxError != maxError) || (1.0e10 <= maxError)) {
+    //                 MAYDAYERROR("\n[Proc " << procID() << "]: NaN found at "
+    //                                        << a_file << ":" << a_line);
+    //             }
+    //             if (maxError > 1.0e-12) {
+    //                 MAYDAYERROR(
+    //                     "\n[Proc "
+    //                     << procID()
+    //                     << "]: Overlapping faces contain inconsistent data at "
+    //                     << a_file << ":" << a_line << "  |diff| = " << maxError);
+    //             }
+    //         } // sit
+    //     } // dit
+    // } // fcDir
 }
 
 
@@ -678,6 +773,58 @@ checkValidFaceOverlap(const LevelData<FArrayBox>& a_data,
         pout() << msg.str().c_str();
         MayDay::Error(msg.str().c_str());
     }
+}
+
+
+// -----------------------------------------------------------------------------
+void
+checkValidFaceOverlap(const LevelData<FluxBox>& a_data,
+                      LevelData<FluxBox>&       a_destDiscrepancies)
+{
+    const auto& grids = a_data.getBoxes();
+
+    a_destDiscrepancies.define(grids, a_data.nComp());
+    for (DataIterator dit(grids); dit.ok(); ++dit) {
+        a_destDiscrepancies[dit].setVal(quietNAN);
+    }
+
+    for (int fcDir = 0; fcDir < SpaceDim; ++fcDir) {
+        LevelData<FArrayBox> ccData(grids, 1, BASISV(fcDir));
+
+        for (DataIterator dit(grids); dit.ok(); ++dit) {
+            ccData[dit].setVal(0.0);
+
+            for (SideIterator sit; sit.ok(); ++sit) {
+                const Box bx = bdryBox(grids[dit], fcDir, sit());
+
+                ccData[dit].shiftHalf(fcDir, sign(sit()));
+                ccData[dit].copy(a_data[dit][fcDir], bx);
+
+                ccData[dit].shift(fcDir, -sign(sit()));
+                ccData[dit].copy(a_data[dit][fcDir], bx);
+
+                ccData[dit].shiftHalf(fcDir, sign(sit()));
+            }
+        }
+
+        Copier cp;
+        cp.exchangeDefine(grids, ccData.ghostVect());
+        cp.trimEdges(grids, ccData.ghostVect());
+        ccData.exchange(cp);
+
+        for (DataIterator dit(grids); dit.ok(); ++dit) {
+            for (SideIterator sit; sit.ok(); ++sit) {
+                const Box fcBdryBox = bdryBox(grids[dit], fcDir, sit(), 1);
+                const int isign = sign(sit());
+
+                ccData[dit].shiftHalf(fcDir, isign);
+                a_destDiscrepancies[dit][fcDir].copy(ccData[dit], fcBdryBox);
+                ccData[dit].shift(fcDir, -isign);
+                a_destDiscrepancies[dit][fcDir].minus(ccData[dit], fcBdryBox, 0, 0, a_data.nComp());
+                ccData[dit].shiftHalf(fcDir, isign);
+            }
+        }
+    } // fcDir
 }
 
 

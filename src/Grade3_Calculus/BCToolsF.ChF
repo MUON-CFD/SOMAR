@@ -409,6 +409,74 @@ C     ------------------------------------------------------------------
     !   end
 
 
+C     ------------------------------------------------------------------
+C     If you have finite volume fields, this would be the only change
+C     you'd need to make the extrapolation conservative.
+      subroutine BCTools_FillGhostCells_MixedBC_Conservative_2Cells (
+     &     CHF_FRA[phi],
+     &     CHF_CONST_FRA[alpha],
+     &     CHF_CONST_FRA[beta],
+     &     CHF_CONST_FRA[BC],
+     &     CHF_CONST_FRA1[dx],
+     &     CHF_BOX[ghostBox],
+     &     CHF_CONST_INT[bdir],
+     &     CHF_CONST_INT[bsign],
+     &     CHF_CONST_INT[homogBCs])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer comp, ncomps
+      REAL_T cg, c1, c2
+      REAL_T R, q1, q2
+      REAL_T a, b
+      REAL_T, parameter :: twosixth  = one / three
+      REAL_T, parameter :: fivesixth = five / six
+      REAL_T, parameter :: onesixth  = one / six
+
+      ncomps = CHF_NCOMP[phi]
+      CHF_AUTOID[ii; bdir; bsign]
+
+      if (homogBCs.eq.0) then
+        ! Non-homogeneous BCs.
+        do comp = 0, ncomps - 1
+          CHF_AUTOMULTIDO[ghostBox; i]
+            R  = BC(CHF_AUTOIX[i], comp)
+            q1 = phi(CHF_OFFSETIX[i; -1*ii], comp)
+            q2 = phi(CHF_OFFSETIX[i; -2*ii], comp)
+
+            a = alpha(CHF_AUTOIX[i], comp)
+            b = beta(CHF_AUTOIX[i], comp) / dx(CHF_AUTOIX[i])
+
+            cg =  twosixth * a + b
+            c1 = fivesixth * a - b
+            c2 =  onesixth * a
+
+            phi(CHF_AUTOIX[i], comp) = (R - c1*q1 + c2*q2) / cg
+          CHF_ENDDO
+        enddo
+      else
+        ! Homogeneous BCs.
+        do comp = 0, ncomps - 1
+            CHF_AUTOMULTIDO[ghostBox; i]
+                q1 = phi(CHF_OFFSETIX[i; -1*ii], comp)
+                q2 = phi(CHF_OFFSETIX[i; -2*ii], comp)
+
+                a = alpha(CHF_AUTOIX[i], comp)
+                b = beta(CHF_AUTOIX[i], comp) / dx(CHF_AUTOIX[i])
+
+                cg =  twosixth * a + b
+                c1 = fivesixth * a - b
+                c2 =  onesixth * a
+
+                phi(CHF_AUTOIX[i], comp) = (-c1*q1 + c2*q2) / cg
+            CHF_ENDDO
+          enddo
+        endif
+
+      return
+      end
+
+
 
 C     ------------------------------------------------------------------
 C     Uses alpha*phi + beta*dphi/dn = BC to fill ghosts within bdryFaceBox.

@@ -441,9 +441,9 @@ ViscousOp::MGRestrict(StateType&       a_crseRes,
 void
 ViscousOp::MGProlong(StateType&      a_finePhi,
                      StateType&      a_crseCor,
-                     const Real      a_time,
+                     const Real      /* a_time */,
                      const IntVect&  a_refRatio,
-                     const MGOpType& a_crseOp,
+                     const MGOpType& /* a_crseOp */,
                      const int       a_interpOrder) const
 {
     const DisjointBoxLayout& crseGrids = a_crseCor.getBoxes();

@@ -239,6 +239,8 @@ _releaseNote(const char*       a_filename,
 
 #define MAYDAYWARNING(usrmsg)                                                  \
     do {                                                                       \
+        static bool warned = false;                                            \
+        if (warned) break;                                                     \
         pout() << Format::unindentAll;                                         \
         ostringstream msg;                                                     \
         msg << Format::hired << "***** WARNING *****\n"                        \
@@ -250,6 +252,7 @@ _releaseNote(const char*       a_filename,
             << Format::hiwhite << "Note: " << Format::none << usrmsg           \
             << Format::none << '\n';                                           \
         MayDay::Warning(msg.str().c_str());                                    \
+        warned = true;                                                         \
     } while (0)
 
 #define MAYDAYERROR(usrmsg)                                                    \
@@ -344,6 +347,10 @@ _checkForValidNAN(const LevelData<FluxBox>& a_data,
                   const std::string         a_file,
                   const int                 a_line);
 
+void
+_checkForValidNAN(const BoxLayoutData<FluxBox>&  a_data,
+                  const std::string a_file,
+                  const int         a_line);
 
 // -----------------------------------------------------------------------------
 // LevelData<FluxBox> overlap checks
@@ -401,6 +408,10 @@ _checkForValidNAN(const LevelData<FluxBox>& a_data,
     // Set a_level to NAN.
     void
     debugInitLevel(LevelData<FluxBox>& a_level);
+
+    // Set a_level to NAN.
+    void
+    debugInitLevel(BoxLayoutData<FluxBox>& a_level);
 
     // Set a_level to NAN.
     void
@@ -472,6 +483,10 @@ _checkForValidNAN(const LevelData<FluxBox>& a_data,
 
     inline void
     debugInitLevel(LevelData<FluxBox>& /*a_level*/)
+    {}
+
+    inline void
+    debugInitLevel(BoxLayoutData<FluxBox>& /*a_level*/)
     {}
 
     inline void

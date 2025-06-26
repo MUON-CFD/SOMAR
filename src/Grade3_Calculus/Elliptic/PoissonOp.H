@@ -34,7 +34,7 @@
 #include "LevelGeometry.H"
 #include "ProjectorParameters.H"
 
-#include "LepticOperator.H"
+// #include "LepticOperator.H"
 #include "LevelLepticSolver.H"
 
 namespace Elliptic
@@ -140,7 +140,7 @@ public:
              const LevelData<FArrayBox>* a_crsePhiPtr,
              const Real                  a_time,
              const bool                  a_homogPhysBCs,
-             const bool                  a_homogCFIBCs) const
+             const bool                  a_homogCFIBCs) const override
     {
         this->applyBCsBegin(a_phi, a_crsePhiPtr, a_time, a_homogPhysBCs, a_homogCFIBCs);
         this->applyBCsEnd(a_phi);
@@ -174,7 +174,7 @@ public:
             const LevelData<FArrayBox>* a_crsePhiPtr,
             const Real                  a_time,
             const bool                  a_homogPhysBCs,
-            const bool                  a_homogCFIBCs) const
+            const bool                  a_homogCFIBCs) const override
     {
         this->applyBCs(
             a_phi, a_crsePhiPtr, a_time, a_homogPhysBCs, a_homogCFIBCs);
@@ -186,7 +186,7 @@ public:
     /// then this function should remove c_1*e^1.
     /// (Typically, you would just remove the average.)
     virtual void
-    removeKernel(LevelData<FArrayBox>& a_phi) const;
+    removeKernel(LevelData<FArrayBox>& a_phi) const override;
 
     /// Checks if L[phi] = rhs is a solvable problem.
     /// For this op, we check if Sum[rhs] = 0.
@@ -196,7 +196,7 @@ public:
                               const StateType& a_rhs,
                               const Real       a_time,
                               const bool       a_homogPhysBCs,
-                              const bool       a_homogCFIBCs) const;
+                              const bool       a_homogCFIBCs) const override;
 
     /// Sets phi to a preconditioned value.
     /// Typically, this will be phi = rhs / invDiags, then relaxed, but you
@@ -205,7 +205,7 @@ public:
     preCond(LevelData<FArrayBox>&       a_phi,
             const LevelData<FArrayBox>& a_rhs,
             const Real                  a_time,
-            const int                   a_relaxIters) const;
+            const int                   a_relaxIters) const override;
 
     /// Applies relaxation to the residual equation.
     /// If you don't plan to use this in preCond, or if you aren't creating
@@ -214,7 +214,7 @@ public:
     relax(LevelData<FArrayBox>&       a_cor,
           const LevelData<FArrayBox>& a_res,
           const Real                  a_time,
-          const int                   a_iters) const;
+          const int                   a_iters) const override;
 
 
     // MGOperator overrides ----------------------------------------------------
@@ -228,11 +228,11 @@ public:
     ///
     /// The new operator will only be used with homogeneous BCs.
     virtual MGOperator<LevelData<FArrayBox>>*
-    newMGOperator(const IntVect& a_refRatio) const __malloc;
+    newMGOperator(const IntVect& a_refRatio) const override __malloc;
 
     /// What is the smallest Box we can use in MG?
     virtual IntVect
-    minBoxSize() const
+    minBoxSize() const override
     {
         // If you change this, be sure to set to 1 in inactive dirs.
         return IntVect::Unit;
@@ -240,14 +240,14 @@ public:
 
     /// What grids is this op defined over?
     virtual const DisjointBoxLayout&
-    getBoxes() const
+    getBoxes() const override
     {
         return m_grids;
     }
 
     /// What is the resolution of this op's grids?
     virtual const RealVect&
-    getDXi() const
+    getDXi() const override
     {
         return m_dXi;
     }
@@ -260,7 +260,7 @@ public:
                const StateType& a_fineRes,
                const Real       a_time,
                const IntVect&   a_refRatio,
-               const MGOpType&  a_crseOp) const;
+               const MGOpType&  a_crseOp) const override;
 
     /// Prolong (interpolate) a_crse to finer MG depth and add to a_fine:
     ///   a_finePhi += I[2h->h](a_crseCor).
@@ -277,7 +277,7 @@ public:
               const Real      a_time,
               const IntVect&  a_refRatio,
               const MGOpType& a_crseOp,
-              const int       a_interpOrder) const;
+              const int       a_interpOrder) const override;
 
     // AMRMGOperator overrides -------------------------------------------------
 
@@ -292,7 +292,7 @@ public:
                 const IntVect&              a_crseRefRatio,
                 const Real                  a_time,
                 const bool                  a_homogPhysBCs,
-                const AMRMGOpType&          a_finerOp) const;
+                const AMRMGOpType&          a_finerOp) const override;
 
     /// Apply the AMR operator, including coarse-fine matching.
     /// The CFI BCs are always inhomogeneous in this function.
@@ -303,7 +303,7 @@ public:
                   const LevelData<FArrayBox>& a_phiCoarse,
                   const IntVect&              a_crseRefRatio,
                   const Real                  a_time,
-                  const bool                  a_homogPhysBCs) const;
+                  const bool                  a_homogPhysBCs) const override;
 
     /// Apply the AMR operator, including coarse-fine matching.
     /// Assume no coarser AMR level.
@@ -314,7 +314,7 @@ public:
                   const IntVect&        a_fineRefRatio,
                   const Real            a_time,
                   const bool            a_homogPhysBCs,
-                  const AMRMGOpType&    a_finerOp) const;
+                  const AMRMGOpType&    a_finerOp) const override;
 
     /// \brief
     ///  Compute the p-Norm of a_x only on where not covered by a_fineRes.
@@ -332,7 +332,7 @@ public:
     AMRNormLevel(const StateType& a_res,
                  const StateType* a_fineResPtr,
                  const IntVect&   a_refRatio,
-                 const int        a_p) const;
+                 const int        a_p) const override;
 
     // Miscellaneous methods ---------------------------------------------------
 

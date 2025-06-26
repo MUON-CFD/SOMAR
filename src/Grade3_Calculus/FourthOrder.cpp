@@ -124,6 +124,7 @@ FourthOrder::conservativeInterp(FArrayBox&       a_destFAB,
                                 const Box&       a_destBox,
                                 const FArrayBox& a_srcFAB,
                                 const int        a_srcFABComp,
+                                const Box&       a_srcBox,
                                 const int        a_interpDir)
 {
     CH_assert(a_destFAB.box().sameType(a_destBox));
@@ -134,7 +135,7 @@ FourthOrder::conservativeInterp(FArrayBox&       a_destFAB,
 
     Box lolo, lo, mid, hi, hihi;
     FourthOrder::getDestBoxes(
-        lolo, lo, mid, hi, hihi, a_srcFAB.box(), a_destBox, a_interpDir);
+        lolo, lo, mid, hi, hihi, a_srcBox, a_destBox, a_interpDir);
 
     if (a_destBox.type(a_interpDir) == IndexType::NODE) {
         FORT_FOURTHORDER_CONSERVATIVEINTERP1D_CELLTONODE(
@@ -169,6 +170,7 @@ FourthOrder::interp(FArrayBox&       a_destFAB,
                     const Box&       a_destBox,
                     const FArrayBox& a_srcFAB,
                     const int        a_srcFABComp,
+                    const Box&       a_srcBox,
                     const int        a_interpDir)
 {
     CH_assert(a_destFAB.box().sameType(a_destBox));
@@ -177,9 +179,11 @@ FourthOrder::interp(FArrayBox&       a_destFAB,
     CH_assert(0 <= a_destFABComp && a_destFABComp < a_destFAB.nComp());
     CH_assert(0 <= a_srcFABComp && a_srcFABComp < a_srcFAB.nComp());
 
+    CH_assert(a_srcFAB.contains(a_srcBox));
+
     Box lolo, lo, mid, hi, hihi;
     FourthOrder::getDestBoxes(
-        lolo, lo, mid, hi, hihi, a_srcFAB.box(), a_destBox, a_interpDir);
+        lolo, lo, mid, hi, hihi, a_srcBox, a_destBox, a_interpDir);
     CH_assert(lolo.isEmpty());
     CH_assert(hihi.isEmpty());
 
@@ -298,10 +302,10 @@ FourthOrder::getDestBoxes(Box&       a_lolo,
         CH_verify(a_srcBox.size(a_interpDir) >= 4);
 
         a_lolo = a_destBox & bdryLo(a_srcBox, a_interpDir);
-        a_lo   = a_destBox & Box(a_lolo).shift(a_interpDir, 1);
+        a_lo   = a_destBox & bdryLo(a_srcBox, a_interpDir).shift(a_interpDir, 1);
         a_mid  = a_destBox & surroundingNodes(a_srcBox, a_interpDir).grow(a_interpDir, -2);
+        a_hi   = a_destBox & bdryHi(a_srcBox, a_interpDir).shift(a_interpDir, -1);
         a_hihi = a_destBox & bdryHi(a_srcBox, a_interpDir);
-        a_hi   = a_destBox & Box(a_hihi).shift(a_interpDir, -1);
 
     } else {
         CH_verify(a_srcBox.size(a_interpDir) >= 4);

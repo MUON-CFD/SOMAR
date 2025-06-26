@@ -110,11 +110,11 @@ public:
     }
 
     Real
-    controllerDt(const Real a_tol,
-                 const bool a_useImplicit,
-                 const bool a_useElementary,
-                 const bool a_usePI,
-                 const bool a_usePID) const
+    controllerDt(const Real /* a_tol */,
+                 const bool /* a_useImplicit */,
+                 const bool /* a_useElementary */,
+                 const bool /* a_usePI */,
+                 const bool /* a_usePID */) const
     {
         return 1.0e100;
     }

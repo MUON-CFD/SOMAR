@@ -324,9 +324,15 @@ protected:
     bool m_needsAssembly;
     bool m_needsAssemblyProjection;
 
-// #define PARK__USE_INCREMENTAL_RK
-    static const bool s_extrapStagePressure    = true;
-    static const bool s_extrapAssemblyPressure = true;
+// // #define PARK__USE_INCREMENTAL_RK
+//     static const bool s_extrapStagePressure    = false;
+//     static const bool s_extrapAssemblyPressure = false;
+//     static const bool s_removeDivFromK         = false;
+//     static const bool s_useDenseOutput         = false;
+
+#define PARK__USE_INCREMENTAL_RK
+    static const bool s_extrapStagePressure    = false;
+    static const bool s_extrapAssemblyPressure = false;
     static const bool s_removeDivFromK         = false;
     static const bool s_useDenseOutput         = false;
 

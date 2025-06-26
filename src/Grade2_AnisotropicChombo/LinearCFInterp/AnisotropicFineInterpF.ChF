@@ -280,6 +280,7 @@ c ------------------------------------------------------------------------------
       integer CHF_AUTODECL [ in ]
       REAL_T statemax, statemin, deltasum, etamax, etamin, eta
       REAL_T tempone, tempzero
+      logical CHF_AUTODECL [ within ]
 
       tempone = one
       tempzero = zero
@@ -292,23 +293,20 @@ c ------------------------------------------------------------------------------
 
              CHF_AUTOMULTIDO [ bn; ii]
 
-             CHF_DTERM[
+                 CHF_DTERM[
                  in0 = i0 + ii0;
                  in1 = i1 + ii1;
                  in2 = i2 + ii2]
 
-                 if (
                  CHF_DTERM[
-     &                in0 .ge. CHF_LBOUND[ validBox; 0 ] .and.
-     &                in0 .le. CHF_UBOUND[ validBox; 0 ] ;
-     &                .and.
-     &                in1 .ge. CHF_LBOUND[ validBox; 1 ] .and.
-     &                in1 .le. CHF_UBOUND[ validBox; 1 ] ;
-     &                .and.
-     &                in2 .ge. CHF_LBOUND[ validBox; 2 ] .and.
-     &                in2 .le. CHF_UBOUND[ validBox; 2 ] ]
-     &                )
-     &        then
+                 within0 = (in0 .ge. CHF_LBOUND[ validBox; 0 ]) .and.
+     &                     (in0 .le. CHF_UBOUND[ validBox; 0 ]) ;
+                 within1 = (in1 .ge. CHF_LBOUND[ validBox; 1 ]) .and.
+     &                     (in1 .le. CHF_UBOUND[ validBox; 1 ]) ;
+                 within2 = (in2 .ge. CHF_LBOUND[ validBox; 2 ]) .and.
+     &                     (in2 .le. CHF_UBOUND[ validBox; 2 ]) ]
+
+                 if (CHF_DTERM[within0; .and. within1; .and. within2]) then
                     statemax = max ( statemax, state(CHF_AUTOIX[in],var))
                     statemin = min ( statemin, state(CHF_AUTOIX[in],var))
                  endif
@@ -456,6 +454,7 @@ c
       integer CHF_AUTODECL [in]
       REAL_T statemax, statemin, deltasum,  eta
 c       REAL_T tempone, tempzero, minuscule
+      logical CHF_AUTODECL [within]
 
 c       tempone = one
 c       tempzero = zero
@@ -468,7 +467,7 @@ c       minuscule = 1.e-12
 
              CHF_AUTOMULTIDO [ bn; ii ]
 
-             CHF_DTERM[
+                 CHF_DTERM[
                  in0 = i0 + ii0;
                  in1 = i1 + ii1;
                  in2 = i2 + ii2;
@@ -476,31 +475,26 @@ c       minuscule = 1.e-12
                  in4 = i4 + ii4;
                  in5 = i5 + ii5 ]
 
-
-                 if (
                  CHF_DTERM[
-     &                in0 .ge. CHF_LBOUND[ state; 0 ] .and.
-     &                in0 .le. CHF_UBOUND[ state; 0 ] ;
-     &                .and.
-     &                in1 .ge. CHF_LBOUND[state; 1 ] .and.
-     &                in1 .le. CHF_UBOUND[ state; 1 ] ;
-     &                .and.
-     &                in2 .ge. CHF_LBOUND[ state; 2 ] .and.
-     &                in2 .le. CHF_UBOUND[ state; 2 ] ;
-     &                .and.
-     &                in3 .ge. CHF_LBOUND[state; 3 ] .and.
-     &                in3 .le. CHF_UBOUND[ state; 3 ] ;
-     &                .and.
-     &                in4 .ge. CHF_LBOUND[state; 4 ] .and.
-     &                in4 .le. CHF_UBOUND[ state; 4 ] ;
-     &                .and.
-     &                in5 .ge. CHF_LBOUND[state; 5 ] .and.
-     &                in5 .le. CHF_UBOUND[ state; 5 ] ]
-     &                ) then
+                 within0 = (in0 .ge. CHF_LBOUND[ state; 0 ]) .and.
+     &                     (in0 .le. CHF_UBOUND[ state; 0 ]) ;
+                 within1 = (in1 .ge. CHF_LBOUND[ state; 1 ]) .and.
+     &                     (in1 .le. CHF_UBOUND[ state; 1 ]) ;
+                 within2 = (in2 .ge. CHF_LBOUND[ state; 2 ]) .and.
+     &                     (in2 .le. CHF_UBOUND[ state; 2 ]) ;
+                 within3 = (in3 .ge. CHF_LBOUND[ state; 3 ]) .and.
+     &                     (in3 .le. CHF_UBOUND[ state; 3 ]) ;
+                 within4 = (in4 .ge. CHF_LBOUND[ state; 4 ]) .and.
+     &                     (in4 .le. CHF_UBOUND[ state; 4 ]) ;
+                 within5 = (in5 .ge. CHF_LBOUND[ state; 5 ]) .and.
+     &                     (in5 .le. CHF_UBOUND[ state; 5 ]) ]
+
+                 if (CHF_DTERM[within0; .and. within1; .and. within2; .and. within3; .and. within4; .and. within5]) then
                     statemax = max ( statemax, state(CHF_AUTOIX[in],var))
                     statemin = min ( statemin, state(CHF_AUTOIX[in],var))
                  endif
              CHF_ENDDO
+
              deltasum = half * (
                 CHF_DTERM[
      &            abs ( islope ( CHF_AUTOIX[i], var ) );

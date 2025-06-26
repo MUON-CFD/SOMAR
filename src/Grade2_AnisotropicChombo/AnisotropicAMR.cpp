@@ -1185,8 +1185,8 @@ AnisotropicAMR::timeStep(int  a_level,
         }
 
         {
-            CH_TIME("AnisotropicAMR::timeStep::postTimeStep");
-            m_amrlevels[a_level]->postTimeStep(m_cur_step + 1);
+            CH_TIME("AnisotropicAMR::timeStep::postLevelTimeStep");
+            m_amrlevels[a_level]->postLevelTimeStep(m_cur_step + 1);
         }
 
     } else {
@@ -1247,12 +1247,12 @@ AnisotropicAMR::timeStep(int  a_level,
 
         {
             // advance the levels
-            CH_TIME("AnisotropicAMR::timeStep::postTimeStep");
-            // call postTimeStep.
+            CH_TIME("AnisotropicAMR::timeStep::postLevelTimeStep");
+            // call postLevelTimeStep.
             // to stay consistent with the way things get done in subcycling
             // land, this gets done from the finest level first
             for (int ilev = m_finest_level; ilev >= 0; ilev--) {
-                m_amrlevels[ilev]->postTimeStep(m_cur_step + 1);
+                m_amrlevels[ilev]->postLevelTimeStep(m_cur_step + 1);
             }
         }
     }

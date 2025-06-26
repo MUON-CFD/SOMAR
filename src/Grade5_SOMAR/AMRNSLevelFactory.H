@@ -50,7 +50,6 @@ public:
 
 protected:
     GeoSourceInterface*  m_geoSrcPtr;
-
 };
 
 

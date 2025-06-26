@@ -29,6 +29,7 @@
 #include "Subspace.H"
 #include "Masks.H"
 #include "ProblemContext.H"
+#include "TensorComp.H"
 #ifdef CH_USE_PYTHON
 #include "PyGlue.H"
 #endif
@@ -958,33 +959,36 @@ AMRNSLevel::writePlotHeader(HeaderData&        a_header,
 #endif //WRITE_METRIC_TO_HDF5
 
 #ifdef WRITE_Sij_TO_HDF5
-    sprintf(comp_str, "component_%d", comp);
-    header.m_string[comp_str] = "S_xx";
-    comp++;
+    if constexpr (SpaceDim == 2) {
+        sprintf(comp_str, "component_%d", comp + TensorComp::symCC(0, 0));
+        header.m_string[comp_str] = "S_xx";
 
-    sprintf(comp_str, "component_%d", comp);
-    header.m_string[comp_str] = "S_yy";
-    comp++;
+        sprintf(comp_str, "component_%d", comp + TensorComp::symCC(1, 1));
+        header.m_string[comp_str] = "S_yy";
 
-#if CH_SPACEDIM > 2
-    sprintf(comp_str, "component_%d", comp);
-    header.m_string[comp_str] = "S_zz";
-    comp++;
-#endif
+        sprintf(comp_str, "component_%d", comp + TensorComp::symCC(0, 1));
+        header.m_string[comp_str] = "S_xy";
 
-    sprintf(comp_str, "component_%d", comp);
-    header.m_string[comp_str] = "S_xy";
-    comp++;
+    } else {
+        sprintf(comp_str, "component_%d", comp + TensorComp::symCC(0, 0));
+        header.m_string[comp_str] = "S_xx";
 
-#if CH_SPACEDIM > 2
-    sprintf(comp_str, "component_%d", comp);
-    header.m_string[comp_str] = "S_zx";
-    comp++;
+        sprintf(comp_str, "component_%d", comp + TensorComp::symCC(1, 1));
+        header.m_string[comp_str] = "S_yy";
 
-    sprintf(comp_str, "component_%d", comp);
-    header.m_string[comp_str] = "S_yz";
-    comp++;
-#endif
+        sprintf(comp_str, "component_%d", comp + TensorComp::symCC(2, 2));
+        header.m_string[comp_str] = "S_zz";
+
+        sprintf(comp_str, "component_%d", comp + TensorComp::symCC(1, 2));
+        header.m_string[comp_str] = "S_yz";
+
+        sprintf(comp_str, "component_%d", comp + TensorComp::symCC(2, 0));
+        header.m_string[comp_str] = "S_zx";
+
+        sprintf(comp_str, "component_%d", comp + TensorComp::symCC(0, 1));
+        header.m_string[comp_str] = "S_xy";
+    }
+    comp += SpaceDim * (SpaceDim + 1) / 2;
 #endif //WRITE_Sij_TO_HDF5
 
 #ifdef WRITE_VORTICITY_TO_HDF5
@@ -1036,6 +1040,8 @@ void
 AMRNSLevel::writePlotLevel(const std::string& a_filename, int /*level*/) const
 {
     BEGIN_FLOWCHART();
+
+    const ProblemContext* ctx = ProblemContext::getInstance();
 
     char level_str[20];
     sprintf(level_str, "%d", m_level);
@@ -1290,23 +1296,25 @@ AMRNSLevel::writePlotLevel(const std::string& a_filename, int /*level*/) const
 
     // eddyNu
     {
-        // In incremental PARK, eddyNu is already filled, but in standard form,
-        // eddyNu is all zeros. This happens because RK in standard form always
-        // starts with q^{n} and adds forces to it. But there are no forces that
-        // add to the eddy viscosity, it's just something we calculate at each
-        // stage. So, when it comes time to assemble q^{n+1} = q^{n} + dt * forces,
-        // the eddy viscosity never gets copied over from the RK stages.
-        //
-        // Don't worry, a new eddyNu is computed each time it is used dynamically,
-        // so your simulation is fine in either incremental or standard mode.
-        // We just need to remember to fill eddyNu for post-processing.
-        this->computeEddyNu(m_statePtr->eddyNu, cartVel, m_time);
-
         LevelData<FArrayBox> dest;
         aliasLevelData(dest, &plotData, Interval(comp, comp));
 
-        for (dit.reset(); dit.ok(); ++dit) {
-            dest[dit].copy(m_statePtr->eddyNu[dit]);
+        if (ctx->rhs.eddyViscMethod[m_level] == RHSParameters::EddyViscMethods::SET_TO_ZERO) {
+            // We aren't using an LES on this level. So instead, write a
+            // diagnostic eddyNu so the user can get an idea of how much subgrid
+            // activity isn't being captured.
+            const int numFilterSweeps = 3;
+            const RealVect& eddyScale = ctx->rhs.eddyScale;
+            this->SGSModel_Ducros(dest, cartVel, m_time, numFilterSweeps, eddyScale);
+
+            // We flip the sign to signal that this is just a diagnostic.
+            for (dit.reset(); dit.ok(); ++dit) {
+                dest[dit] *= -1.0;
+            }
+
+        } else {
+            // Write the eddyNu used dynamically by SOMAR.
+            this->computeEddyNu(dest, cartVel, m_time);
         }
 
         comp += 1;
@@ -1451,38 +1459,27 @@ AMRNSLevel::writePlotLevel(const std::string& a_filename, int /*level*/) const
 
 #ifdef WRITE_Sij_TO_HDF5
     {
-        const RealVect nuDummy(D_DECL(0.5, 0.5, 0.5));
-
-        LevelData<FArrayBox> eddyNuDummy(grids, 1, IntVect::Unit);
-        setValLevel(eddyNuDummy, 0.0);
-
-        LevelData<FluxBox> kvel(grids, 1);
         StaggeredFluxLD Sij(grids);
-        setValLevel(kvel, 0.0);
-        Sij.setVal(0.0);
-        this->computeMomentumDiffusion(kvel, Sij, cartVel, nuDummy, eddyNuDummy);
+        constexpr bool  multByJ       = false;
+        constexpr bool  makeCovariant = false;
+        this->rateOfStrain(Sij, cartVel, multByJ, makeCovariant);
+
+        LevelData<FArrayBox> dest;
+        constexpr int numSymComps = SpaceDim * (SpaceDim + 1) / 2;
+        aliasLevelData(dest, &plotData, Interval(comp, comp + numSymComps - 1));
 
         for (size_t i = 0; i < SpaceDim; ++i) {
-            LevelData<FArrayBox> dest;
-            aliasLevelData(dest, &plotData, Interval(comp, comp));
-
-            for (dit.reset(); dit.ok(); ++dit) {
-                dest[dit].copy(Sij[i][i][dit]);
-            }
-            ++comp;
-        }
-
-        for (size_t i = 0; i < SpaceDim; ++i) {
-            for (size_t j = i + 1; j < SpaceDim; ++j) {
-                LevelData<FArrayBox> dest;
-                aliasLevelData(dest, &plotData, Interval(comp, comp));
-
+            for (size_t j = i; j < SpaceDim; ++j) {
                 for (dit.reset(); dit.ok(); ++dit) {
-                    Convert::Simple(dest[dit], grids[dit], Sij[i][j][dit]);
+                    const auto& srcFAB   = Sij[i][j][dit];
+                    const auto  destComp = TensorComp::symCC(i, j);
+                    Convert::Simple(dest[dit], destComp, grids[dit], srcFAB, 0);
                 }
-                ++comp;
             }
+
         }
+
+        comp += numSymComps;
     }
 #endif //WRITE_Sij_TO_HDF5
 
@@ -1524,7 +1521,46 @@ AMRNSLevel::writePlotLevel(const std::string& a_filename, int /*level*/) const
         }
 
     } else {
-        UNDEFINED_FUNCTION();
+        const IntVect   ex  = BASISV(0);
+        const IntVect   ey  = BASISV(1);
+        const IntVect   ez  = BASISV(SpaceDim - 1);
+        const RealVect& dXi = m_levGeoPtr->getDXi();
+
+        for (int cdir = 0; cdir < SpaceDim; ++cdir) {  // vortComp
+            LevelData<FArrayBox> dest;
+            aliasLevelData(dest, &plotData, Interval(comp, comp));
+            ++comp;
+
+            const int adir = (cdir + 1) % SpaceDim; // U comp & fc dir & V deriv dir
+            const int bdir = (cdir + 2) % SpaceDim; // V comp & fc dir & U deriv dir
+
+            for (dit.reset(); dit.ok(); ++dit) {
+                const Box bx   = grids[dit];
+                const Box abx  = surroundingNodes(bx, adir).grow(bdir, 1);  // U src box
+                const Box bbx  = surroundingNodes(bx, bdir).grow(adir, 1);  // V src box
+                const Box abbx = surroundingNodes(bx, adir).surroundingNodes(bdir); // dest EC box
+
+                const FArrayBox& contraUFAB = cartVel[dit][adir];
+                const FArrayBox& contraVFAB = cartVel[dit][bdir];
+                CH_assert(contraUFAB.box().contains(abx));
+                CH_assert(contraVFAB.box().contains(bbx));
+
+                FArrayBox coUFAB(abx, 1);
+                m_levGeoPtr->getGeoSource().fill_gdn(coUFAB, 0, 0, dXi);
+                coUFAB.mult(contraUFAB, abx, 0, 0, 1);
+
+                FArrayBox coVFAB(bbx, 1);
+                m_levGeoPtr->getGeoSource().fill_gdn(coVFAB, 0, 1, dXi);
+                coVFAB.mult(contraVFAB, bbx, 0, 0, 1);
+
+                FArrayBox dvelFAB(abbx, 1);
+                FiniteDiff::partialD(dvelFAB, 0, abbx, coUFAB, 0, bdir, dXi[bdir]);
+                FiniteDiff::partialD(dvelFAB, 0, abbx, coVFAB, 0, adir, dXi[adir], true);
+
+                Convert::Simple(dest[dit], bx, dvelFAB);
+                m_levGeoPtr->divByJ(dest[dit], dit());
+            }
+        }
     }
 #endif //WRITE_VORTICITY_TO_HDF5
 

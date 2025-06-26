@@ -224,6 +224,23 @@ ProblemDomain::define(const IntVect& small, const int* vec_len,
   m_shiftIt.computeShifts(m_isPeriodic);
 }
 
+
+Box
+ProblemDomain::extendedDomainBox(const IntVect& a_periodicGhosts,
+                                 const IntVect& a_nonPeriodicGhosts) const
+{
+    Box bx = this->domainBox();
+    for (int d = 0; d < SpaceDim; ++d) {
+        if (this->isPeriodic(d)) {
+            bx.grow(d, a_periodicGhosts[d]);
+        } else {
+            bx.grow(d, a_nonPeriodicGhosts[d]);
+        }
+    }
+    return bx;
+}
+
+
 // returns true if box intersects problem domain
 bool
 ProblemDomain::intersects(const Box& a_box) const

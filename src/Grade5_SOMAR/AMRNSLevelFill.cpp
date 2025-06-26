@@ -285,6 +285,50 @@ AMRNSLevel::sendToCartesianVelocity(LevelData<FluxBox>&       a_cartVel,
 
 
 // -----------------------------------------------------------------------------
+void
+AMRNSLevel::sendToCartesianVelocity(BoxLayoutData<FluxBox>&       a_cartVel,
+                                    const BoxLayoutData<FluxBox>& a_advVel) const
+{
+    // Gather references
+    const GeoSourceInterface& geoSrc = m_levGeoPtr->getGeoSource();
+    const RealVect&           dXi    = m_levGeoPtr->getDXi();
+    const BoxLayout&          layout = a_advVel.boxLayout();
+    DataIterator              dit    = a_advVel.dataIterator();
+
+    // Define a_cartVel if needed.
+    if (!a_cartVel.isDefined()) {
+        a_cartVel.define(layout, a_advVel.nComp());
+    }
+    CH_assert(a_cartVel.boxLayout() == layout);
+
+    // Copy a_advVel to a_cartVel if we are not working in-place.
+    if (&a_cartVel != &a_advVel) {
+        CH_assert(a_cartVel.boxLayout() == a_advVel.boxLayout());
+        for (dit.reset(); dit.ok(); ++dit) {
+            for (int velComp = 0; velComp < SpaceDim; ++velComp) {
+                a_cartVel[dit][velComp].copy(a_advVel[dit][velComp]);
+            }
+        }
+    }
+
+    // Convert, being careful that this is the EXACT inverse of sendToAdvectingVelocity.
+    CH_assert(a_advVel.nComp() == 1);
+    for (dit.reset(); dit.ok(); ++dit) {
+        for (int fcDir = 0; fcDir < SpaceDim; ++fcDir) {
+            FArrayBox& velFAB = a_cartVel[dit][fcDir];
+            FArrayBox  dxdXiFAB(velFAB.box(), 1);
+
+            for (int offset = 1; offset < SpaceDim; ++offset) {
+                const int mu = (fcDir + offset) % SpaceDim;
+                geoSrc.fill_dxdXi(dxdXiFAB, 0, mu, dXi);
+                velFAB.divide(dxdXiFAB, 0, 0, 1);
+            }
+        } // fcDir
+    } // dit
+}
+
+
+// -----------------------------------------------------------------------------
 // The equation of state.
 // Fills a data holder with the buoyancy given temperature and salinity.
 //
@@ -552,9 +596,6 @@ AMRNSLevel::computePhysicalPressure(
 
             aliasLevelData(qComp, &q, m_statePtr->SInterval);
             levPtr->fillSalinity(qComp, a_newTime);
-
-            aliasLevelData(qComp, &q, m_statePtr->eddyNuInterval);
-            setValLevel(qComp, 0.0);
         }
 
         // rhs = kvelE + kvelI
@@ -606,12 +647,12 @@ AMRNSLevel::computePhysicalPressure(
             operator()(FArrayBox&            a_alpha,
                        FArrayBox&            a_beta,
                        FArrayBox&            a_bcFAB,
-                       const FArrayBox&      a_stateFAB,
-                       const FArrayBox&      a_xFAB,
+                       const FArrayBox&      /* a_stateFAB */,
+                       const FArrayBox&      /* a_xFAB */,
                        const DataIndex&      a_di,
                        const int             a_bdryDir,
                        const Side::LoHiSide& a_side,
-                       const Real            a_time,
+                       const Real            /* a_time */,
                        const bool            a_homogBCs) const
             {
                 a_alpha.setVal(0.0);

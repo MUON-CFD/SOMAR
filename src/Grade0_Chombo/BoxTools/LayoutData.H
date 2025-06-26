@@ -59,6 +59,9 @@ public:
   ///
   virtual ~LayoutData();
 
+  LayoutData(LayoutData&& a_src) noexcept   = default;
+  LayoutData& operator=(LayoutData&& a_src) = default;
+
   ///
   /**
      constructor.  allocates a T object for every box in the BoxLayout a_dp

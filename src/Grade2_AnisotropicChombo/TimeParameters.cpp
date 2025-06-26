@@ -126,7 +126,7 @@ TimeParameters::createDefaults()
     // Read controller error tolerances...
     if (s_defPtr->useElementaryController || s_defPtr->usePIController ||
         s_defPtr->usePIDController) {
-        if (!pp.contains("absTol") & !pp.contains("relTol")) {
+        if (!pp.contains("absTol") && !pp.contains("relTol")) {
             MAYDAYERROR(
                 "If using an error controller, you must specify either "
                 "time.absTol or time.relTol.");

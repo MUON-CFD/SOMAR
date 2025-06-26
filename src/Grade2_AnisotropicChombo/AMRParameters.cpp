@@ -53,26 +53,27 @@ AMRParameters::dump() const
     pout() << "AMRParameters:\n" << Format::indent() << std::flush;
 
 
-    pout() << "maxLevel = " << maxLevel << "\n";
-    pout() << "numLevels = " << numLevels << "\n";
-    pout() << "refRatios = " << refRatios << "\n";
-    pout() << "maxGridSize = " << maxGridSize << "\n";
-    pout() << "bufferSize = " << bufferSize << "\n";
-    pout() << "fillRatio = " << fillRatio << "\n";
+    pout() << "maxLevel = " << maxLevel << '\n';
+    pout() << "numLevels = " << numLevels << '\n';
+    pout() << "refRatios = " << refRatios << '\n';
+    pout() << "maxGridSize = " << maxGridSize << '\n';
+    pout() << "bufferSize = " << bufferSize << '\n';
+    pout() << "fillRatio = " << fillRatio << '\n';
 
-    pout() << "regridIntervals = " << regridIntervals << "\n";
-    pout() << "useSubcycling = " << (useSubcycling ? "true" : "false") << "\n";
+    pout() << "regridIntervals = " << regridIntervals << '\n';
+    pout() << "useSubcycling = " << (useSubcycling ? "true" : "false") << '\n';
 
-    pout() << "tagIB = " << (tagIB ? "true" : "false") << "\n";
-    pout() << "velTagTol = " << velTagTol << "\n";
-    pout() << "bTagTol = " << bTagTol << "\n";
-    pout() << "TTagTol = " << TTagTol << "\n";
-    pout() << "STagTol = " << STagTol << "\n";
-    pout() << "bpertTagTol = " << bpertTagTol << "\n";
-    pout() << "TpertTagTol = " << TpertTagTol << "\n";
-    pout() << "SpertTagTol = " << SpertTagTol << "\n";
-    pout() << "scalarsTagTol = " << scalarsTagTol << "\n";
-    pout() << "growTags = " << growTags << "\n";
+    pout() << "tagIB = " << (tagIB ? "true" : "false") << '\n';
+    pout() << "velTagTol = " << velTagTol << '\n';
+    pout() << "bTagTol = " << bTagTol << '\n';
+    pout() << "TTagTol = " << TTagTol << '\n';
+    pout() << "STagTol = " << STagTol << '\n';
+    pout() << "bpertTagTol = " << bpertTagTol << '\n';
+    pout() << "TpertTagTol = " << TpertTagTol << '\n';
+    pout() << "SpertTagTol = " << SpertTagTol << '\n';
+    pout() << "scalarsTagTol = " << scalarsTagTol << '\n';
+    pout() << "eddyNuTagTol = " << eddyNuTagTol << '\n';
+    pout() << "growTags = " << growTags << '\n';
 
     pout() << Format::unindent << std::endl;
 }
@@ -166,6 +167,7 @@ AMRParameters::createDefaults(const BaseParameters& a_baseParams)
     s_defPtr->TpertTagTol   = -1.0;
     s_defPtr->SpertTagTol   = -1.0;
     s_defPtr->scalarsTagTol = std::vector<Real>(0);
+    s_defPtr->eddyNuTagTol  = std::vector<Real>(0);
     s_defPtr->growTags      = 0;
 
     if (s_defPtr->maxLevel > 0) {
@@ -186,10 +188,25 @@ AMRParameters::createDefaults(const BaseParameters& a_baseParams)
             tolSpecified = true;
         }
 
+        numVals = pp.countval("eddyNuTagTol");
+        if (numVals > 0) {
+            if (numVals < s_defPtr->numLevels - 1) {
+                MAYDAYERROR(
+                    "amr.eddyNuTagTol must have at least one entry for each "
+                    "level (except the finest). If you don't want to use this "
+                    "criteria on a specific level, set it's tag tol <= 0.");
+            }
+
+            numVals = std::min(numVals, s_defPtr->numLevels);
+
+            s_defPtr->eddyNuTagTol = std::vector<Real>(numVals, -1.0);
+            pp.getarr("eddyNuTagTol", s_defPtr->eddyNuTagTol, 0, numVals);
+            tolSpecified = true;
+        }
+
         if (!tolSpecified) {
             MAYDAYWARNING(
-                "No dynamic tagging criteria specified. Static refinement "
-                "assumed.");
+                "No dynamic tagging criteria specified. Static refinement assumed.");
         }
 
         pp.query("growTags", s_defPtr->growTags);

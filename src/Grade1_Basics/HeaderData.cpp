@@ -40,17 +40,17 @@ HeaderData::HeaderData(const std::string& a_fileName, const int a_verb)
     this->readFromFile(a_fileName, Root);
 
     if (a_verb >= 1) {
-        pout() << "hdf5 header(root) data: " << endl;
+        pout() << "hdf5 header(root) data: " << std::endl;
         for (const auto& value : rootIntV)
-            pout() << value << " , " << m_int[value] << endl;
+            pout() << value << " , " << m_int[value] << std::endl;
         for (const auto& value : rootRealV)
-            pout() << value << " , " << m_real[value] << endl;
+            pout() << value << " , " << m_real[value] << std::endl;
         for (const auto& value : rootRV)
-            pout() << value << " , " << m_realvect[value] << endl;
+            pout() << value << " , " << m_realvect[value] << std::endl;
         for (const auto& value : rootStringV)
-            pout() << value << " , " << m_string[value] << endl;
+            pout() << value << " , " << m_string[value] << std::endl;
         for (const auto& value : rootIV)
-            pout() << value << " , " << m_intvect[value] << endl;
+            pout() << value << " , " << m_intvect[value] << std::endl;
     }
 }
 // constructor that populates level_xxx attributes if a_rw!="r"
@@ -69,17 +69,17 @@ HeaderData::HeaderData(const std::string& a_fileName,
     const std::string label = std::string("level_") + level_str;
     this->readFromFile(a_fileName, label);
     if (a_verb >= 1) {
-        pout() << "hdf5 " + label + " data: " << endl;
+        pout() << "hdf5 " + label + " data: " << std::endl;
         for (const auto& value : rootIntV)
-            pout() << value << " , " << m_int[value] << endl;
+            pout() << value << " , " << m_int[value] << std::endl;
         for (const auto& value : rootRealV)
-            pout() << value << " , " << m_real[value] << endl;
+            pout() << value << " , " << m_real[value] << std::endl;
         for (const auto& value : rootRV)
-            pout() << value << " , " << m_realvect[value] << endl;
+            pout() << value << " , " << m_realvect[value] << std::endl;
         for (const auto& value : rootStringV)
-            pout() << value << " , " << m_string[value] << endl;
+            pout() << value << " , " << m_string[value] << std::endl;
         for (const auto& value : rootIV)
-            pout() << value << " , " << m_intvect[value] << endl;
+            pout() << value << " , " << m_intvect[value] << std::endl;
     }
 }
 
@@ -158,27 +158,27 @@ operator<<(ostream& out, const HeaderData& header)
 {
     // integers
     for (const auto& value : header.m_int)
-        out << value.first << ", " << value.second << endl;
+        out << value.first << ", " << value.second << std::endl;
 
     // Reals
     for (const auto& value : header.m_real)
-        out << value.first << ", " << value.second << endl;
+        out << value.first << ", " << value.second << std::endl;
 
     // strings
     for (const auto& value : header.m_string)
-        out << value.first << ", " << value.second << endl;
+        out << value.first << ", " << value.second << std::endl;
 
     // IntVect
     for (const auto& value : header.m_intvect)
-        out << value.first << ", " << value.second << endl;
+        out << value.first << ", " << value.second << std::endl;
 
     // RealVect
     for (const auto& value : header.m_realvect)
-        out << value.first << ", " << value.second << endl;
+        out << value.first << ", " << value.second << std::endl;
 
     // box
     for (const auto& value : header.m_box)
-        out << value.first << ", " << value.second << endl;
+        out << value.first << ", " << value.second << std::endl;
     return out;
 }
 

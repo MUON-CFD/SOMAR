@@ -44,8 +44,8 @@
 
 
 /// Flags
-static constexpr Real BOGUS_TIME = quietNAN;
-static constexpr Real timeEps = 1.0e-8;  // See also: smallReal
+static constexpr Real BOGUS_TIME = 1.0e300; // NaN causes issues in VisIt.
+static constexpr Real timeEps = 1.0e-8;     // See also: smallReal
 
 
 /// Mathematical constants

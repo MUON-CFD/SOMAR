@@ -464,6 +464,33 @@ AMRNSLevel::scalAdvFlux_Cons_Form_FourthOrder(
     const LevelData<FArrayBox>& a_q,
     const LevelData<FluxBox>&   a_advVel) const
 {
+    // When set to true, we avoid the fourth-order flux upgrade at the physical
+    // boundaries and it's associated ghost faces. This helps stabilize the
+    // FocusingIW simulation, which uses non-steady Diri BCs on velocity and
+    // homog Neum BCs on the temp pert. Why things get unstable in the first
+    // place is unclear and may have something to do with the known unsteady
+    // BC issues of all RK methods.
+    constexpr bool secondOrderAtPhysBdry = false;
+
+    // Stencil will not be upgraded to fourth order in these boxes.
+    const ProblemDomain& domain = m_levGeoPtr->getDomain();
+    const auto domBdryBoxLo = [&domain](){
+        std::array<Box, SpaceDim> boxes;
+        for (int d = 0; d < SpaceDim; ++d) {
+            if (domain.isPeriodic(d)) continue;
+            boxes[d] = bdryBox(domain.domainBox(), d, Side::Lo, 2);
+        }
+        return boxes;
+    } ();
+    const auto domBdryBoxHi = [&domain](){
+        std::array<Box, SpaceDim> boxes;
+        for (int d = 0; d < SpaceDim; ++d) {
+            if (domain.isPeriodic(d)) continue;
+            boxes[d] = bdryBox(domain.domainBox(), d, Side::Hi, 2);
+        }
+        return boxes;
+    } ();
+
     const DisjointBoxLayout& grids = a_q.getBoxes();
 
     // Create q that we can modify.
@@ -489,6 +516,11 @@ AMRNSLevel::scalAdvFlux_Cons_Form_FourthOrder(
             deltaJqFAB.setVal(quietNAN);
             FiniteDiff::partialD(
                 deltaJqFAB, 0, fcValid, JqFAB, 0, fcDir, dummyDXi);
+
+            if (secondOrderAtPhysBdry) {
+                deltaJqFAB.setVal(0.0, domBdryBoxLo[fcDir] & deltaJqFAB.box(), 0);
+                deltaJqFAB.setVal(0.0, domBdryBoxHi[fcDir] & deltaJqFAB.box(), 0);
+            }
         }
     }
     constexpr bool extrapOrder = 2;

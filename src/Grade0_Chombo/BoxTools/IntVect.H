@@ -69,15 +69,18 @@ public:
 
 
 
-  ///
-  /**
-     Destructor.
-  */
-//   ~IntVect()
-//   {}
 #ifdef CH_USE_PYTHON
-explicit IntVect(PyObject *a_pin);
+  explicit IntVect(PyObject *a_pin);
 #endif
+
+    // These make IntVects trivially copyable.
+    constexpr IntVect(const IntVect& rhs)  noexcept = default;
+    IntVect(IntVect&& rhs)                 noexcept = default;
+    IntVect& operator=(const IntVect& rhs) noexcept = default;
+    IntVect& operator=(IntVect&& rhs)      noexcept = default;
+    ~IntVect()                             noexcept = default;
+
+
   ///
   /**
      Construct an IntVect given the specific values for its
@@ -88,22 +91,12 @@ explicit IntVect(PyObject *a_pin);
   constexpr IntVect (D_DECL6(int i, int j, int k,
                             int l, int m, int n)) noexcept;
 
-  ///
-  /**
-     Construct an IntVect setting the coordinates to the corresponding
-     values in the integer array <i>a</i>.
-  */
-  //explicit IntVect (const int* a);
 
   ///
   /**
    Construct an IntVect from a constant integer value
    */
-//constexpr IntVect(const int a);
-  /**
-     The copy constructor.
-  */
-  constexpr IntVect (const IntVect& rhs) noexcept;
+  //constexpr IntVect(const int a);
 
   IntVect (const IndexTM<int, CH_SPACEDIM>& a_tm) noexcept;
 
@@ -112,10 +105,6 @@ explicit IntVect(PyObject *a_pin);
     return *this;
   }
   ///
-  /**
-     The assignment operator.
-  */
-  IntVect& operator= (const IntVect& rhs) noexcept;
 
   ///
   /**
@@ -131,6 +120,9 @@ explicit IntVect(PyObject *a_pin);
   */
   inline constexpr
   int operator[] (int i) const;
+
+  inline constexpr int
+  getConst(const int i) const;
 
   ///
   /**
@@ -288,7 +280,7 @@ explicit IntVect(PyObject *a_pin);
   /**
      Product of all components of this IntVect.
   */
-  int product () const noexcept;
+  constexpr int product () const noexcept;
 
   /*@}*/
 
@@ -484,10 +476,10 @@ explicit IntVect(PyObject *a_pin);
 
   /// @brief Returns this IntVect's smallest component.
   /// @warning If *this = [1, -2, 3], then minComponent() returns -2, not 1!
-  inline int minComponent() const;
+  inline constexpr int minComponent() const;
 
   /// @brief Returns this IntVect's largest component.
-  inline int maxComponent() const;
+  inline constexpr int maxComponent() const;
 
   ///
   /**
@@ -742,21 +734,12 @@ inline constexpr IntVect::IntVect(
 //           vect[3] = a[3], vect[4] = a[4], vect[5] = a[5]);
 // }
 
-inline constexpr IntVect::IntVect(const IntVect& iv) noexcept
-: IntVect::IntVect(D_DECL6(
-      iv.vect[0], iv.vect[1], iv.vect[2], iv.vect[3], iv.vect[4], iv.vect[5]))
-{
-    // memcpy(vect, iv.vect, IntVectSize);
-}
-
-inline
-IntVect&
-IntVect::operator= (const IntVect &iv) noexcept
-{
-  D_EXPR6(vect[0]=iv.vect[0], vect[1]=iv.vect[1], vect[2]=iv.vect[2],
-          vect[3]=iv.vect[3], vect[4]=iv.vect[4], vect[5]=iv.vect[5]);
-  return *this;
-}
+// inline constexpr IntVect::IntVect(const IntVect& iv) noexcept
+// : IntVect::IntVect(D_DECL6(
+//       iv.vect[0], iv.vect[1], iv.vect[2], iv.vect[3], iv.vect[4], iv.vect[5]))
+// {
+//     // memcpy(vect, iv.vect, IntVectSize);
+// }
 
 inline
 int&
@@ -773,6 +756,14 @@ IntVect::operator[] (int i) const
   CH_assert(i>=0 && i < SpaceDim);
   return vect[i];
 }
+
+inline constexpr int
+IntVect::getConst(const int i) const
+{
+    CH_assert(i >= 0 && i < SpaceDim);
+    return vect[i];
+}
+
 
 inline
 void
@@ -938,7 +929,7 @@ IntVect::sum () const noexcept
 }
 
 inline
-int
+constexpr int
 IntVect::product () const noexcept
 {
   return D_TERM6(vect[0], * vect[1], * vect[2],
@@ -1107,7 +1098,7 @@ IntVect::max (const IntVect& p)
   return *this;
 }
 
-inline int
+inline constexpr int
 IntVect::minComponent() const
 {
     D_TERM6(
@@ -1120,7 +1111,7 @@ IntVect::minComponent() const
     return m;
 }
 
-inline int
+inline constexpr int
 IntVect::maxComponent() const
 {
     D_TERM6(
@@ -1325,6 +1316,20 @@ IntVect::coarsen (const IntVect& p)
     }
   return *this;
 }
+
+
+struct IntVectSortCompare {
+    inline bool operator()(const IntVect& a, const IntVect& b) const {
+        if (a[0] < b[0]) return true;
+        else if (a[0] > b[0]) return false;
+#if CH_SPACEDIM > 2
+        else if (a[1] < b[1]) return true;
+        else if (a[1] > b[1]) return false;
+#endif
+        return a[SpaceDim - 1] < b[SpaceDim - 1];
+    }
+};
+
 
 #endif /* WRAPPER */
 

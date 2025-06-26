@@ -153,3 +153,88 @@ C ----------------------------------------------------------------
       return
       end
 
+
+
+!  ----------------------------------------------------------------
+!  Convert_FourthOrder
+!  Averages src data and sends to dest with a different centering.
+!  This function performs no error checking! You should use the
+!  Convert class wrapper.
+!  ----------------------------------------------------------------
+      subroutine Convert_FourthOrder (
+     &      CHF_FRA1[dest],
+     &      CHF_BOX[destBox],
+     &      CHF_CONST_INTVECT[destBoxType],
+     &      CHF_CONST_FRA1[src],
+     &      CHF_CONST_INTVECT[srcBoxType])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+      integer CHF_AUTODECL[jj]
+      integer srcTypeSum, destTypeSum, numAvgs
+      REAL_T scale
+
+      REAL_T, parameter :: c0 = nine / sixteen
+      REAL_T, parameter :: c1 = -one / sixteen
+
+#if CH_SPACEDIM == 3
+      integer CHF_AUTODECL[kk]
+#endif
+
+      destTypeSum = CHF_DTERM[destBoxType(0); +destBoxType(1); +destBoxType(2)]
+      srcTypeSum  = CHF_DTERM[ srcBoxType(0); + srcBoxType(1); + srcBoxType(2)]
+
+      CHF_DTERM[
+      ii0 = srcBoxType(0) - destBoxType(0);
+      ii1 = 0;
+      ii2 = 0]
+
+      CHF_DTERM[
+      jj0 = 0;
+      jj1 = srcBoxType(1) - destBoxType(1);
+      jj2 = 0]
+
+#if CH_SPACEDIM == 3
+      CHF_DTERM[
+      kk0 = 0;
+      kk1 = 0;
+      kk2 = srcBoxType(2) - destBoxType(2)]
+#endif
+
+      numAvgs = CHF_DTERM[abs(ii0); +abs(jj1); +abs(kk2)]
+
+      if (numAvgs .eq. 0) then
+        ! Average in 0 directions
+        CHF_AUTOMULTIDO[destBox;i]
+          dest(CHF_AUTOIX[i]) = src(CHF_AUTOIX[i])
+        CHF_ENDDO
+
+      else if (numAvgs .eq. 1) then
+        if (srcTypeSum .gt. 0) then
+          ! src is FC
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = c0 * (src(OFFSET0(i))     + src(OFFSET1(i,   +ii)))
+     &                          + c1 * (src(OFFSET1(i,-ii)) + src(OFFSET1(i, +2*ii)))
+          CHF_ENDDO
+        else
+          ! src is CC
+          CHF_AUTOMULTIDO[destBox;i]
+            dest(CHF_AUTOIX[i]) = c0 * (src(OFFSET0(i))     + src(OFFSET1(i,   -ii)))
+     &                          + c1 * (src(OFFSET1(i,+ii)) + src(OFFSET1(i, -2*ii)))
+          CHF_ENDDO
+        endif
+
+#if CH_SPACEDIM == 3
+      else if (numAvgs .eq. 2) then
+        print*, "Not yet working on EC data."
+        call MAYDAYERROR()
+#endif
+
+      else
+        ! Average in all directions
+        print*, "Not yet working on NC data."
+        call MAYDAYERROR()
+      endif
+
+      return
+      end

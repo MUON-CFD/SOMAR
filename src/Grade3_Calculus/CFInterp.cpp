@@ -1846,15 +1846,16 @@ CFInterp::localCoarsenNode(FArrayBox&       a_crse,
 
 // -----------------------------------------------------------------------------
 void
-CFInterp::validateAtCoarseCFI(LevelData<FluxBox>&      a_crse,
-                              const DisjointBoxLayout& a_fineGrids,
-                              const IntVect&           a_refRatio)
+CFInterp::validateAtCoarseCFI(LevelData<FluxBox>& a_crse,
+                              const BoxLayout&    a_fineLayout,
+                              const IntVect&      a_refRatio)
 {
     // This function has been deprecated since StaggeredCopier was created.
-    UNDEFINED_FUNCTION();
+    // UNDEFINED_FUNCTION();
 
     // CH_assert(a_refRatio >= IntVect::Unit);
-    CH_assert(a_refRatio.product() > 1);
+    // CH_assert(a_refRatio.product() > 1);
+    CH_assert(a_refRatio >= IntVect::Unit);
 
     const int                numComps = a_crse.nComp();
     const DisjointBoxLayout& grids    = a_crse.getBoxes();
@@ -1977,9 +1978,9 @@ CFInterp::validateAtCoarseCFI(LevelData<FluxBox>&      a_crse,
 
             maskFAB.setVal(0);
 
-            LayoutIterator fineLit = a_fineGrids.layoutIterator();
+            LayoutIterator fineLit = a_fineLayout.layoutIterator();
             for (fineLit.reset(); fineLit.ok(); ++fineLit) {
-                Box coveredBox = a_fineGrids[fineLit];
+                Box coveredBox = a_fineLayout[fineLit];
                 coveredBox.coarsen(a_refRatio);
                 coveredBox &= maskBox;
 

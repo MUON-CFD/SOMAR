@@ -67,4 +67,39 @@ typedef std::array<std::array<int, 2>, CH_SPACEDIM> SideArray;
 #endif
 
 
+// -----------------------------------------------------------------------------
+/// @brief Checks if a SideArray is properly defined.
+/// @param a
+/// @return true if all elements are 0 or 1.
+constexpr bool
+check(const SideArray& a) {
+    return (a[0][0] == 0 || a[0][0] == 1)
+        && (a[0][1] == 0 || a[0][1] == 1)
+        && (a[1][0] == 0 || a[1][0] == 1)
+        && (a[1][1] == 0 || a[1][1] == 1)
+#if CH_SPACEDIM > 2
+        && (a[2][0] == 0 || a[2][0] == 1)
+        && (a[2][1] == 0 || a[2][1] == 1)
+#endif
+    ;
+}
+
+
+// -----------------------------------------------------------------------------
+/// @brief Subtraction op. Useful when you need to specify all sides except one.
+/// @param a
+/// @param b
+constexpr SideArray
+operator-(const SideArray& a, const SideArray& b) {
+    CH_assert(check(a));
+    CH_assert(check(b));
+    return {{
+         {a[0][0] - b[0][0], a[0][1] - b[0][1]}
+        ,{a[1][0] - b[1][0], a[1][1] - b[1][1]}
+#if CH_SPACEDIM > 2
+        ,{a[2][0] - b[2][0], a[2][1] - b[2][1]}
+#endif
+    }};
+}
+
 #endif //!___SideArray_H__INCLUDED___

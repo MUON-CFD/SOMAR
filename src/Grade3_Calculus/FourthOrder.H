@@ -93,6 +93,7 @@ public:
     /// @param a_destFAB  Must have opposite type as a_srcFAB only in a_interpDir.
     /// @param a_destBox  Must have same type as a_destFAB.
     /// @param a_srcFAB   Must have opposite type as a_destFAB only in a_interpDir.
+    /// @param a_srcBox   Must have same type as a_srcFAB.
     /// @param a_interpDir
     /// @details This function only interpolates in one direction.
     ///
@@ -109,12 +110,14 @@ public:
                        const Box&       a_destBox,
                        const FArrayBox& a_srcFAB,
                        const int        a_srcFABComp,
+                       const Box&       a_srcBox,
                        const int        a_interpDir);
 
     /// @brief Interpolation between nodal and zone-centered data.
     /// @param a_destFAB  Must have opposite type as a_srcFAB only in a_interpDir.
     /// @param a_destBox  Must have same type as a_destFAB.
     /// @param a_srcFAB   Must have opposite type as a_destFAB only in a_interpDir.
+    /// @param a_srcBox   Must have same type as a_srcFAB.
     /// @param a_interpDir
     /// @details This function only interpolates in one direction.
     ///
@@ -132,6 +135,7 @@ public:
            const Box&       a_destBox,
            const FArrayBox& a_srcFAB,
            const int        a_srcFABComp,
+           const Box&       a_srcBox,
            const int        a_interpDir);
     /// \}
 

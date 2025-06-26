@@ -554,6 +554,53 @@ _checkForValidNAN(const LevelData<FluxBox>& a_data,
     }
 }
 
+// -----------------------------------------------------------------------------
+// Throws an error if a NAN is found in the valid regions.
+// -----------------------------------------------------------------------------
+void
+_checkForValidNAN(const BoxLayoutData<FluxBox>& a_data,
+                  const std::string         a_file,
+                  const int                 a_line)
+{
+    const BoxLayout& grids = a_data.boxLayout();
+    DataIterator dit = grids.dataIterator();
+
+    naninfo_type info;
+    info.problemFound = false;
+
+    for (dit.reset(); dit.ok(); ++dit) {
+        const FluxBox& d = a_data[dit];
+        Box valid = grids[dit];
+        valid &= d.box();
+
+        _checkForNAN(d, valid, a_file, a_line, &info);
+        if (info.problemFound == true) break;
+    }
+
+    Vector<int> vpf(numProc(), 0);
+    int pf = info.problemFound? 1: 0;
+    const int srcProc = uniqueProc(SerialTask::compute);
+    gather(vpf, pf, srcProc);
+    if (procID() == srcProc) {
+        for (unsigned int idx = 0; idx < vpf.size(); ++idx) {
+            if (vpf[idx] == 1) {
+                pf = 1;
+                break;
+            }
+        }
+    }
+    broadcast(pf, srcProc);
+
+    if (pf == 1) {
+        //debug_writeLevelHDF5(a_data, "NANData.hdf5", 0.0, false);
+        ostringstream msg;
+        msg << Format::hired << "BUG: " << Format::none
+            << "NAN found at " << a_file.c_str() << ":" << a_line
+            << ". Data written to NANData.hdf5."
+            << info.msg.c_str();
+        MayDay::Error(msg.str().c_str());
+    }
+}
 
 // -----------------------------------------------------------------------------
 // Initializes data holders to NAN
@@ -593,6 +640,16 @@ _checkForValidNAN(const LevelData<FluxBox>& a_data,
     // -------------------------------------------------------------------------
     void
     debugInitLevel(LevelData<FluxBox>& a_level)
+    {
+        setValLevel(a_level, quietNAN);
+    }
+
+
+    // -------------------------------------------------------------------------
+    // Set a_level to NAN.
+    // -------------------------------------------------------------------------
+    void
+    debugInitLevel(BoxLayoutData<FluxBox>& a_level)
     {
         setValLevel(a_level, quietNAN);
     }

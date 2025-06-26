@@ -80,7 +80,7 @@ IntVect LepticBoxTools::getMaxBoxSize (const Vector<Box>& a_boxes)
 // -----------------------------------------------------------------------------
 void LepticBoxTools::createVerticalSolverGrids (Vector<Box>&       a_vertBoxes,
                                                 const Vector<Box>& a_origBoxes,
-                                                const Box&         a_domBox)
+                                                const Box&         /* a_domBox */)
 {
     // If there are no boxes, we have nothing to do.
     if (a_origBoxes.size() == 0) return;
@@ -98,10 +98,11 @@ void LepticBoxTools::createVerticalSolverGrids (Vector<Box>&       a_vertBoxes,
 // Create an array of grids suitable for the horizontal solver.
 // -----------------------------------------------------------------------------
 void
-LepticBoxTools::createHorizontalSolverGrids(Vector<Box>&       a_horizBoxes,
-                                            const Vector<Box>& a_vertBoxes,
-                                            const Box&         a_vertDomBox,
-                                            const IntVect&     a_blockFactor)
+LepticBoxTools::createHorizontalSolverGrids(
+    Vector<Box>&                    a_horizBoxes,
+    const Vector<Box>&              a_vertBoxes,
+    const Box&                      a_vertDomBox,
+    [[maybe_unused]] const IntVect& a_blockFactor)
 {
     // For now, just do the naive thing and use flatBoxes
     // with the unused boxes removed.

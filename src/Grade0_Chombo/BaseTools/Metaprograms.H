@@ -243,11 +243,11 @@ template<int N, class OP> struct NestedLoop
 
 template<class OP> struct NestedLoop<0,OP>
 {
-    void operator()( int * index, int lo, int hi, OP& op ) const
+    void operator()( int * index, int /* lo */, int /* hi */, OP& op ) const
     {
         op( index );
     }
-    void operator()( int * index, const int * lo, const int * hi, OP& op ) const
+    void operator()( int * index, const int * /* lo */, const int * /* hi */, OP& op ) const
     {
         op( index );
     }
@@ -278,11 +278,11 @@ template<int N, class OP> struct NestedPrestagedLoop
 
 template<class OP> struct NestedPrestagedLoop<0,OP>
 {
-    void operator()( int * index, int lo, int hi, OP& op ) const
+    void operator()( int * index, int /* lo */, int /* hi */, OP& op ) const
     {
         op( index );
     }
-    void operator()( int * index, const int * lo, const int * hi, OP& op ) const
+    void operator()( int * index, const int * /* lo */, const int * /* hi */, OP& op ) const
     {
         op( index );
     }

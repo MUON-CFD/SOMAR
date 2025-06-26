@@ -646,7 +646,7 @@ LoadBalance(Vector<Vector<int> >& procAssignments  //output: processor number
           // optimize the assignments by swapping a load off the
           // processor with the max load onto another processor
           // such that the load balance is improved
-          int iter_count = 0, swap_count = 0;
+          [[maybe_unused]] int iter_count = 0, swap_count = 0;
           int iproc_maxload;
           long max_change; //largest change in load balance
           int ibmax,jbmax;

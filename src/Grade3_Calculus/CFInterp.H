@@ -603,7 +603,9 @@ public:
     /**
      * @brief      Ensures all coarse data is identical at overlapping faces.
      *
-     * @param      a_crse  The coarse level data.
+     * @param[inout] a_crse       The coarse level data.
+     * @param[in]    a_fineLayout
+     * @param[in]    a_refRatio
      *
      * \details
      *  Static utility.
@@ -615,9 +617,9 @@ public:
      *  data to the invalid data on the adjacent patch.
      */
     static void
-    validateAtCoarseCFI(LevelData<FluxBox>&      a_crse,
-                        const DisjointBoxLayout& a_fineGrids,
-                        const IntVect&           a_refRatio) __deprecated;
+    validateAtCoarseCFI(LevelData<FluxBox>& a_crse,
+                        const BoxLayout&    a_fineLayout,
+                        const IntVect&      a_refRatio) __deprecated;
 
 protected:
 

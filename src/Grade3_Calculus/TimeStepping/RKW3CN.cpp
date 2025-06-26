@@ -96,9 +96,153 @@ RKW3CN::~RKW3CN()
 }
 
 
+#if 0
 // -----------------------------------------------------------------------------
 // The main timestepper.
 // -----------------------------------------------------------------------------
+void
+RKW3CN::advance(LevelData<FluxBox>&   a_vel,
+                LevelData<FArrayBox>& a_p,
+                LevelData<FArrayBox>& a_q,
+                const Real            a_oldTime,
+                const Real            a_dt,
+                PARKRHS*              a_rhsPtr)
+{
+    // Sanity checks
+    CH_assert(a_vel.getBoxes().compatible(m_grids));
+    CH_assert(a_p  .getBoxes().compatible(m_grids));
+    CH_assert(a_q  .getBoxes().compatible(m_grids));
+
+    CH_assert(a_vel.nComp() == m_velNumComps);
+    CH_assert(a_p  .nComp() == m_pNumComps);
+    CH_assert(a_q  .nComp() == m_qNumComps);
+
+    checkForValidNAN(a_vel);
+    checkForValidNAN(a_p  );
+    checkForValidNAN(a_q  );
+
+    DataIterator dit = m_grids.dataIterator();
+
+    // Initialization. This sets Q[0].
+    this->setOldQ(a_vel, a_p, a_q, a_oldTime);
+    m_dt = a_dt;
+
+    // Collect coefficients
+    const Real hb[3] = {
+        (8./15.) * a_dt,
+        (2./15.) * a_dt,
+        (1./ 3.) * a_dt
+    };
+    static constexpr Real betab[3] = {1.,  25./8.,  9./4.};
+    static constexpr Real zetab[3] = {0., -17./8., -5./4.};
+    static constexpr Real c[3]     = {0.,  8./15.,  2./3.};
+    static constexpr bool projEveryStage = true;
+
+
+    // ------ Main loop ------
+    LevelData<FluxBox>   velm2(m_grids, a_vel.nComp(), a_vel.ghostVect());
+    LevelData<FArrayBox> pm2  (m_grids, a_p  .nComp(), a_p  .ghostVect());
+    LevelData<FArrayBox> qm2  (m_grids, a_q  .nComp(), a_q  .ghostVect());
+
+    // Loop over the stages to compute the forces m_kqE, m_kqI, and m_Gp.
+    for (int i = 0; i < 3; ++i) {
+        pout() << Format::fixed;
+        pout() << "RK Stage " << i << "\n";
+        pout() << Format::indent() << flush;
+
+        // Set time values for this stage.
+        const Real stageTime = a_oldTime + a_dt * c[i];
+        const Real gammaDt   = 0.5 * hb[i];
+
+        // Evaluate this stage's forces.
+        a_rhsPtr->setExplicitRHS(m_kvelE, m_kqE, a_vel, a_p, a_q, stageTime, hb[i] * betab[i]);
+        a_rhsPtr->setImplicitRHS(m_kvelI, m_kqI, a_vel, a_p, a_q, stageTime, hb[i] - gammaDt);
+
+        checkForValidNAN(m_kvelE);
+        checkForValidNAN(m_kqE  );
+        checkForValidNAN(m_kvelI);
+        checkForValidNAN(m_kqI  );
+
+        // Put all (scaled) stage forces kqE.
+        // kQE <-- betab*kQE + 0.5*kQI
+        RKW3CN::axby(betab[i], m_kvelE, 0.5, m_kvelI);
+        RKW3CN::axby(betab[i], m_kqE  , 0.5, m_kqI  );
+
+        if (i > 0) {
+            // Use m_kqI to hold old-stage kqE.
+            const Real oldStageTime = a_oldTime + a_dt * c[i - 1];
+            a_rhsPtr->setExplicitRHS(m_kvelI, m_kqI, velm2, pm2, qm2, oldStageTime, hb[i] * zetab[i]);
+
+            // Add contribution to kQE.
+            // kQE += zetab * kQI
+            RKW3CN::plus(m_kvelE, zetab[i], m_kvelI);
+            RKW3CN::plus(m_kqE  , zetab[i], m_kqI  );
+        }
+
+        // Keep a copy of old state.
+        if (i < 2) {
+            RKW3CN::copy(velm2, a_vel);
+            RKW3CN::copy(pm2  , a_p  );
+            RKW3CN::copy(qm2  , a_q  );
+        }
+
+        // Update q (Ri)
+        // Q += hb*kQE
+        RKW3CN::plus(a_vel, hb[i], m_kvelE);
+        RKW3CN::plus(a_q  , hb[i], m_kqE  );
+
+        // Implicit solves...
+        if (projEveryStage) {
+            // proj predict -> viscous solve -> proj correct
+            a_rhsPtr->projectPredict(a_vel, a_p, stageTime, hb[i]             );
+            a_rhsPtr->solveImplicit (a_vel, a_q,   gammaDt, stageTime, gammaDt);
+            a_rhsPtr->projectCorrect(a_vel, a_p, stageTime, hb[i]             );
+        } else {
+            // proj predict -> viscous solve -> unproject and wait until end
+            // a_rhsPtr->projectPredict(a_vel, a_p, stageTime, hb[i]    );
+            a_rhsPtr->solveImplicit (a_vel, a_q,   gammaDt, stageTime, gammaDt);
+            // a_rhsPtr->projectPredict(a_vel, a_p, stageTime, -hb[i]   );
+        }
+
+        checkForValidNAN(a_vel);
+        checkForValidNAN(a_p);
+        checkForValidNAN(a_q);
+        pout() << Format::unindent << flush;
+
+    }  // end loop over stages
+
+
+    // Save state data
+    m_oldTime = a_oldTime;
+    m_newTime = a_oldTime + a_dt;
+
+    // Project if needed.
+    if (!projEveryStage) {
+        a_rhsPtr->projectPredict(a_vel, a_p, m_newTime, a_dt);
+        a_rhsPtr->projectCorrect(a_vel, a_p, m_newTime, a_dt);
+    }
+
+
+    RKW3CN::copy(m_velNew, a_vel);
+    RKW3CN::copy(m_pNew  , a_p  );
+    RKW3CN::copy(m_qNew  , a_q  );
+
+    // Also, save a copy of the (properly scaled) RHS.
+    {
+        a_rhsPtr->setImplicitRHS(
+            m_kvelI, m_kqI, m_velNew, m_pNew, m_qNew, m_newTime, 0.0);
+        RKW3CN::plus(m_kvelE, 0.5, m_kvelI);
+        RKW3CN::plus(  m_kqE, 0.5,   m_kqI);
+    }
+
+    m_Q0Ready         = true;
+    m_interpDataReady = true;
+
+    pout() << Format::unindent << flush;
+}
+
+#else
+
 void
 RKW3CN::advance(LevelData<FluxBox>&   a_vel,
                 LevelData<FArrayBox>& a_p,
@@ -235,6 +379,7 @@ RKW3CN::advance(LevelData<FluxBox>&   a_vel,
 
     pout() << Format::unindent << flush;
 }
+#endif
 
 
 // -----------------------------------------------------------------------------
@@ -287,8 +432,13 @@ RKW3CN::FEadvance(LevelData<FluxBox>&   a_vel,
     this->plus(a_q, a_dt, m_kqE);
     this->plus(a_q, a_dt, m_kqI);
 
-    //Project
+    // Remove lagged pressure gradient
     a_rhsPtr->projectPredict(a_vel, a_p, a_oldTime, a_dt);
+
+    // Solve implicit eqs for this stage's state.
+    a_rhsPtr->solveImplicit(a_vel, a_q, 0.5 * a_dt, a_oldTime, 0.5 * a_dt);
+
+    // Correct the projected state.
     a_rhsPtr->projectCorrect(a_vel, a_p, a_oldTime, a_dt);
 
     checkForValidNAN(a_vel);

@@ -192,8 +192,8 @@ RobinBC_CCSide::RobinBC_CCSide(const int             a_bdryDir,
 , m_beta(a_beta)
 {
     const Box targetBox = bdryBox(a_domain.domainBox(), a_bdryDir, a_side);
-    CH_verify(targetBox.type() == a_bcValsFAB.box().type());
-    CH_verify(a_bcValsFAB.box().contains(targetBox));
+    CH_assert(targetBox.type() == a_bcValsFAB.box().type());
+    CH_assert(a_bcValsFAB.box().contains(targetBox));
 
     m_bcValsFAB.define(targetBox, a_bcValsFAB.nComp());
     m_bcValsFAB.copy(a_bcValsFAB);
@@ -205,12 +205,12 @@ void
 RobinBC_CCSide::operator()(FArrayBox&            a_alphaFAB,
                            FArrayBox&            a_betaFAB,
                            FArrayBox&            a_bcFAB,
-                           const FArrayBox&      a_stateFAB,
-                           const FArrayBox&      a_xFAB,
-                           const DataIndex&      a_di,
-                           const int             a_bdryDir,
-                           const Side::LoHiSide& a_side,
-                           const Real            a_time,
+                           const FArrayBox&      /* a_stateFAB */,
+                           const FArrayBox&      /* a_xFAB */,
+                           const DataIndex&      /* a_di */,
+                           const int             /* a_bdryDir */,
+                           const Side::LoHiSide& /* a_side */,
+                           const Real            /* a_time */,
                            const bool            a_homogBCs) const
 {
     a_alphaFAB.setVal(m_alpha);
@@ -237,8 +237,8 @@ RobinBC_FCSide::RobinBC_FCSide(const int                        a_bdryDir,
 , m_beta(a_beta)
 {
     const Box fcTargetBox = bdryBox(a_domain.domainBox(), a_bdryDir, a_side);
-    CH_verify(fcTargetBox.type() == a_bcValsFAB[a_bdryDir].box().type());
-    CH_verify(a_bcValsFAB[a_bdryDir].box().contains(fcTargetBox));
+    CH_assert(fcTargetBox.type() == a_bcValsFAB[a_bdryDir].box().type());
+    CH_assert(a_bcValsFAB[a_bdryDir].box().contains(fcTargetBox));
 
     m_bcValsFAB[a_bdryDir].define(fcTargetBox, a_bcValsFAB[a_bdryDir].nComp());
     m_bcValsFAB[a_bdryDir].copy(a_bcValsFAB[a_bdryDir]);
@@ -247,10 +247,10 @@ RobinBC_FCSide::RobinBC_FCSide(const int                        a_bdryDir,
         if (flubComp == a_bdryDir) continue;
 
         const Box ecTargetBox = surroundingNodes(fcTargetBox, flubComp);
-        CH_verify(ecTargetBox.type() == a_bcValsFAB[flubComp].box().type());
-        CH_verify(a_bcValsFAB[flubComp].box().contains(ecTargetBox));
+        CH_assert(ecTargetBox.type() == a_bcValsFAB[flubComp].box().type());
+        CH_assert(a_bcValsFAB[flubComp].box().contains(ecTargetBox));
 
-        CH_verify(a_bcValsFAB[flubComp].nComp() == a_bcValsFAB[a_bdryDir].nComp());
+        CH_assert(a_bcValsFAB[flubComp].nComp() == a_bcValsFAB[a_bdryDir].nComp());
 
         m_bcValsFAB[flubComp].define(ecTargetBox, a_bcValsFAB[flubComp].nComp());
         m_bcValsFAB[flubComp].copy(a_bcValsFAB[flubComp]);
@@ -264,23 +264,25 @@ RobinBC_FCSide::operator()(FArrayBox&            a_alpha,
                            FArrayBox&            a_beta,
                            FArrayBox&            a_bcFAB,
                            const FArrayBox&      a_stateFAB,
-                           const FArrayBox&      a_xFAB,
-                           const DataIndex&      a_di,
+                           const FArrayBox&      /* a_xFAB */,
+                           const DataIndex&      /* a_di */,
                            const int             a_bdryDir,
                            const Side::LoHiSide& a_side,
-                           const Real            a_time,
+                           const Real            /* a_time */,
                            const bool            a_homogBCs) const
 {
-    CH_verify(m_bdryDir == a_bdryDir);
-    CH_verify(m_side == a_side);
+    CH_assert(m_bdryDir == a_bdryDir);
+    CH_assert(m_side == a_side);
 
     const int velComp = getNodalDir(a_stateFAB.box());
+    CH_assert(a_stateFAB.box().type() == BASISV(velComp));
+
     a_alpha.setVal(m_alpha[velComp]);
     a_beta.setVal(m_beta[velComp]);
 
     if (!a_homogBCs) {
-        CH_verify(m_bcValsFAB[velComp].box().type() == a_bcFAB.box().type());
-        CH_verify(m_bcValsFAB[velComp].box().contains(a_bcFAB.box()));
+        CH_assert(m_bcValsFAB[velComp].box().type() == a_bcFAB.box().type());
+        CH_assert(m_bcValsFAB[velComp].box().contains(a_bcFAB.box()));
         a_bcFAB.copy(m_bcValsFAB[velComp]);
     }
 }

@@ -352,7 +352,6 @@ We reduced the viscosity/diffusion values to :math:`10^{-6}` because solitary wa
         // In other words, we set a_state.T with b_total!
 
         CH_verify(SpaceDim == 2); // The text file contains 2D data.
-        CH_verify(m_level == 0);  // As is, this will not work in AMR mode.
 
 
         // Gather data from file -----------------------------------------------

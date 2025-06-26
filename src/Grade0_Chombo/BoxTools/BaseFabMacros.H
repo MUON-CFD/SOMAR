@@ -1206,7 +1206,7 @@
     const T* _th_p = this->m_dptr;                                      \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        int nR = _n; nR += 0;                                           \
+        [[maybe_unused]] int nR = _n; nR += 0;                          \
         for (int _k = 0; _k < _b_len[2]; ++_k)                          \
           {                                                             \
             const int kR = _k + _b_lo[2];                               \
@@ -1376,7 +1376,7 @@
     T* _th_p = this->m_dptr;                                            \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        int nR = _n; nR += 0;                                           \
+        [[maybe_unused]] int nR = _n; nR += 0;                          \
         for (int _k = 0; _k < _b_len[2]; ++_k)                          \
           {                                                             \
             const int kR = _k + _b_lo[2];                               \
@@ -1392,7 +1392,7 @@
                                + _n * _th_plen[2])));                   \
                 for (int _i = 0; _i < _b_len[0]; ++_i, ++_th_pp)        \
                   {                                                     \
-                    int iR = _i + _b_lo[0]; iR += 0;                    \
+                    [[maybe_unused]] int iR = _i + _b_lo[0]; iR += 0;   \
                     T &thisR = * _th_pp;
 
 #define ForAllThisCBNN3(T,b,ns,nc)                                      \
@@ -1444,7 +1444,7 @@
         const T* _x_p  = (x).dataPtr(nss);                              \
         for (int _n = 0; _n < (nc); ++_n)                               \
           {                                                             \
-            int nR = _n; nR += 0;                                       \
+            [[maybe_unused]] int nR = _n; nR += 0;                      \
             for (int _k = 0; _k < _subbox_len[2]; ++_k)                 \
               {                                                         \
                 const int kR = _k + _subbox_lo[2];                      \
@@ -1468,7 +1468,7 @@
                     for (int _i = 0; _i < _subbox_len[0];               \
                          ++_i, ++_th_pp)                                \
                       {                                                 \
-                        int iR = _i + _subbox_lo[0]; iR += 0;           \
+                        [[maybe_unused]] int iR = _i + _subbox_lo[0]; iR += 0;           \
                         T &thisR = * _th_pp;                            \
                         const T & x##R = _x_pp[_i];
 
@@ -1491,7 +1491,7 @@
         const T* _x_p  = (x).dataPtr(nss);                              \
         for (int _n = 0; _n < (nc); ++_n)                               \
           {                                                             \
-            int nR = _n; nR += 0;                                       \
+            [[maybe_unused]] int nR = _n; nR += 0;                                       \
             for (int _k = 0; _k < _subbox_len[2]; ++_k)                 \
               {                                                         \
                 const int kR = _k + _subbox_lo[2];                      \
@@ -1515,7 +1515,7 @@
                     for (int _i = 0; _i < _subbox_len[0];               \
                          ++_i, ++_th_pp)                                \
                       {                                                 \
-                        int iR = _i + _subbox_lo[0]; iR += 0;           \
+                        [[maybe_unused]] int iR = _i + _subbox_lo[0]; iR += 0;           \
                         const T &thisR = * _th_pp;                      \
                         const T & x##R = _x_pp[_i];
 
@@ -1537,8 +1537,8 @@
         const T* _x_p  = (x).dataPtr(nss);                              \
         for (int _n = 0; _n < (nc); ++_n)                               \
           {                                                             \
-            int nR = _n + ns; nR += 0;                                  \
-            int n##x##R = _n + nss; n##x##R += 0;                       \
+            [[maybe_unused]] int nR = _n + ns; nR += 0;                 \
+            [[maybe_unused]] int n##x##R = _n + nss; n##x##R += 0;      \
             for (int _k = 0; _k < _subbox_len[2]; ++_k)                 \
               {                                                         \
                 const int kR = _k + _subbox_lo[2];                      \
@@ -1564,8 +1564,8 @@
                     for (int _i = 0; _i < _subbox_len[0];               \
                          ++_i, ++_th_pp)                                \
                       {                                                 \
-                        int iR = _i + _subbox_lo[0]; iR += 0;           \
-                        int i##x##R = _i + _bx_lo[0]; i##x##R += 0;     \
+                        [[maybe_unused]] int iR = _i + _subbox_lo[0]; iR += 0;           \
+                        [[maybe_unused]] int i##x##R = _i + _bx_lo[0]; i##x##R += 0;     \
                         T &thisR = * _th_pp;                            \
                         const T & x##R = _x_pp[_i];
 
@@ -1595,9 +1595,9 @@
         const T* _y_p  = (y).dataPtr(nsy);                              \
         for (int _n = 0; _n < (nc); ++_n)                               \
           {                                                             \
-            int nR = _n + ns; nR += 0;                                  \
-            int n##x##R = _n + nsx; n##x##R += 0;                       \
-            int n##y##R = _n + nsy; n##y##R += 0;                       \
+            [[maybe_unused]] int nR = _n + ns; nR += 0;                 \
+            [[maybe_unused]] int n##x##R = _n + nsx; n##x##R += 0;      \
+            [[maybe_unused]] int n##y##R = _n + nsy; n##y##R += 0;      \
             for (int _k = 0; _k < _subbox_len[2]; ++_k)                 \
               {                                                         \
                 const int kR = _k + _subbox_lo[2];                      \
@@ -1632,9 +1632,9 @@
                     for (int _i = 0; _i < _subbox_len[0];               \
                          ++_i, ++_th_pp)                                \
                       {                                                 \
-                        int iR = _i + _subbox_lo[0];  iR += 0;          \
-                        int i##x##R = _i + _bx_lo[0]; i##x##R += 0;     \
-                        int i##y##R = _i + _by_lo[0]; i##y##R += 0;     \
+                        [[maybe_unused]] int iR = _i + _subbox_lo[0];  iR += 0;          \
+                        [[maybe_unused]] int i##x##R = _i + _bx_lo[0]; i##x##R += 0;     \
+                        [[maybe_unused]] int i##y##R = _i + _by_lo[0]; i##y##R += 0;     \
                         T &thisR = * _th_pp;                            \
                         const T & x##R = _x_pp[_i];                     \
                         const T & y##R = _y_pp[_i];

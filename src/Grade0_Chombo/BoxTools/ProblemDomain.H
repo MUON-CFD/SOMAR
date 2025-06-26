@@ -282,6 +282,11 @@ public:
    */
   const Box &domainBox() const;
 
+    /// Same as domainBox(), but includes ghost cells if desired.
+    Box
+    extendedDomainBox(const IntVect& a_periodicGhosts,
+                      const IntVect& a_nonPeriodicGhosts) const;
+
   /// Returns true if BC is periodic in direction a_dir
   /**
   */

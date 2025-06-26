@@ -118,7 +118,7 @@ public:
 
     */
     virtual void
-    postTimeStep(int a_step) = 0;
+    postLevelTimeStep(int a_step) = 0;
 
     ///
     /**

@@ -71,14 +71,6 @@ RealVect::RealVect(const IndexTM<Real, CH_SPACEDIM>& a_tm) noexcept
           vect[3] = a_tm[3], vect[4] = a_tm[4], vect[5] = a_tm[5]);
 }
 
-RealVect&
-RealVect::operator= (const RealVect &iv) noexcept
-{
-  D_EXPR6(vect[0]=iv.vect[0], vect[1]=iv.vect[1], vect[2]=iv.vect[2],
-          vect[3]=iv.vect[3], vect[4]=iv.vect[4], vect[5]=iv.vect[5]);
-  return *this;
-}
-
 Real RealVect::dotProduct(const RealVect& a_rhs) const noexcept
 {
   return D_TERM6(vect[0]*a_rhs.vect[0], +

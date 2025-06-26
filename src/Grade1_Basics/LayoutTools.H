@@ -169,6 +169,26 @@ protected:
 };
 
 
+/// Takes each Box in the BoxLayout and converts it to it's counterpart in a_newBoxes.
+class SwapTransform : public BaseTransform
+{
+public:
+    /// @brief The two input vectors must be 1-to-1. a_oldBoxes[i] will be
+    /// transformed into a_newBoxes[i].
+    /// @param a_oldBoxes
+    /// @param a_newBoxes
+    SwapTransform(const std::vector<Box>& a_oldBoxes,
+                  const std::vector<Box>& a_newBoxes);
+    virtual ~SwapTransform() = default;
+    virtual Box operator()(const Box& a_inputBox) override;
+
+protected:
+    std::vector<Box> m_oldBoxes;
+    std::vector<Box> m_newBoxes;
+};
+
+
+
 /// This shifts shiftFAB so that its lower vertical end coincides with the lower
 /// vertical end of target*. The centering will also be changed. You MUST call
 /// restore() before this object goes out of scope or an error will be thrown.
@@ -217,6 +237,13 @@ checkValidFaceOverlap(const LevelData<FArrayBox>& a_data,
                       const int                   a_fcDir,
                       const char*                 a_file,
                       const size_t                a_line);
+
+/// @brief This version writes discrepancies to HDF5.
+/// @param a_filename
+/// @param a_data
+void
+checkValidFaceOverlap(const LevelData<FluxBox>& a_data,
+                      LevelData<FluxBox>&       a_destDiscrepancies);
 
 /// Small discrepancies (the size of rounding errors) at overlying faces on
 /// different grids can lead to large discrepancies after many timesteps.

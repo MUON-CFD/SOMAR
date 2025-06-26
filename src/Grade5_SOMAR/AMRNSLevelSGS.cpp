@@ -24,142 +24,260 @@
 #include "AMRNSLevel.H"
 #include "AMRNSLevelF_F.H"
 #include "Convert.H"
+#include "TensorComp.H"
 
 
-// AMRNSLevel::rateOfStrain(StaggeredFluxLD&          a_Sia,
-//                          const LevelData<FluxBox>& a_cartVel,
-//                          const bool                a_multByJ,
-//                          const bool                a_makeCovariant,
-//                          const Real                a_primaryScale,
-//                          const Real                a_transposeScale) const
-// {
-//     CH_assert(a_Sia    .getBoxes() == m_levGeoPtr->getBoxes());
-//     CH_assert(a_cartVel.getBoxes() == m_levGeoPtr->getBoxes());
+// -----------------------------------------------------------------------------
+void
+AMRNSLevel::rateOfStrain(StaggeredFluxLD&          a_Sia,
+                         const LevelData<FluxBox>& a_cartVel,
+                         const bool                a_multByJ,
+                         const bool                a_makeCovariant,
+                         const Real                a_primaryScale,
+                         const Real                a_transposeScale) const
+{
+    CH_assert(a_Sia    .getBoxes() == m_levGeoPtr->getBoxes());
+    CH_assert(a_cartVel.getBoxes() == m_levGeoPtr->getBoxes());
 
-//     const RealVect&          dXi   = m_levGeoPtr->getDXi();
-//     const DisjointBoxLayout& grids = m_levGeoPtr->getBoxes();
-//     DataIterator             dit   = grids.dataIterator();
+    const RealVect&          dXi   = m_levGeoPtr->getDXi();
+    const DisjointBoxLayout& grids = m_levGeoPtr->getBoxes();
+    DataIterator             dit   = grids.dataIterator();
 
-//     // Compute J*grad[u] components. Last index will be Cartesian-based.
-//     m_finiteDiffPtr->levelVectorGradient(a_Sia, a_cartVel);
+    // Compute J*grad[u] components. Last index will be Cartesian-based.
+    m_finiteDiffPtr->levelVectorGradient(a_Sia, a_cartVel);
 
-//     // Convert J*grad[u] into S^{ia}.
-//     for (dit.reset(); dit.ok(); ++dit) {
-//         for (int a = 0; a < SpaceDim; ++a) {
-//             // Easy, diagonal elements first.
-//             {
-//                 FArrayBox& SaaFAB = a_Sia[a][a][dit];
-//                 SaaFAB *= (a_primaryScale + a_transposeScale);
-//                 checkForNAN(SaaFAB, SaaFAB.box());
+    // Convert J*grad[u] into S^{ia}.
+    for (dit.reset(); dit.ok(); ++dit) {
+        for (int a = 0; a < SpaceDim; ++a) {
+            // Easy, diagonal elements first.
+            {
+                FArrayBox& SaaFAB = a_Sia[a][a][dit];
+                SaaFAB *= (a_primaryScale + a_transposeScale);
+                checkForNAN(SaaFAB, SaaFAB.box());
 
-//                 if (!a_multByJ) {
-//                     m_levGeoPtr->divByJ(SaaFAB, dit());
-//                 }
+                if (!a_multByJ) {
+                    m_levGeoPtr->divByJ(SaaFAB, dit());
+                }
 
-//                 if (a_makeCovariant) {
-//                     const Box& ccBox = SaaFAB.box();
-//                     FArrayBox gdnFAB(ccBox, 1);
-//                     m_levGeoPtr->getGeoSource().fill_gdn(gdnFAB, 0, a, dXi);
-//                     SaaFAB.mult(gdnFAB, ccBox, 0, 0, 1);
-//                 }
-//             }
+                if (a_makeCovariant) {
+                    const Box& ccBox = SaaFAB.box();
+                    FArrayBox gdnFAB(ccBox, 1);
+                    m_levGeoPtr->getGeoSource().fill_gdn(gdnFAB, 0, a, dXi);
+                    SaaFAB.mult(gdnFAB, ccBox, 0, 0, 1);
+                }
+            }
 
-//             // Off-diagonal comps need to be symmetrized.
-//             for (int i = a + 1; i < SpaceDim; ++i) {
-//                 FArrayBox& SiaFAB = a_Sia[i][a][dit];
-//                 FArrayBox& SaiFAB = a_Sia[a][i][dit];
-//                 const Box& ecBox  = SiaFAB.box();
+            // Off-diagonal comps need to be symmetrized.
+            for (int i = a + 1; i < SpaceDim; ++i) {
+                FArrayBox& SiaFAB = a_Sia[i][a][dit];
+                FArrayBox& SaiFAB = a_Sia[a][i][dit];
+                const Box& ecBox  = SiaFAB.box();
 
-//                 // Send last index to mapped basis.
-//                 FArrayBox dxdXiFAB(ecBox, 2);
-//                 m_levGeoPtr->getGeoSource().fill_dxdXi(dxdXiFAB, 0, a, dXi);
-//                 m_levGeoPtr->getGeoSource().fill_dxdXi(dxdXiFAB, 1, i, dXi);
-//                 SiaFAB.divide(dxdXiFAB, 0, 0, 1);
-//                 SaiFAB.divide(dxdXiFAB, 1, 0, 1);
+                // Send last index to mapped basis.
+                FArrayBox dxdXiFAB(ecBox, 2);
+                m_levGeoPtr->getGeoSource().fill_dxdXi(dxdXiFAB, 0, a, dXi);
+                m_levGeoPtr->getGeoSource().fill_dxdXi(dxdXiFAB, 1, i, dXi);
+                SiaFAB.divide(dxdXiFAB, 0, 0, 1);
+                SaiFAB.divide(dxdXiFAB, 1, 0, 1);
 
-//                 // Symmetrize
-//                 FArrayBox tmpFAB(ecBox, 1);
-//                 tmpFAB.copy(SiaFAB);
+                // Symmetrize
+                FArrayBox tmpFAB(ecBox, 1);
+                tmpFAB.copy(SiaFAB);
 
-//                 SiaFAB *= a_primaryScale;
-//                 SiaFAB.plus(SaiFAB, a_transposeScale);
+                SiaFAB *= a_primaryScale;
+                SiaFAB.plus(SaiFAB, a_transposeScale);
 
-//                 SaiFAB *= a_primaryScale;
-//                 SaiFAB.plus(tmpFAB, a_transposeScale);
+                SaiFAB *= a_primaryScale;
+                SaiFAB.plus(tmpFAB, a_transposeScale);
 
-//                 // Send last index back to Cartesian basis.
-//                 SiaFAB.mult(dxdXiFAB, 0, 0, 1);
-//                 SaiFAB.mult(dxdXiFAB, 1, 0, 1);
+                // Send last index back to Cartesian basis.
+                SiaFAB.mult(dxdXiFAB, 0, 0, 1);
+                SaiFAB.mult(dxdXiFAB, 1, 0, 1);
 
-//                 checkForNAN(SiaFAB, ecBox);
-//                 checkForNAN(SaiFAB, ecBox);
+                checkForNAN(SiaFAB, ecBox);
+                checkForNAN(SaiFAB, ecBox);
 
-//                 if (!a_multByJ) {
-//                     m_levGeoPtr->divByJ(SiaFAB, dit());
-//                     m_levGeoPtr->divByJ(SaiFAB, dit());
-//                 }
+                if (!a_multByJ) {
+                    m_levGeoPtr->divByJ(SiaFAB, dit());
+                    m_levGeoPtr->divByJ(SaiFAB, dit());
+                }
 
-//                 if (a_makeCovariant) {
-//                     FArrayBox gdnFAB(ecBox, 1);
-//                     m_levGeoPtr->getGeoSource().fill_gdn(gdnFAB, 0, a, dXi);
-//                     SiaFAB.mult(gdnFAB, ecBox, 0, 0, 1);
-//                     SaiFAB.mult(gdnFAB, ecBox, 0, 0, 1);
-//                 }
-//             } // i
-//         } // a
-//     } // dit
-// }
+                if (a_makeCovariant) {
+                    FArrayBox gdnFAB(ecBox, 1);
+                    m_levGeoPtr->getGeoSource().fill_gdn(gdnFAB, 0, a, dXi);
+                    SiaFAB.mult(gdnFAB, ecBox, 0, 0, 1);
+                    SaiFAB.mult(gdnFAB, ecBox, 0, 0, 1);
+                }
+            } // i
+        } // a
+    } // dit
+}
 
 
 // // -----------------------------------------------------------------------------
 // void
-// AMRNSLevel::viscousStress(StaggeredFluxLD&            a_Tia,
-//                           const StaggeredFluxLD&      a_JSia,
-//                           const RealVect&             a_nu,
-//                           const LevelData<FArrayBox>& a_eddyNu) const
+// AMRNSLevel::rateOfStrain(LevelData<FArrayBox>&       a_Sab,
+//                          const LevelData<FArrayBox>& a_cartVel) const
 // {
-//     CH_assert(a_Tia   .getBoxes() == m_levGeoPtr->getBoxes());
-//     CH_assert(a_JSia  .getBoxes() == m_levGeoPtr->getBoxes());
-//     CH_assert(a_eddyNu.getBoxes() == m_levGeoPtr->getBoxes());
+//     CH_assert(a_Sab    .getBoxes() == m_levGeoPtr->getBoxes());
+//     CH_assert(a_cartVel.getBoxes() == m_levGeoPtr->getBoxes());
+//     CH_assert(a_Sab    .nComp() == SpaceDim * (SpaceDim + 1) / 2);
+//     CH_assert(a_cartVel.nComp() == SpaceDim);
 
-//     const DisjointBoxLayout& grids = m_levGeoPtr->getBoxes();
-//     DataIterator             dit   = grids.dataIterator();
+//     const RealVect&          dXi    = m_levGeoPtr->getDXi();
+//     const Box&               domBox = m_levGeoPtr->getDomainBox();
+//     const DisjointBoxLayout& grids  = m_levGeoPtr->getBoxes();
+//     DataIterator             dit    = grids.dataIterator();
 
-//     // Copy T^{ia} = J*S^{ia}, if necessary.
-//     if (&a_Tia != &a_JSia) {
-//         for (int a = 0; a < SpaceDim; ++a) {
-//             for (int i = 0; i < SpaceDim; ++i) {
-//                 for (dit.reset(); dit.ok(); ++dit) {
-//                     a_Tia[i][a][dit].copy(a_JSia[i][a][dit]);
-//                 }
-//             }
-//         }
-//     }
-
-//     // Convert T^{ia} = J*S^{ia} into T^{ia} = (nu + eddyNu) * 2*J*S^{ia}.
+//     LevelData<FArrayBox> Gu(grids, SpaceDim * SpaceDim);
 //     for (dit.reset(); dit.ok(); ++dit) {
+//         const Box&       region = grids[dit];
+//         const FArrayBox& uFAB   = a_cartVel[dit];
+//         FArrayBox&       GuFAB  = Gu[dit];
+//         FArrayBox        dXidxFAB(region, 1);
+
 //         for (int a = 0; a < SpaceDim; ++a) {
-//             for (int i = 0; i < SpaceDim; ++i) {
-//                 FArrayBox&       TiaFAB    = a_Tia[i][a][dit];
-//                 const Real       nuDir     = a_nu[i];
-//                 const FArrayBox& eddyNuFAB = a_eddyNu[dit];
-//                 const Box&       region    = TiaFAB.box();
+//             m_levGeoPtr->getGeoSource().fill_dXidx(dXidxFAB, 0, a, dXi);
+//             for (int b = 0; b < SpaceDim; ++b) {
+//                 const int abComp = TensorComp::CC(a, b);
+//                 m_finiteDiffPtr->computeSlopes(GuFAB, abComp, uFAB, b, domBox, a, dXi[a]);
+//                 GuFAB.mult(dXidxFAB, region, 0, abComp, 1);
+//             } // b
+//         } // a
+//     } // dit
 
-//                 if (a == i) {
-//                     FABAlgebra::CCmultCC(
-//                         TiaFAB, 0, region, eddyNuFAB, 0, nuDir);
-//                 } else {
-//                     FABAlgebra::ECmultCC(
-//                         TiaFAB, 0, region, eddyNuFAB, 0, nuDir);
-//                 }
+//     for (dit.reset(); dit.ok(); ++dit) {
+//         const Box& region = grids[dit];
+//         for (int a = 0; a < SpaceDim; ++a) {
+//             // S^{a,a}
+//             {
+//                 const int aaSymComp = TensorComp::symCC(a, a);
+//                 FArrayBox SaaFAB(Interval(aaSymComp, aaSymComp), a_Sab[dit]);
 
-//                 TiaFAB *= 2.0;
+//                 const int aaComp = TensorComp::CC(a, a);
+//                 FArrayBox GauaFAB(Interval(aaComp, aaComp), Gu[dit]);
 
-//                 checkForNAN(TiaFAB, region);
+//                 SaaFAB.copy(GauaFAB);
 //             }
+
+//             // S^{a,b} = S^{b,a}
+//             for (int b = a + 1; b < SpaceDim; ++b) {
+//                 const int abSymComp = TensorComp::symCC(a, b);
+//                 FArrayBox SabFAB(Interval(abSymComp, abSymComp), a_Sab[dit]);
+
+//                 const int abComp = TensorComp::CC(a, b);
+//                 const int baComp = TensorComp::CC(b, a);
+//                 FArrayBox GaubFAB(Interval(abComp, abComp), Gu[dit]);
+//                 FArrayBox GbuaFAB(Interval(baComp, baComp), Gu[dit]);
+
+//                 FABAlgebra::axby(SabFAB, GaubFAB, GbuaFAB, 0.5, 0.5);
+//             } // b
 //         } // a
 //     } // dit
 // }
+
+
+// -----------------------------------------------------------------------------
+void
+AMRNSLevel::viscousStress(StaggeredFluxLD&            a_Tia,
+                          const StaggeredFluxLD&      a_JSia,
+                          const RealVect&             a_nu,
+                          const LevelData<FArrayBox>& a_eddyNu) const
+{
+    CH_assert(a_Tia   .getBoxes() == m_levGeoPtr->getBoxes());
+    CH_assert(a_JSia  .getBoxes() == m_levGeoPtr->getBoxes());
+    CH_assert(a_eddyNu.getBoxes() == m_levGeoPtr->getBoxes());
+
+    const DisjointBoxLayout& grids = m_levGeoPtr->getBoxes();
+    DataIterator             dit   = grids.dataIterator();
+
+    // Copy T^{ia} = J*S^{ia}, if necessary.
+    if (&a_Tia != &a_JSia) {
+        for (int a = 0; a < SpaceDim; ++a) {
+            for (int i = 0; i < SpaceDim; ++i) {
+                for (dit.reset(); dit.ok(); ++dit) {
+                    a_Tia[i][a][dit].copy(a_JSia[i][a][dit]);
+                }
+            }
+        }
+    }
+
+    // Convert T^{ia} = J*S^{ia} into T^{ia} = (nu + eddyNu) * 2*J*S^{ia}.
+    for (dit.reset(); dit.ok(); ++dit) {
+        for (int a = 0; a < SpaceDim; ++a) {
+            for (int i = 0; i < SpaceDim; ++i) {
+                FArrayBox&       TiaFAB    = a_Tia[i][a][dit];
+                const Real       nuDir     = a_nu[i];
+                const FArrayBox& eddyNuFAB = a_eddyNu[dit];
+                const Box&       region    = TiaFAB.box();
+
+                if (a == i) {
+                    FABAlgebra::CCmultCC(
+                        TiaFAB, 0, region, eddyNuFAB, 0, nuDir);
+                } else {
+                    FABAlgebra::ECmultCC(
+                        TiaFAB, 0, region, eddyNuFAB, 0, nuDir);
+                }
+
+                TiaFAB *= 2.0;
+
+                checkForNAN(TiaFAB, region);
+            }
+        } // a
+    } // dit
+}
+
+
+// // -----------------------------------------------------------------------------
+// void
+// AMRNSLevel::energyDissipationRate(LevelData<FArrayBox>&       a_eps,
+//                                   const LevelData<FluxBox>&   a_cartVel,
+//                                   const Real                  a_nu,
+//                                   const LevelData<FArrayBox>& a_eddyNu) const
+// {
+//     CH_assert(a_eps.getBoxes() == m_levGeoPtr->getBoxes());
+//     CH_assert(a_cartVel.getBoxes() == m_levGeoPtr->getBoxes());
+
+//     const DisjointBoxLayout& grids = m_levGeoPtr->getBoxes();
+
+//     // Create CC vel.
+//     LevelData<FArrayBox> ccVel(grids, SpaceDim, IntVect::Unit);
+//     for (DataIterator dit(grids); dit.ok(); ++dit) {
+//         for (int dir = 0; dir < SpaceDim; ++dir) {
+//             FArrayBox fcVelCompFAB(a_cartVel[dit][dir].box(), 1);
+//             fcVelCompFAB.copy(a_cartVel[dit][dir]);
+
+//             m_levGeoPtr->multByJ(fcVelCompFAB, dit());
+//             Convert::Simple(ccVel[dit], dir, grids[dit], fcVelCompFAB, 0);
+//             m_levGeoPtr->divByJ(ccVel[dit], dit(), dir);
+//         }
+//     }
+//     BCTools::extrapAllGhosts(ccVel, 2);  // Properly setting BCs increases nuT at the CFI.
+//     ccVel.exchange();
+
+//     // Hi-pass filter
+//     const int       numFilterSweeps = 3;
+//     const RealVect& eddyScale       = IntVect::Unit;
+//     this->LaplacianFilter(ccVel, numFilterSweeps, eddyScale);
+
+//     // BUG: Need to use structure function.
+
+//     // Compute CC Sab.
+//     LevelData<FArrayBox> Sab(grids, SpaceDim * (SpaceDim + 1) / 2);
+//     this->rateOfStrain(Sab, ccVel);
+
+//     // Compute eps.
+//     for (DataIterator dit(grids); dit.ok(); ++dit) {
+//         const Box valid = grids[dit];
+//         FORT_SGSMODEL_ENERGYDISSIPATIONRATE(
+//             CHF_FRA1(a_eps[dit], 0),
+//             CHF_CONST_FRA(Sab[dit]),
+//             CHF_CONST_REAL(a_nu),
+//             CHF_CONST_FRA1(a_eddyNu[dit], 0),
+//             CHF_BOX(valid));
+//     }
+// }
+
 
 // -----------------------------------------------------------------------------
 void
@@ -169,6 +287,9 @@ AMRNSLevel::computeEddyNu(LevelData<FArrayBox>&     a_eddyNu,
 {
     const auto* ctx            = ProblemContext::getInstance();
     const int   eddyViscMethod = ctx->rhs.eddyViscMethod[m_level];
+    const auto& grids          = a_eddyNu.getBoxes();
+
+    CH_assert(grids == a_cartVel.getBoxes());
 
     if (eddyViscMethod <= 0) {
         setValLevel(a_eddyNu, 0.0);
@@ -193,9 +314,20 @@ AMRNSLevel::computeEddyNu(LevelData<FArrayBox>&     a_eddyNu,
     // Set all BCs on eddy viscosity.
     // For now, just extrapolate and exchange.
     // Someday, maybe interp at CFI if needed.
+    if (a_eddyNu.ghostVect() == IntVect::Zero) return;
+
     BCTools::extrapAllGhosts(a_eddyNu, 2);
-    a_eddyNu.exchange(m_statePtr->qExCopier);
-    a_eddyNu.exchange(m_statePtr->qExCornerCopier);
+
+    if (grids == m_statePtr->grids && a_eddyNu.ghostVect() == m_statePtr->q.ghostVect()) {
+        a_eddyNu.exchange(m_statePtr->qExCopier);
+        a_eddyNu.exchange(m_statePtr->qExCornerCopier);
+
+    } else {
+        CornerCopier ccp;
+        State::qDefineExCornerCopier(ccp, a_eddyNu);
+        a_eddyNu.exchange();
+        a_eddyNu.exchange(ccp);
+    }
 }
 
 

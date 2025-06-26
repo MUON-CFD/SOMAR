@@ -77,6 +77,7 @@ public:
             CUSTOM            = 3,  // Must be overridden.
             TIDAL             = 4,
             OUTFLOW           = 5,
+            ZERO_DIRI_ON_PERT = 6,
             _NUM_BCTYPES
         };
     };
@@ -93,6 +94,7 @@ public:
             CUSTOM            = 3,  // Must be overridden.
             TIDAL             = 4,
             OUTFLOW           = 5,
+            ZERO_DIRI_ON_PERT = 6,
             _NUM_BCTYPES
         };
     };
@@ -107,7 +109,6 @@ public:
 
     struct EddyViscMethods {
         enum {
-            AVG_DOWN = -1,
             SET_TO_ZERO = 0,
             STATIC_SMAG,
             DYNAMIC_SMAG,

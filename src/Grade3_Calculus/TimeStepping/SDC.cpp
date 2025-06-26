@@ -113,6 +113,9 @@ SDC::SDC(const DisjointBoxLayout& a_grids,
 , m_Q0Ready(false)
 , m_finalForcesReady(false)
 , m_interpDataReady(false)
+// Error controller stuff
+, m_errorHistory()
+, m_controllerHistory{-1.0, -1.0, -1.0}
 {
     for (size_t m = 0; m < NumNodes; ++m) {
         m_vel[m].define(a_grids, a_velNumComps, a_velGhostVect);
@@ -207,6 +210,7 @@ SDC::advance(LevelData<FluxBox>&   a_vel,
         return ret;
     }();
 
+    // TODONOTE("First calculation can be skipped!");
     // if (m_finalForcesReady) {
     //     SDC::copy(m_kvelE.back(), m_kvelE.front());
     //     SDC::copy(m_kvelI.back(), m_kvelI.front());
@@ -218,16 +222,18 @@ SDC::advance(LevelData<FluxBox>&   a_vel,
     this->setOldQ(a_vel, a_p, a_q, a_oldTime);
     m_dt = a_dt;
 
+
     // ------------------------------------------------------------
     // Predictor. Computes Q[m] and kQ[0][m] for all stages m >= 1.
     size_t k = 0;
 
-    // Compute initial implicit forces.
+    // Compute initial implicit forces. Needed by the quadrature.
     {
         constexpr Real refluxDt = 0.0;
         constexpr size_t m = 0;
         a_rhsPtr->setImplicitRHS(m_kvelI[m], m_kqI[m], m_vel[m], m_p[m], m_q[m], stageTime[m], refluxDt);
     }
+
     // Compute stages >= 1.
     for (size_t m = 1; m < NumNodes; ++m) {
         pout() << Format::fixed << "FE timestep (predictor k = " << k
@@ -244,20 +250,20 @@ SDC::advance(LevelData<FluxBox>&   a_vel,
 
         pout() << Format::unindent << flush;
     }
-    // Compute final explicit forces.
+
+    // Compute final explicit forces. Needed by the quadrature.
     {
         const Real refluxDt = 0.0;
         constexpr size_t m = NumNodes - 1;
         a_rhsPtr->setExplicitRHS(m_kvelE[m], m_kqE[m], m_vel[m], m_p[m], m_q[m], stageTime[m], refluxDt);
     }
 
-    LevelData<FluxBox> velErr(m_grids, 1);
-    SDC::copy(velErr, m_vel.back());
 
     // -------------------------------------------------------
     // Deferred corrections
-    constexpr size_t numCorrections = NumNodes - 1;
-    for (k = 1; k <= numCorrections; ++k) {
+    RealVect localError(D_DECL(maxReal, maxReal, maxReal));
+
+    for (k = 1; k <= MaxCorrections; ++k) {
         // Save k-1 forces.
         for (size_t m = 0; m < NumNodes; ++m) {
             SDC::copy(m_kvelOld[m], m_kvelE[m]);
@@ -267,34 +273,47 @@ SDC::advance(LevelData<FluxBox>&   a_vel,
             SDC::plus(m_kqOld[m], 1.0, m_kqI[m]);
         }
 
+        LevelData<FluxBox> velErr(m_grids, 1);
+        SDC::copy(velErr, m_vel.back());
+
         // Correct stages >= 1.
         for (size_t m = 1; m < NumNodes; ++m) {
             pout() << Format::fixed << "FE timestep (corrector k = " << k
                 << ", subinterval m = " << m << ")\n"
                 << Format::indent() << flush;
 
+            // The overall form of the correction is
+            // Q^k_m = Q^k_{m-1}                                             (1)
+            //       - dt_{m-1} * [kE^{k-1}_{m-1} + kI^{k-1}_{m}]            (2)
+            //       + \int_{t_{m-1}}^{t_m} F(s, Q^k(s)) ds                  (3)
+            //       + dt_{m-1} * [kE^{k}_{m-1} + kI^{k}_{m}]                (4)
+
+            // Updates (1) and (2).
             SDC::copy(m_vel[m], m_vel[m-1]);
             SDC::plus(m_vel[m], -stageDt[m-1], m_kvelE[m-1]);
             SDC::plus(m_vel[m], -stageDt[m-1], m_kvelI[m]);
-
-            SDC::copy(m_p[m], m_p[m-1]);
 
             SDC::copy(m_q[m], m_q[m-1]);
             SDC::plus(m_q[m], -stageDt[m-1], m_kqE[m-1]);
             SDC::plus(m_q[m], -stageDt[m-1], m_kqI[m]);
 
+            SDC::copy(m_p[m], m_p[m-1]);
+
+            // Update (3).
             for (size_t l = 0; l < NumNodes; ++l) {
                 SDC::plus(m_vel[m], a_dt * m_correctionWeights[m-1][l], m_kvelOld[l]);
                 SDC::plus(  m_q[m], a_dt * m_correctionWeights[m-1][l],   m_kqOld[l]);
             }
 
-            Real sum = 0;
+            // Sanity check.
+            Real sum = 0.0;
             for (size_t l = 0; l < NumNodes; ++l) {
                 sum += m_correctionWeights[m-1][l];
             }
             CH_verify(RealCmp::eq(sum*a_dt, stageDt[m-1]));
 
-            const Real refluxDt = 0.0;
+            // Update (4).
+            constexpr Real refluxDt = 0.0;
             SDC::basicAdvance(m_vel[m], m_p[m], m_q[m],
                               m_kvelE[m-1], m_kqE[m-1],
                               m_kvelI[m], m_kqI[m],
@@ -304,7 +323,8 @@ SDC::advance(LevelData<FluxBox>&   a_vel,
 
             pout() << Format::unindent << flush;
         } // m
-        // Compute final explicit forces.
+
+        // Compute final explicit forces. Needed by the quadrature.
         {
             const Real refluxDt = 0.0;
             constexpr size_t m = NumNodes - 1;
@@ -312,12 +332,12 @@ SDC::advance(LevelData<FluxBox>&   a_vel,
         }
 
         // Error analysis
-        SDC::plus(velErr, -1.0, m_vel.back());
-        const RealVect velErrNorm = Analysis::pNorm(velErr, 2);
-        pout() << "|velErr|_2 ~ " << Format::pushFlags << Format::scientific
-               << velErrNorm << Format::popFlags << '\n';
-        SDC::copy(velErr, m_vel.back());
+        SDC::plus(velErr, -1.0, m_vel.back()); // This order - last order.
+        localError = Analysis::pNorm(velErr, 0);
+        pout() << "|velErr|_oo ~ " << Format::pushFlags << Format::scientific
+               << localError << Format::popFlags << '\n';
     } // k
+
 
     // Update user's state.
     this->copy(a_vel, m_vel.back());
@@ -329,8 +349,12 @@ SDC::advance(LevelData<FluxBox>&   a_vel,
     m_finalForcesReady = true;
     m_interpDataReady  = true;
 
-    // Allow user to perform postStep operations (e.g., preparing plots)
-    a_rhsPtr->postStep(a_vel, a_p, a_q, m_newTime);
+    // Update error controller
+    const Real localErrMag =
+        std::max({ D_DECL(localError[0], localError[1], localError[2]) });
+    this->pushToHistory(ErrorHistoryElem(m_oldTime, m_dt, localErrMag),
+                        m_errorHistory,
+                        true); // isNewTime
 }
 
 
@@ -351,26 +375,29 @@ SDC::basicAdvance(LevelData<FluxBox>&   a_vel,
                   const Real            a_refluxDt,
                   PARKRHS*              a_rhsPtr)
 {
+    const Real oldTime = a_time0;
+    const Real newTime = a_time0 + a_dt;
+
     // Explicit Euler. Initializes new stage.
-    a_rhsPtr->setExplicitRHS(a_kvelE, a_kqE, a_vel0, a_p0, a_q0, a_time0, a_refluxDt);
+    a_rhsPtr->setExplicitRHS(a_kvelE, a_kqE, a_vel0, a_p0, a_q0, oldTime, a_refluxDt);
     SDC::copy(a_vel, a_vel0);
-    SDC::copy(a_q  , a_q0);
     SDC::plus(a_vel, a_dt, a_kvelE);
+    SDC::copy(a_q  , a_q0);
     SDC::plus(a_q  , a_dt, a_kqE);
 
     // Approximate projector. Initializes new pressure.
     SDC::copy(a_p, a_p0);
-    a_rhsPtr->projectPredict(a_vel, a_p, a_time0, a_dt);
+    a_rhsPtr->projectPredict(a_vel, a_p, newTime, a_dt);
 
     // Implicit Euler.
     SDC::copy(a_kvelI, a_vel);
     SDC::copy(a_kqI, a_q);
-    a_rhsPtr->solveImplicit(a_vel, a_q, a_dt, a_time0, a_refluxDt);
+    a_rhsPtr->solveImplicit(a_vel, a_q, a_dt, newTime, a_refluxDt);
     SDC::axby(-1.0 / a_dt, a_kvelI, 1.0 / a_dt, a_vel);
     SDC::axby(-1.0 / a_dt, a_kqI, 1.0 / a_dt, a_q);
 
     // Projection correction. Completes pressure update.
-    a_rhsPtr->projectCorrect(a_vel, a_p, a_time0 + a_dt, a_dt);
+    a_rhsPtr->projectCorrect(a_vel, a_p, newTime, a_dt);
 
     nanCheck(a_vel);
     nanCheck(a_p);
@@ -460,6 +487,76 @@ SDC::FEadvance(LevelData<FluxBox>&   a_vel,
 
 // -----------------------------------------------------------------------------
 Real
+SDC::controllerDt(const Real a_tol,
+                  const bool /* a_useImplicit */,
+                  const bool a_useElementary,
+                  const bool a_usePI,
+                  const bool a_usePID) const
+{
+    if (!m_interpDataReady) return maxReal;
+
+    // Remember, the error estimate is an order worse than the actual solution.
+    constexpr Real errorOrder = Real(2 + MaxCorrections - 1);
+    const Real localError = m_errorHistory[0].localError;
+
+    Real retVal = maxReal;
+    if (a_useElementary) {
+        const Real eps      = a_tol / localError;
+        const Real elemCtrl = std::pow(eps,  1.0 / errorOrder);
+        retVal = std::min(retVal, elemCtrl);
+    }
+
+    if (a_usePI) {
+        // Soderlind's PI11 controller
+        const Real eps      = a_tol / localError;
+        const Real r_ratio  = m_errorHistory[1].localError / localError;
+        const Real dt_ratio = m_dt / m_errorHistory[1].dt;
+
+        const Real piCtrl = std::pow(eps,     1.0 / errorOrder)
+                          * std::pow(r_ratio, 1.0 / errorOrder)
+                          * dt_ratio;
+
+        retVal = std::min(retVal, piCtrl);
+    }
+
+    if (a_usePID) {
+        Real pidCtrl;
+        if (m_errorHistory[2].hasValue) {
+            // From Kennedy & Carpenter
+            const Real eps0 = a_tol / localError;
+            const Real eps1 = a_tol / m_errorHistory[1].localError;
+            const Real eps2 = a_tol / m_errorHistory[2].localError;
+            pidCtrl = std::pow(eps0,  0.49 / errorOrder)
+                    * std::pow(eps1, -0.34 / errorOrder)
+                    * std::pow(eps2,  0.10 / errorOrder);
+
+        } else if (m_errorHistory[1].hasValue) {
+            // PI42 controller from Ranocha
+            const Real eps0 = a_tol / localError;
+            const Real eps1 = a_tol / m_errorHistory[1].localError;
+            pidCtrl = std::pow(eps0,  0.60 / errorOrder)
+                    * std::pow(eps1, -0.20 / errorOrder);
+
+        } else {
+            // Elementary controller
+            const Real eps = a_tol / localError;
+            pidCtrl = std::pow(eps,  1.0 / errorOrder);
+        }
+        retVal = std::min(retVal, pidCtrl);
+    }
+
+    // // Limiting
+    // retVal = hardLimiter(retVal, m_controllerHistory[0]);
+    // // retVal = softLimiter(retVal, m_controllerHistory[0]);
+    // // retVal = oscillationLimiter(retVal, m_controllerHistory[0], m_controllerHistory[1]);
+    // pushToHistory(retVal, m_controllerHistory, isNewTime);
+
+    return retVal * m_dt;
+}
+
+
+// -----------------------------------------------------------------------------
+Real
 SDC::velTimeInterp(LevelData<FluxBox>& a_vel,
                    const Real          a_time,
                    int                 a_srcComp,
@@ -507,12 +604,14 @@ SDC::computeTheta(const Real a_time) const
 
 // -----------------------------------------------------------------------------
 Real
-SDC::velLinearInterp(LevelData<FluxBox>& a_vel,
-                     const Real          a_time,
-                     int                 a_srcComp,
-                     int                 a_destComp,
-                     int                 a_numComp) const
+SDC::velLinearInterp([[maybe_unused]] LevelData<FluxBox>& a_vel,
+                     [[maybe_unused]] const Real          a_time,
+                     [[maybe_unused]] int                 a_srcComp,
+                     [[maybe_unused]] int                 a_destComp,
+                     [[maybe_unused]] int                 a_numComp) const
 {
+    UNDEFINED_FUNCTION();
+
     CH_assert(a_numComp <= m_velNumComps);
     CH_assert(a_vel.getBoxes().compatible(m_grids));
     CH_assert(a_vel.getBoxes().physDomain().size() ==
@@ -588,12 +687,14 @@ SDC::velLinearInterp(LevelData<FluxBox>& a_vel,
 
 // -----------------------------------------------------------------------------
 Real
-SDC::pLinearInterp(LevelData<FArrayBox>& a_p,
-                   const Real            a_time,
-                   int                   a_srcComp,
-                   int                   a_destComp,
-                   int                   a_numComp) const
+SDC::pLinearInterp([[maybe_unused]] LevelData<FArrayBox>& a_p,
+                   [[maybe_unused]] const Real            a_time,
+                   [[maybe_unused]] int                   a_srcComp,
+                   [[maybe_unused]] int                   a_destComp,
+                   [[maybe_unused]] int                   a_numComp) const
 {
+    UNDEFINED_FUNCTION();
+
     CH_assert(a_numComp <= m_pNumComps);
     CH_assert(a_p.getBoxes().compatible(m_grids));
     CH_assert(a_p.getBoxes().physDomain().size() ==
@@ -648,12 +749,14 @@ SDC::pLinearInterp(LevelData<FArrayBox>& a_p,
 
 // -----------------------------------------------------------------------------
 Real
-SDC::qLinearInterp(LevelData<FArrayBox>& a_q,
-                   const Real            a_time,
-                   int                   a_srcComp,
-                   int                   a_destComp,
-                   int                   a_numComp) const
+SDC::qLinearInterp([[maybe_unused]] LevelData<FArrayBox>& a_q,
+                   [[maybe_unused]] const Real            a_time,
+                   [[maybe_unused]] int                   a_srcComp,
+                   [[maybe_unused]] int                   a_destComp,
+                   [[maybe_unused]] int                   a_numComp) const
 {
+    UNDEFINED_FUNCTION();
+
     CH_assert(a_numComp <= m_qNumComps);
     CH_assert(a_q.getBoxes().compatible(m_grids));
     CH_assert(a_q.getBoxes().physDomain().size() ==
@@ -769,6 +872,8 @@ void
 SDC::copy(LevelData<FluxBox>&       a_x,
           const LevelData<FluxBox>& a_y)
 {
+    if (&a_x == &a_y) return;
+
     CH_assert(a_x.getBoxes() == a_y.getBoxes());
     CH_assert(a_x.nComp() == a_y.nComp());
 
@@ -786,6 +891,8 @@ void
 SDC::copy(LevelData<FArrayBox>&       a_x,
           const LevelData<FArrayBox>& a_y)
 {
+    if (&a_x == &a_y) return;
+
     CH_assert(a_x.getBoxes() == a_y.getBoxes());
     CH_assert(a_x.nComp() == a_y.nComp());
 

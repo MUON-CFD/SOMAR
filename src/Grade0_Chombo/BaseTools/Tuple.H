@@ -39,7 +39,7 @@ public:
     */
 #if defined(__INTEL_COMPILER) || defined(__clang__)
     template <class S = T, typename std::enable_if<std::is_constructible<S>::value>::type * = nullptr>
-#else 
+#else
     template <class S = T, typename std::enable_if<std::is_copy_constructible<S>::value>::type * = nullptr>
 #endif
     Tuple() : vect{}
@@ -47,10 +47,10 @@ public:
     }
 #if defined(__INTEL_COMPILER) || defined(__clang__)
     template <class S = T, typename std::enable_if<!std::is_constructible<S>::value>::type * = nullptr>
-#else 
+#else
     template <class S = T, typename std::enable_if<!std::is_copy_constructible<S>::value>::type * = nullptr>
 #endif
-    Tuple() 
+    Tuple()
     {
     }
     /**: Constructs a Tuple, initializing the elements in the Tuple
@@ -70,7 +70,7 @@ public:
             vect[i] = rhs.vect[i];
     }
     template <class S = T, typename std::enable_if<!std::is_copy_assignable<S>::value>::type * = nullptr>
-    Tuple(const Tuple &rhs)
+    Tuple(const Tuple& /* rhs */)
     {
        static_assert(std::is_copy_assignable<S>::value, "Tuple<T> copy constructor called on a class which is not copy assignable");
     }
@@ -85,7 +85,7 @@ public:
         return *this;
     }
     template <class S = T, typename std::enable_if<!std::is_copy_assignable<S>::value>::type * = nullptr>
-    Tuple &operator=(const Tuple &rhs)
+    Tuple &operator=(const Tuple& /* rhs */)
     {
         static_assert(std::is_copy_assignable<S>::value, "Tuple<T> assignment operator called on a class which is not copy assignable");
     }

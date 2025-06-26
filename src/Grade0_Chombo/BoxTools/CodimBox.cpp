@@ -95,7 +95,8 @@ CodimBox::~CodimBox()
  *   used before construction, it must be called manually.  See class
  *   CodimBox for more information on the lookup tables.
  *//*-----------------------------------------------------------------*/
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 void
 CodimBox::initialize()
 {
@@ -146,7 +147,7 @@ CodimBox::initialize()
         }
     }
 }
-
+#pragma GCC diagnostic pop
 /*--------------------------------------------------------------------*/
 ///  Define function allocates space
 /**  \param[in]  a_codim
@@ -251,7 +252,7 @@ CodimBox::operator()(const IndexType &a_ixType) const
 {
   // Bit representation should be the same as used internally in IndexType but
   // do a translation anyways
-  int count = 0;
+  [[maybe_unused]] int count = 0;
   unsigned bOrient = 0;
   for (int i = 0; i != SpaceDim; ++i)
     {
@@ -270,7 +271,7 @@ CodimBox::operator()(const IndexType &a_ixType)
 {
   // Bit representation should be the same as used internally in IndexType but
   // do a translation anyways
-  int count = 0;
+  [[maybe_unused]]int count = 0;
   unsigned bOrient = 0;
   for (int i = 0; i != SpaceDim; ++i)
     {

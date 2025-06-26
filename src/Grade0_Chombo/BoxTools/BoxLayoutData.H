@@ -337,6 +337,11 @@ public:
 
   static int s_verbosity;
 
+#ifdef CH_USE_PYTHON
+  PyObject* pack() const;
+  PyObject* pack();
+#endif
+
 protected:
   int             m_comps;
   bool            m_isdefined;

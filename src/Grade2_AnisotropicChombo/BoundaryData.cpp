@@ -532,7 +532,7 @@ RealVect BoundaryData<Real>::integrate (const RealVect& a_dx,
 Real
 BoundaryData<Real>::consistencyCheck (const LevelData<FArrayBox>& a_Jrhs,
                                       const RealVect&             a_dx,
-                                      const Real                  a_loMult) const
+                                      const Real                  /* a_loMult */) const
 {
     CH_assert(a_Jrhs.nComp() == 1);
 

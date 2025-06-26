@@ -692,8 +692,8 @@ MappedQuadCFStencil::define(const ProblemDomain&     a_fine_domain,
     m_direction = a_direction;
 
     m_isFlat = a_isFlat;
-    int dims = SpaceDim;
-    if (a_isFlat) --dims;
+    // int dims = SpaceDim;
+    // if (a_isFlat) --dims;
 
     // define base cfstencil
     m_baseCFS.define(a_fine_domain,

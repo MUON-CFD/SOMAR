@@ -92,6 +92,7 @@ public:
     ///        The resulting slopes are second order.
     /// @param a_pd          The dest holder.
     /// @param a_pdComp      The comp of a_pd that will be filled.
+    /// @param a_destBox     This must be equal to or a subset of a_validPhiBox.
     /// @param a_phi         The source data.
     /// @param a_phiComp     The comp of a_phi that will be differentiated.
     /// @param a_validPhiBox We will only reference src data from this box.
@@ -100,6 +101,7 @@ public:
     static void
     computeSlopes(FArrayBox&       a_pd,
                   const int        a_pdComp,
+                  const Box&       a_destBox,
                   const FArrayBox& a_phi,
                   const int        a_phiComp,
                   const Box&       a_validPhiBox,
@@ -240,7 +242,6 @@ public:
                       const LevelData<FluxBox>& a_fineFlux,
                       const bool                a_scaleByJinv = true,
                       const RealVect&           a_scale = RealVect::Unit) const;
-
     /// \}
 
 protected:

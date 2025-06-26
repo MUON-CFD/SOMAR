@@ -53,7 +53,7 @@ template <class T>
 class LevelData : public BoxLayoutData<T>
 {
 public:
-    typedef T MyClass;
+    // typedef T MyClass; // defined in LayoutData.H
     virtual void
     clear()
     {
@@ -310,8 +310,6 @@ public:
   void plotLine(std::string a_fileName, std::string a_title, int dir = 0, IntVect pos = IntVect::Zero , int comp  = 0 ) const
   {if constexpr (std::is_same<T, FArrayBox>::value)
       Py::PythonFunction("PlotUtils","PlotLine", *this, a_fileName, a_title, dir, pos, comp);
-    
-    
   }
   void plotPlane(std::string a_fileName, std::string a_title, int dir = 0, int pos = 0, int comp = 0) const
   {if constexpr (std::is_same<T, FArrayBox>::value)
@@ -471,11 +469,7 @@ aliasLevelData(LevelData<T>&   a_alias,
 #define Md2c23a81b8e7d2ba821ba765e1d44345
 // template specialization
 #include "LevelDataFluxBox.H"
-
-// ====== inlined function definitions ================
-// As with the BoxLayoutData implementation file.  This file
-// just gives the interface and the inline implmentations
-// are given in LevelDataI.H
+// Inlined/templated function definitions
 #include "LevelDataI.H"
 #undef Md2c23a81b8e7d2ba821ba765e1d44345
 

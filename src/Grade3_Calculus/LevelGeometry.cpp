@@ -1096,7 +1096,7 @@ void
 LevelGeometry::makeContravariant (FArrayBox&       a_contraVect,
                                   const FArrayBox& a_coVect,
                                   const Box&       a_region,
-                                  const int        a_vectComp,
+                                  const int        /* a_vectComp */,
                                   const DataIndex& a_di) const
 {
     CH_assert(a_coVect.nComp() == SpaceDim);

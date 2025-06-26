@@ -306,6 +306,21 @@ AMRNSLevel::tagCells(IntVectSet& a_tags)
         }
     }
 
+    // Tag on eddyNu
+    if (ctx->amr.eddyNuTagTol.size() > 0) {
+        if (ctx->amr.eddyNuTagTol[m_level] > smallReal) {
+            LevelData<FArrayBox> eddyNu(grids, 1, IntVect::Unit); // TODO: Do we need the ghost?
+            // Just in case we aren't using an LES on this level, avoid calling
+            // computeEddyNu directly, which would set eddyNu = 0.
+            const int numFilterSweeps = 3;
+            const RealVect& eddyScale = ctx->rhs.eddyScale;
+            this->SGSModel_Ducros(
+                eddyNu, m_statePtr->vel, m_time, numFilterSweeps, eddyScale);
+
+            doQTagging(eddyNu, ctx->amr.eddyNuTagTol[m_level]);
+        }
+    }
+
     // Finalize.
     a_tags.grow(growTags);
     a_tags &= domBox;
@@ -360,10 +375,10 @@ AMRNSLevel::preRegrid(int                        a_lBase,
         // Convert vel to advecting velocity to help when refining.
         this->sendToAdvectingVelocity(*m_oldVelPtr, *m_oldVelPtr);
         debugCheckValidFaceOverlap(*m_oldVelPtr);
-    // } else { // I don't think this is needed. It is done in regrid().
-    //     m_oldVelPtr.reset();
-    //     m_oldPPtr.reset();
-    //     m_oldQPtr.reset();
+    } else {
+        m_oldVelPtr.reset();
+        m_oldPPtr.reset();
+        m_oldQPtr.reset();
     }
 }
 

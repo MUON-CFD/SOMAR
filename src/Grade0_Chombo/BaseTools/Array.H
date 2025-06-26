@@ -307,7 +307,7 @@ public:
 
 private:
     size_t
-    _linearIndex(const size_t d, const size_t i) const
+    _linearIndex([[maybe_unused]] const size_t d, const size_t i) const
     {
         CH_assert(i < m_dims[d]);
         return i;

@@ -249,6 +249,14 @@ public:
     inline RealVect
     getFaceX(const IntVect& a_iv, const int a_fcDir) const;
 
+    /// Retrieves the node coordinates.
+    inline Real
+    getNodeX(const int a_coorDir, const IntVect& a_iv) const;
+
+    /// Retrieves the node coordinates.
+    inline RealVect
+    getNodeX(const IntVect& a_iv) const;
+
     /// Retrieves the lower-left coordinates of a Box.
     inline RealVect
     getBoxLoX(const Box& a_box) const;
@@ -660,6 +668,24 @@ LevelGeometry::getFaceX(const IntVect& a_iv, const int a_fcDir) const
     return RealVect(D_DECL(this->getFaceX(0, a_iv, a_fcDir),
                            this->getFaceX(1, a_iv, a_fcDir),
                            this->getFaceX(2, a_iv, a_fcDir)));
+}
+
+
+// -----------------------------------------------------------------------------
+Real
+LevelGeometry::getNodeX(const int a_coorDir, const IntVect& a_iv) const
+{
+    return m_xNodeFAB[a_coorDir](a_iv * BASISV(a_coorDir));
+}
+
+
+// -----------------------------------------------------------------------------
+RealVect
+LevelGeometry::getNodeX(const IntVect& a_iv) const
+{
+    return RealVect(D_DECL(this->getNodeX(0, a_iv),
+                           this->getNodeX(1, a_iv),
+                           this->getNodeX(2, a_iv)));
 }
 
 

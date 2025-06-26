@@ -121,39 +121,36 @@ IVSFAB<T>::setVal(const T& a_value)
     m_dataPtr[ivec] = a_value;
 }
 /******************/
-template <class T> inline
-void
-IVSFAB<T>::copy(const Box& a_fromBox,
-                   const Interval& a_dstInterval,
-                   const Box& a_toBox,
-                   const IVSFAB<T>& a_src,
-                   const Interval& a_srcInterval)
+template <class T>
+inline void
+IVSFAB<T>::copy(const Box&                  a_fromBox,
+                const Interval&             a_dstInterval,
+                [[maybe_unused]] const Box& a_toBox,
+                const IVSFAB<T>&            a_src,
+                const Interval&             a_srcInterval)
 {
-  CH_assert(a_fromBox == a_toBox);
-  CH_assert(isDefined());
-  CH_assert(a_src.isDefined());
-  CH_assert(a_srcInterval.size() == a_dstInterval.size());
-  CH_assert(a_dstInterval.begin() >= 0);
-  CH_assert(a_srcInterval.begin() >= 0);
-  CH_assert(a_dstInterval.end()   < m_nComp);
-  CH_assert(a_srcInterval.end()   < a_src.m_nComp);
+    CH_assert(a_fromBox == a_toBox);
+    CH_assert(isDefined());
+    CH_assert(a_src.isDefined());
+    CH_assert(a_srcInterval.size() == a_dstInterval.size());
+    CH_assert(a_dstInterval.begin() >= 0);
+    CH_assert(a_srcInterval.begin() >= 0);
+    CH_assert(a_dstInterval.end() < m_nComp);
+    CH_assert(a_srcInterval.end() < a_src.m_nComp);
 
-  if ((!m_ivs.isEmpty()) && (!a_src.m_ivs.isEmpty()))
-    {
-      Box intBox = a_fromBox;
-      IntVectSet ivsIntersect = m_ivs;
-      ivsIntersect &= a_src.m_ivs; //how did this ever work without this line?
-      ivsIntersect &= intBox;  //
-      IVSFAB<T>& thisFAB = *this;
-      int compSize = a_srcInterval.size();
-      for (IVSIterator ivit(ivsIntersect); ivit.ok(); ++ivit)
-        {
-          const IntVect& iv = ivit();
-          for (int icomp = 0; icomp < compSize; icomp++)
-            {
-              int isrccomp = a_srcInterval.begin() + icomp;
-              int idstcomp = a_dstInterval.begin() + icomp;
-              thisFAB(iv, idstcomp) = a_src(iv, isrccomp);
+    if ((!m_ivs.isEmpty()) && (!a_src.m_ivs.isEmpty())) {
+        Box        intBox       = a_fromBox;
+        IntVectSet ivsIntersect = m_ivs;
+        ivsIntersect &= a_src.m_ivs;
+        ivsIntersect &= intBox;
+        IVSFAB<T>& thisFAB  = *this;
+        int        compSize = a_srcInterval.size();
+        for (IVSIterator ivit(ivsIntersect); ivit.ok(); ++ivit) {
+            const IntVect& iv = ivit();
+            for (int icomp = 0; icomp < compSize; icomp++) {
+                int isrccomp          = a_srcInterval.begin() + icomp;
+                int idstcomp          = a_dstInterval.begin() + icomp;
+                thisFAB(iv, idstcomp) = a_src(iv, isrccomp);
             }
         }
     }
@@ -171,20 +168,21 @@ int IVSFAB<Real>::size(const Box& a_region,
   return numberThings*sizeof(Real)*a_comps.size() + sizeof(int);
 }
 
-template <class T> inline
-int IVSFAB<T>::size(const Box& a_region,
-                       const Interval& a_comps) const
+template <class T>
+inline int
+IVSFAB<T>::size(const Box&                       a_region,
+                [[maybe_unused]] const Interval& a_comps) const
 {
-  // Note:  it is assumed that there is one component.
-  //        and, that all "T" have equal size.
-  // message includes count ...
-  CH_assert( a_comps.begin() == 0 && a_comps.end() == 0 );
-  IntVectSet subset = m_ivs & a_region;
-  int numberThings = subset.numPts();
-  T dummy;
-  int sizeofThing = dummy.linearSize();
-  int retval = numberThings*sizeofThing + sizeof(int);
-  return retval;
+    // Note:  it is assumed that there is one component.
+    //        and, that all "T" have equal size.
+    // message includes count ...
+    CH_assert(a_comps.begin() == 0 && a_comps.end() == 0);
+    IntVectSet subset       = m_ivs & a_region;
+    int        numberThings = subset.numPts();
+    T          dummy;
+    int        sizeofThing = dummy.linearSize();
+    int        retval      = numberThings * sizeofThing + sizeof(int);
+    return retval;
 }
 
 
@@ -210,31 +208,34 @@ template <> inline void IVSFAB<Real>::linearOut(void* a_buf,
   CH_assert( ((char*)rptr) - ((char*)a_buf) == size(a_region,a_comps) );
 }
 
-template <class T> inline
-void IVSFAB<T>::linearOut(void* a_buf,
-                             const Box& a_region,
-                             const Interval& a_comps) const
+
+template <class T>
+inline void
+IVSFAB<T>::linearOut(void*                            a_buf,
+                     const Box&                       a_region,
+                     [[maybe_unused]] const Interval& a_comps) const
 {
-  // Note:  it is assumed that there is one component.
-  //        and all "T" have equal size.
-  // message includes count
-  IntVectSet subset = m_ivs & a_region;
-  int count = subset.numPts();
-  int *iptr = (int*)a_buf;
-  *iptr++ = count;
-  T dummy;
-  int Tsz = dummy.linearSize();
-  char* cptr = (char*)iptr;
-  for ( IVSIterator ivsit(subset); ivsit.ok(); ++ivsit )
-  {
-    const IntVect& iv = ivsit();
-    int iloc = getIndex(iv, 0); // assume 1 component ...
-    m_dataPtr[iloc].linearOut( (void*)cptr );
-    cptr += Tsz;
-  }
-  CH_assert( a_comps.begin() == 0 && a_comps.end() == 0 );
-  CH_assert( cptr - ((char*)a_buf) == size(a_region,a_comps) );
+    // Note:  it is assumed that there is one component.
+    //        and all "T" have equal size.
+    // message includes count
+    IntVectSet subset = m_ivs & a_region;
+    int        count  = subset.numPts();
+    int*       iptr   = (int*)a_buf;
+    *iptr++           = count;
+    T     dummy;
+    int   Tsz  = dummy.linearSize();
+    char* cptr = (char*)iptr;
+    for (IVSIterator ivsit(subset); ivsit.ok(); ++ivsit) {
+        const IntVect& iv   = ivsit();
+        int            iloc = getIndex(iv, 0);  // assume 1 component ...
+        m_dataPtr[iloc].linearOut((void*)cptr);
+        cptr += Tsz;
+    }
+    CH_assert(a_comps.begin() == 0 && a_comps.end() == 0);
+    CH_assert(cptr - ((char*)a_buf) == size(a_region, a_comps));
 }
+
+
 /********************/
 template <> inline void IVSFAB<Real>::linearIn(void* a_buf, const Box& a_region, const Interval& a_comps)
 {
@@ -260,29 +261,31 @@ template <> inline void IVSFAB<Real>::linearIn(void* a_buf, const Box& a_region,
   CH_assert( ((char*)rptr) - ((char*)a_buf) == size(a_region,a_comps) );
 }
 
-template <class T> inline
-void IVSFAB<T>::linearIn(void* a_buf, const Box& a_region, const Interval& a_comps)
+template <class T>
+inline void
+IVSFAB<T>::linearIn(void*                            a_buf,
+                    const Box&                       a_region,
+                    [[maybe_unused]] const Interval& a_comps)
 {
-  // Note:  it is assumed that there is one component.
-  //        and all "T" have same size
-  // message includes count
-  IntVectSet subset = m_ivs & a_region;
-  int __attribute__((unused)) count_expected = subset.numPts();
-  int *iptr = (int*)a_buf;
-  int __attribute__((unused)) count_received = *iptr++;
-  CH_assert( count_expected == count_received );
-  T dummy;
-  int Tsz = dummy.linearSize();
-  char* cptr = (char*)iptr;
-  for ( IVSIterator ivsit(subset); ivsit.ok(); ++ivsit )
-  {
-    const IntVect& iv = ivsit();
-    int iloc = getIndex(iv, 0);
-    m_dataPtr[iloc].linearIn( (void*)cptr );
-    cptr += Tsz;
-  }
-  CH_assert( a_comps.begin() == 0 && a_comps.end() == 0 );
-  CH_assert( cptr - ((char*)a_buf) == size(a_region,a_comps) );
+    // Note:  it is assumed that there is one component.
+    //        and all "T" have same size
+    // message includes count
+    IntVectSet           subset         = m_ivs & a_region;
+    [[maybe_unused]] int count_expected = subset.numPts();
+    int*                 iptr           = (int*)a_buf;
+    [[maybe_unused]] int count_received = *iptr++;
+    CH_assert(count_expected == count_received);
+    T     dummy;
+    int   Tsz  = dummy.linearSize();
+    char* cptr = (char*)iptr;
+    for (IVSIterator ivsit(subset); ivsit.ok(); ++ivsit) {
+        const IntVect& iv   = ivsit();
+        int            iloc = getIndex(iv, 0);
+        m_dataPtr[iloc].linearIn((void*)cptr);
+        cptr += Tsz;
+    }
+    CH_assert(a_comps.begin() == 0 && a_comps.end() == 0);
+    CH_assert(cptr - ((char*)a_buf) == size(a_region, a_comps));
 }
 
 template <class T> inline
@@ -410,14 +413,14 @@ IVSFAB<T>::setDefaultValues()
 /******************/
 template <class T> inline
 IVSFAB<T>&
-IVSFAB<T>::operator= (const IVSFAB<T>& a_input)
+IVSFAB<T>::operator= (const IVSFAB<T>& /*a_input*/)
 {
   MayDay::Error("IVSFAB operator = not defined");
   return *this;
 }
 /******************/
 template <class T> inline
-IVSFAB<T>::IVSFAB (const IVSFAB<T>& a_input)
+IVSFAB<T>::IVSFAB (const IVSFAB<T>& /*a_input*/)
 {
   MayDay::Error("IVSFAB copy constructor not defined");
 }

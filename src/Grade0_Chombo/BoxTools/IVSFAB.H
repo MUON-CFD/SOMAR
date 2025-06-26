@@ -144,7 +144,7 @@ public:
   T* dataPtr(const int& a_comp) ;
 
   ///invalid but necessary for leveldata to compile
-  IVSFAB(const Box& a_region, int a_nVar)
+  IVSFAB(const Box& /* a_region */, int /* a_nVar */)
   {
     MayDay::Error("invalid constructor called ");
   }
@@ -252,7 +252,7 @@ private:
   LayoutData<IntVectSet> m_sets;
 
   //disallowed constructors and all that
-  IVSFABFactory(const IVSFABFactory<T>& a_inputs)
+  IVSFABFactory(const IVSFABFactory<T>& /* a_inputs */)
   {
     MayDay::Error("disallowed constructor");
   }
@@ -260,7 +260,7 @@ private:
   {
     MayDay::Error("disallowed constructor");
   }
-  void operator=(const IVSFABFactory<T>& a_inputs)
+  void operator=(const IVSFABFactory<T>& /* a_inputs */)
   {
     MayDay::Error("disallowed constructor");
   }

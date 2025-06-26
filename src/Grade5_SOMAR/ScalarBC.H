@@ -47,7 +47,7 @@ struct NormalGradient: public BCTools::BCFunction
     NormalGradient();
 
     /// Constructor -- with a background stratification
-    /// a_bgStateFABPtr must have 1 componentm, be CC, and have horizontal
+    /// a_bgStateFABPtr must have 1 component, be CC, and have horizontal
     /// indices equal to zero.
     NormalGradient(const FArrayBox&     a_bgStateFAB,
                    const LevelGeometry& a_levGeo);
@@ -67,6 +67,37 @@ struct NormalGradient: public BCTools::BCFunction
 
 protected:
     std::array<Real, 2> m_bcVal;
+};
+
+
+// -----------------------------------------------------------------------------
+struct HomogDiriOnPert: public BCTools::BCFunction
+{
+    /// Constructor -- no background stratification
+    HomogDiriOnPert();
+
+    /// Constructor -- with a background stratification
+    /// a_bgStateFABPtr must have 1 component, be CC, and have horizontal
+    /// indices equal to zero.
+    HomogDiriOnPert(const std::shared_ptr<FArrayBox>& a_bgStateFABPtr,
+                    const LevelGeometry&              a_levGeo);
+
+    /// The BCFunction override.
+    virtual void
+    operator()(FArrayBox&            a_alpha,
+               FArrayBox&            a_beta,
+               FArrayBox&            a_bcFAB,
+               const FArrayBox&      a_stateFAB,
+               const FArrayBox&      a_xFAB,
+               const DataIndex&      a_di,
+               const int             a_bdryDir,
+               const Side::LoHiSide& a_side,
+               const Real            a_time,
+               const bool            a_homogBCs) const override;
+
+protected:
+    std::array<Real, 2>              m_bcVal;
+    const std::shared_ptr<FArrayBox> m_bgStateFABPtr;
 };
 
 

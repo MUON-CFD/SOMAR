@@ -3,6 +3,7 @@
 
 #include "ProblemContext.H"
 #include "Subspace.H"
+#include "SOMAR_Constants.H"
 
 namespace ScalarBC {
 
@@ -65,6 +66,72 @@ NormalGradient::operator()(FArrayBox&            a_alpha,
         }
     }
 }
+
+
+// -----------------------------------------------------------------------------
+// Constructor -- no background stratification
+HomogDiriOnPert::HomogDiriOnPert()
+: m_bcVal({ 0, 0 })
+, m_bgStateFABPtr(nullptr)
+{
+}
+
+// Constructor -- with a background stratification
+HomogDiriOnPert::HomogDiriOnPert(
+    const std::shared_ptr<FArrayBox>& a_bgStateFABPtr,
+    const LevelGeometry&              a_levGeo)
+: m_bcVal({ quietNAN, quietNAN })
+, m_bgStateFABPtr(a_bgStateFABPtr)
+{
+    // Gather references, compute domain extents, etc.
+    const IntVect ev     = BASISV(SpaceDim - 1);
+    const Box&    domBox = a_levGeo.getDomainBox();
+    const IntVect loIV   = domBox.smallEnd() * ev;
+    const IntVect hiIV   = domBox.bigEnd() * ev;
+
+    // Sanity checks.
+    CH_assert(m_bgStateFABPtr->nComp() == 1);
+    CH_assert(m_bgStateFABPtr->box().type() == IntVect::Zero);
+    CH_assert(m_bgStateFABPtr->box().smallEnd() * (IntVect::Unit - ev) == IntVect::Zero);
+    CH_assert(m_bgStateFABPtr->box().bigEnd() * (IntVect::Unit - ev) == IntVect::Zero);
+
+    // Lower BC value = CC->FC average of bgState
+    m_bcVal[0] = 0.5 * ((*m_bgStateFABPtr)(loIV) + (*m_bgStateFABPtr)(loIV - ev));
+
+    // Upper BC value = CC->FC average of bgState
+    m_bcVal[1] = 0.5 * ((*m_bgStateFABPtr)(hiIV + ev) + (*m_bgStateFABPtr)(hiIV));
+}
+
+// The BCFunction override.
+void
+HomogDiriOnPert::operator()(FArrayBox&            a_alpha,
+                            FArrayBox&            a_beta,
+                            FArrayBox&            a_bcFAB,
+                            const FArrayBox&      /*a_stateFAB*/,
+                            const FArrayBox&      /*a_xFAB*/,
+                            const DataIndex&      /*a_di*/,
+                            const int             a_bdryDir,
+                            const Side::LoHiSide& a_side,
+                            const Real            /*a_time*/,
+                            const bool            a_homogBCs) const
+{
+    a_alpha.setVal(1.0);
+    a_beta.setVal(0.0);
+    if (!a_homogBCs) {
+        if (a_bdryDir < SpaceDim - 1) {
+            if (m_bgStateFABPtr) {
+                CH_assert(a_bcFAB.nComp() == m_bgStateFABPtr->nComp());
+                Subspace::horizontalExtrusion(a_bcFAB, 0, *m_bgStateFABPtr, 0, a_bcFAB.nComp());
+                a_bcFAB *= -1.0;
+            } else {
+                a_bcFAB.setVal(0.0);
+            }
+        } else {
+            a_bcFAB.setVal(-m_bcVal[int(a_side)]);
+        }
+    }
+}
+
 
 
 // -----------------------------------------------------------------------------

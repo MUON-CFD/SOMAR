@@ -293,27 +293,28 @@
       CH_assert((CHF_NCOMP[vel] .eq. CH_SPACEDIM))
 
       CHF_AUTOMULTIDO[region;i]
-        ! x-dir
+        ! Add the advecting velocity
+        CHF_DTERM[
         thisVel = vel(CHF_AUTOIX[i],0)
         thisC1i = c1i(CHF_AUTOIX[i],0)
-        totalVel(0) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i))
-        if (totalVel(0) .ge. SMALLVAL) then
-            minDt = Min(minDt, dXi(0) / totalVel(0))
-        endif
+        totalVel(0) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i));
 
-        ! y-dir
         thisVel = vel(CHF_AUTOIX[i],1)
         thisC1i = c1i(CHF_AUTOIX[i],1)
-        totalVel(1) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i))
+        totalVel(1) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i));
+
+        thisVel = vel(CHF_AUTOIX[i],2)
+        thisC1i = c1i(CHF_AUTOIX[i],2)
+        totalVel(2) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i))]
+
+        ! minDt = Min_i[dXi^i / totalVel]
+        if (totalVel(0) .ge. SMALLVAL) then
+          minDt = Min(minDt, dXi(0) / totalVel(0))
+        endif
         if (totalVel(1) .ge. SMALLVAL) then
           minDt = Min(minDt, dXi(1) / totalVel(1))
         endif
-
 #if CH_SPACEDIM > 2
-        ! z-dir
-        thisVel = vel(CHF_AUTOIX[i],2)
-        thisC1i = c1i(CHF_AUTOIX[i],2)
-        totalVel(2) = Max(Abs(thisVel + thisC1i), Abs(thisVel - thisC1i))
         if (totalVel(2) .ge. SMALLVAL) then
           minDt = Min(minDt, dXi(2) / totalVel(2))
         endif
@@ -1228,3 +1229,34 @@
 
       return
       end
+
+
+! ----------------------------------------------------------------
+! Compute |eps| = 2 * (nu + eddyNu) * Sab:Sab
+! Sab must be Cartesian-based.
+! All FABs and region must have the same centering.
+! ----------------------------------------------------------------
+      subroutine SGSModel_EnergyDissipationRate (
+     &      CHF_FRA1[eps],
+     &      CHF_CONST_FRA[Sab],
+     &      CHF_CONST_REAL[nu],
+     &      CHF_CONST_FRA1[eddyNu],
+     &      CHF_BOX[region])
+
+      integer :: CHF_DDECL[i; j; k]
+
+      CHF_MULTIDO[region; i; j; k]
+        eps(CHF_IX[i;j;k]) = (CHF_DTERM[
+     &      Sab(CHF_IX[i;j;k],xxSymComp) * Sab(CHF_IX[i;j;k],xxSymComp);
+     &    + Sab(CHF_IX[i;j;k],yySymComp) * Sab(CHF_IX[i;j;k],yySymComp);
+     &    + Sab(CHF_IX[i;j;k],zzSymComp) * Sab(CHF_IX[i;j;k],zzSymComp)]
+     &    + two * (CHF_DTERM[;
+     &               Sab(CHF_IX[i;j;k],yxSymComp) * Sab(CHF_IX[i;j;k],yxSymComp);
+     &             + Sab(CHF_IX[i;j;k],zxSymComp) * Sab(CHF_IX[i;j;k],zxSymComp)
+     &             + Sab(CHF_IX[i;j;k],zySymComp) * Sab(CHF_IX[i;j;k],zySymComp)]))
+     &    * two * (nu + eddyNu(CHF_IX[i;j;k]))
+      CHF_ENDDO
+
+      return
+      end
+

@@ -96,41 +96,41 @@ public:
 
     // Define an exchange copier. This ensures we always create the copier in
     // the same way. exchangeDefines do different things than regular defines!
-    void
+    static void
     velDefineExCopier(std::array<StaggeredCopier, CH_SPACEDIM>& a_exCopier,
-                      const LevelData<FluxBox>&                 a_vel) const;
+                      const LevelData<FluxBox>&                 a_vel);
 
     // Define an exchange copier. This ensures we always create the copier in
     // the same way. exchangeDefines do different things than regular defines!
-    void
-    pDefineExCopier(Copier& a_exCopier, const LevelData<FArrayBox>& a_p) const;
+    static void
+    pDefineExCopier(Copier& a_exCopier, const LevelData<FArrayBox>& a_p);
 
     // Define an exchange copier. This ensures we always create the copier in
     // the same way. exchangeDefines do different things than regular defines!
-    void
-    qDefineExCopier(Copier& a_exCopier, const LevelData<FArrayBox>& a_q) const;
+    static void
+    qDefineExCopier(Copier& a_exCopier, const LevelData<FArrayBox>& a_q);
 
     // CornerCopier version.
-    void
+    static void
     velDefineExCornerCopier1(
         std::array<StaggeredCopier, CH_SPACEDIM>& a_exCopier,
-        const LevelData<FluxBox>&                 a_vel) const;
+        const LevelData<FluxBox>&                 a_vel);
 
     // CornerCopier version.
-    void
+    static void
     velDefineExCornerCopier2(
         std::array<StaggeredCopier, CH_SPACEDIM>& a_exCopier,
-        const LevelData<FluxBox>&                 a_vel) const;
+        const LevelData<FluxBox>&                 a_vel);
 
     // CornerCopier version.
-    void
+    static void
     pDefineExCornerCopier(CornerCopier&               a_exCopier,
-                          const LevelData<FArrayBox>& a_p) const;
+                          const LevelData<FArrayBox>& a_p);
 
     // CornerCopier version.
-    void
+    static void
     qDefineExCornerCopier(CornerCopier&               a_exCopier,
-                          const LevelData<FArrayBox>& a_q) const;
+                          const LevelData<FArrayBox>& a_q);
 
     // The state data...
     // We do not own this data, AMRNSLevel will handle memory management.
@@ -150,7 +150,7 @@ public:
 
     // q interval assignments and aliases...
     const int numScalars;
-    const int numQComps; // This include u, (v in 3D), w, p, and q.
+    const int numQComps; // This includes u, (v in 3D), w, p, and q.
 
     // vel comps and intervals
     const int velComp;
@@ -163,12 +163,10 @@ public:
     // q comps and intervals
     const int TComp;
     const int SComp;
-    const int eddyNuComp;
 
     const Interval scalarsInterval;
     const Interval TInterval;
     const Interval SInterval;
-    const Interval eddyNuInterval;
 
     const Interval TSInterval;   // Composite
 
@@ -178,7 +176,6 @@ public:
     LevelData<FArrayBox> scalars;
     LevelData<FArrayBox> T;
     LevelData<FArrayBox> S;
-    LevelData<FArrayBox> eddyNu;
 };
 
 

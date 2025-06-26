@@ -159,129 +159,6 @@ IO::readASCII(LevelData<FArrayBox>& a_data,
 // Writes hierarchy of levels in HDF5 format.  Only available if the
 // preprocessor macro HDF5 is defined at compilation.
 //
-// Arguments:
-//   a_filename  : name of output file.
-//   a_vectGrids : grids at each level.
-//   a_vectData  : data at each level.
-//   a_compNames : names of variables.
-//   a_domBox    : domain at coarsest level.
-//   a_dXi       : grid spacing in each direction at coarsest level.
-//   a_dt        : time step at coarsest level.
-//   a_time      : the current time.
-//   a_vectRatio : refinement ratio in each direction at all levels
-//                 (ith entry is refinement ratio in each direction
-//                 between levels i and i + 1).
-//   a_numLevels : number of levels to output.
-//
-// This is blocking.
-// -----------------------------------------------------------------------------
-void
-IO::writeHDF5 (std::string                           a_filename,
-               const Vector<DisjointBoxLayout>&      /*a_vectGrids*/,
-               const Vector<LevelData<FArrayBox>* >& a_vectData,
-               const Vector<std::string>&            a_compNames,
-               const Box&                            a_domBox,
-               const RealVect&                       a_dXi,
-               const Real                            a_dt,
-               const Real                            a_time,
-               const Vector<IntVect>&                a_refRatios,
-               const int                             a_numLevels)
-{
-    CH_assert(a_numLevels > 0);
-    CH_assert(static_cast<int>(a_vectData.size())  >= a_numLevels);
-    CH_assert(static_cast<int>(a_refRatios.size()) >= a_numLevels - 1);
-    // if file exists, delete it
-#ifdef CH_USE_PYTHON
-    Py::PythonFunction("IO", "OpenFileForWrite", a_filename);
-#endif
-    // write some Chombo boilerplate (do we need it?)
-    {
-        HeaderData temp;
-        temp.m_int["SpaceDim"] = SpaceDim;
-        temp.m_real["testReal"] = (Real)0.0;
-        temp.writeToFile(a_filename, std::string("Chombo_global"));
-    }
-
-    // Write file's header.
-    HeaderData header;
-    int nComp = a_compNames.size();
-
-    string filedescriptor("VanillaAMRFileType");
-    header.m_string["filetype"]       = filedescriptor;
-    header.m_int   ["num_levels"]     = a_numLevels;
-    header.m_int   ["num_components"] = nComp;
-    header.m_int   ["max_level"]      = a_numLevels - 1;
-    header.m_real  ["time"]           = a_time;
-
-    for (int ivar = 0; ivar < nComp; ivar++) {
-        char labelChSt[100];
-        sprintf(labelChSt, "component_%d", ivar);
-        string label(labelChSt);
-        header.m_string[label] = a_compNames[ivar];
-    }
-    header.writeToFile(a_filename, std::string("/"));
-
-    // Write data from level 0, up.
-    Box domainLevel = a_domBox;
-    Real dtLevel = a_dt;
-    RealVect dXiLevel = a_dXi;
-    for (int ilev = 0; ilev < a_numLevels; ilev++) {
-        // Get ref ratio between this and finer levels.
-        IntVect refLevel = IntVect::Unit;
-        if (ilev != a_numLevels - 1) {
-            refLevel = a_refRatios[ilev];
-        }
-
-        // Compute this levels domain and dXi by refining.
-        if (ilev != 0) {
-            domainLevel.refine(a_refRatios[ilev - 1]);
-            dtLevel  /= a_refRatios[ilev - 1][0]; // HACK - just use 0 dir ref ratio
-            dXiLevel /= a_refRatios[ilev - 1];
-        }
-
-        // Set this level's group name.
-        // char levelName[20];
-        // sprintf(levelName, "%d", ilev);
-        // const std::string label = std::string("level_") + levelName;
-        const std::string label = "level_" + std::to_string(ilev);
-
-        // Write this level's header.
-        HeaderData meta;
-        meta.m_realvect["vec_dx"]      = dXiLevel;
-        meta.m_real    ["dt"]          = dtLevel;
-        meta.m_real    ["time"]        = a_time;
-        meta.m_box     ["prob_domain"] = domainLevel;
-        meta.m_intvect ["ref_ratio"]   = refLevel;
-
-        meta.writeToFile(a_filename, label);
-
-
-        // Write this level's BoxLayout.
-#ifdef CH_USE_PYTHON
-        CH_assert(a_vectData[ilev] != NULL);
-        const LevelData<FArrayBox>& dataLevel = *a_vectData[ilev];
-        std::string name="data";
-        std::string levelNameStr(label);
-
-        Py::PythonFunction("IO",
-                              "WriteLevelDataFAB",
-                              a_filename,
-                              levelNameStr,
-                              name,
-                              dataLevel,
-                              a_vectData[0]->ghostVect());
-#endif
-    }
-#ifdef CH_USE_PYTHON
-    Py::PythonFunction("IO", "CloseFile", a_filename);
-#endif
-}
-
-
-// -----------------------------------------------------------------------------
-// Writes hierarchy of levels in HDF5 format.  Only available if the
-// preprocessor macro HDF5 is defined at compilation.
-//
 // This is the less general version that you will probably want to use
 // most of the time for multi-level data.
 //
@@ -395,6 +272,7 @@ IO::writeHDF5 (std::string                           a_filename,
             }
         } else {
             // The caller provided names.
+            CH_verify(static_cast<int>(a_compNames.size()) >= numComps);
             while (comp < numComps) {
                 newCompNames[comp] = a_compNames[comp];
                 ++comp;

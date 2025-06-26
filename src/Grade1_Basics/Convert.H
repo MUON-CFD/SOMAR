@@ -32,75 +32,132 @@
 class Convert
 {
 public:
-    // The Swiss Army knife. Performs basic, 2nd-order averages.
-    // Used to convert a CC FAB to FC FAB and so on.
+    /// @brief The Swiss Army knife. Performs basic, 2nd-order averages.
+    ///        Used to convert a CC FAB to FC FAB and so on.
+    /// @param a_dest
+    /// @param a_destIvl
+    /// @param a_destBox
+    /// @param a_src
+    /// @param a_srcIvl
     static void
-    Simple (FArrayBox&       a_dest,
-            const Interval&  a_destIvl,
-            const Box&       a_destBox,
-            const FArrayBox& a_src,
-            const Interval&  a_srcIvl);
+    Simple(FArrayBox&       a_dest,
+           const Interval&  a_destIvl,
+           const Box&       a_destBox,
+           const FArrayBox& a_src,
+           const Interval&  a_srcIvl);
 
+    /// @brief The Swiss Army knife. Performs basic, 2nd-order averages.
+    ///        Used to convert a CC FAB to FC FAB and so on.
+    /// @param a_dest
+    /// @param a_destComp
+    /// @param a_destBox
+    /// @param a_src
+    /// @param a_srcComp
     static void
-    Simple (FArrayBox&       a_dest,
-            const int        a_destComp,
-            const Box&       a_destBox,
-            const FArrayBox& a_src,
-            const int        a_srcComp);
+    Simple(FArrayBox&       a_dest,
+           const int        a_destComp,
+           const Box&       a_destBox,
+           const FArrayBox& a_src,
+           const int        a_srcComp);
 
+    /// @brief The Swiss Army knife. Performs basic, 2nd-order averages.
+    ///        Used to convert a CC FAB to FC FAB and so on.
+    /// @param a_dest
+    /// @param a_destBox
+    /// @param a_src
     static void
-    Simple (FArrayBox&       a_dest,
-            const Box&       a_destBox,
-            const FArrayBox& a_src);
+    Simple(FArrayBox& a_dest, const Box& a_destBox, const FArrayBox& a_src);
 
+    /// @brief The Swiss Army knife. Performs basic, 2nd-order averages.
+    ///        Used to convert a CC FAB to FC FAB and so on.
+    /// @param a_dest
+    /// @param a_src
     static void
-    Simple (FArrayBox&       a_dest,
-            const FArrayBox& a_src);
+    Simple(FArrayBox& a_dest, const FArrayBox& a_src);
 
-    // This version requires a_src.nComp() == SpaceDim * a_dest.nComp().
-    // Comp c, FC in the d direction of a_dest is interpolated from comp
-    // d + SpaceDim*c of a_dest.
-    // This function is the complement of FacesToCells.
+    /// @brief Performs fourth-order averages.
+    ///        Used to convert a CC FAB to FC FAB.
+    /// @param a_dest
+    /// @param a_destIvl
+    /// @param a_destBox
+    /// @param a_src
+    /// @param a_srcIvl
+    static void
+    FourthOrder(FArrayBox&       a_dest,
+                const Interval&  a_destIvl,
+                const Box&       a_destBox,
+                const FArrayBox& a_src,
+                const Interval&  a_srcIvl);
+
+    /// @brief CC FArrayBox --> FC FluxBox
+    ///  This version requires a_src.nComp() == SpaceDim * a_dest.nComp().
+    ///  Comp c, FC in the d direction of a_dest is interpolated from comp
+    ///  d + SpaceDim*c of a_dest.
+    ///  This function is the complement of FacesToCells.
+    /// @param a_destFlub
+    /// @param a_srcFAB
+    /// @param a_ccDestBox
     static void
     CellsToFaces(FluxBox&         a_destFlub,
                  const FArrayBox& a_srcFAB,
                  const Box&       a_ccDestBox);
 
-    // This version requires a_src.nComp() == SpaceDim * a_dest.nComp().
-    // Comp c, FC in the d direction of a_dest is interpolated from comp
-    // d + SpaceDim*c of a_dest.
-    // This function is the complement of FacesToCells.
+    /// @brief CC FArrayBox --> FC FluxBox
+    ///  This version requires a_src.nComp() == SpaceDim * a_dest.nComp().
+    ///  Comp c, FC in the d direction of a_dest is interpolated from comp
+    ///  d + SpaceDim*c of a_dest.
+    ///  This function is the complement of FacesToCells.
+    /// @param a_dest
+    /// @param a_src
+    /// @param a_validOnly
     static void
-    CellsToFaces (LevelData<FluxBox>&         a_dest,
-                  const LevelData<FArrayBox>& a_src,
-                  const bool                  a_validOnly = false);
+    CellsToFaces(LevelData<FluxBox>&         a_dest,
+                 const LevelData<FArrayBox>& a_src,
+                 const bool                  a_validOnly = false);
 
-    // This version takes each comp of CC a_src and sends it to a comp of FC
-    // a_dest. For example, if a_src has 2 comps, then a_dest must also have
-    // 2 comps. Comp i of a_src will be sent to comp i of a_dest and will be
-    // interpolated to each face of the original cell.
+    /// @brief
+    ///  In this version, comp i of a_src will be sent to comp i of a_dest and
+    ///  will be interpolated to each face of the original cell.
+    /// @param a_destFlub
+    /// @param a_srcFAB
     static void
-    CellsToAllFaces (FluxBox&         a_destFlub,
-                     const FArrayBox& a_srcFAB);
+    CellsToAllFaces(FluxBox& a_destFlub, const FArrayBox& a_srcFAB);
 
-    // This version takes each comp of CC a_src and sends it to a comp of FC
-    // a_dest. For example, if a_src has 2 comps, then a_dest must also have
-    // 2 comps. Comp i of a_src will be sent to comp i of a_dest and will be
-    // interpolated to each face of the original cell.
+    /// @brief
+    ///  In this version, comp i of a_src will be sent to comp i of a_dest and
+    ///  will be interpolated to each face of the original cell.
+    /// @param a_dest
+    /// @param a_src
     static void
-    CellsToAllFaces (LevelData<FluxBox>&         a_dest,
-                     const LevelData<FArrayBox>& a_src);
+    CellsToAllFaces(LevelData<FluxBox>&         a_dest,
+                    const LevelData<FArrayBox>& a_src);
 
-    // This version takes each comp and centering of FC a_src and sends it
-    // to a comp of CC a_dest. Suppose a_src has 2 comps, then a_dest
-    // must have 2*SpaceDim comps. If a_fcIsFastest == true, then comp c,
-    // FC in the d direction of a_src, will be sent to comp d + SpaceDim*c of
-    // a_dest. Otherwise, it wil be sent to comp c + a_src.nCpmp()*d.
-    // This works on the overlap of the src and dest boxes.
+    /// @brief
+    ///  This version takes each comp and centering of FC a_src and sends it
+    ///  to a comp of CC a_dest. Suppose a_src has 2 comps, then a_dest
+    ///  must have 2*SpaceDim comps. If a_fcIsFastest == true, then comp c,
+    ///  FC in the d direction of a_src, will be sent to comp d + SpaceDim*c of
+    ///  a_dest. Otherwise, it wil be sent to comp c + a_src.nCpmp()*d.
+    ///  This works on the overlap of the src and dest boxes.
+    /// @param a_dest
+    /// @param a_src
+    /// @param a_fcIsFastest
     static void
-    FacesToCells (LevelData<FArrayBox>&     a_dest,
-                  const LevelData<FluxBox>& a_src,
-                  const bool                a_fcIsFastest = true);
+    FacesToCells(LevelData<FArrayBox>&     a_dest,
+                 const LevelData<FluxBox>& a_src,
+                 const bool                a_fcIsFastest = true);
+
+    /// @brief
+    ///  This version takes each comp and centering of FC a_src and sends it
+    ///  to a comp of CC a_dest. Suppose a_src has 2 comps, then a_dest
+    ///  must have 2*SpaceDim comps. If a_fcIsFastest == true, then comp c,
+    ///  FC in the d direction of a_src, will be sent to comp d + SpaceDim*c of
+    ///  a_dest. Otherwise, it wil be sent to comp c + a_src.nCpmp()*d.
+    ///  This works on the overlap of the src and dest boxes.
+    static void
+    FacesToCellsFourthOrder(LevelData<FArrayBox>&     a_dest,
+                            const LevelData<FluxBox>& a_src,
+                            const bool                a_fcIsFastest = true);
 };
 
 

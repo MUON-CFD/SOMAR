@@ -442,10 +442,10 @@ FluxRegisterFace::reflux(LevelData<FluxBox>& a_crseDiv,
 void
 FluxRegisterFace::normalLocations(
     LayoutData<Vector<Box>>& a_locations,
-    const DisjointBoxLayout& a_coarsenedFineGrids,
+    const DisjointBoxLayout& /* a_coarsenedFineGrids */,
     const DisjointBoxLayout& a_crseGrids,
-    const size_t             a_bdryDir,
-    const Side::LoHiSide     a_cfiSide)
+    const size_t             /* a_bdryDir */,
+    const Side::LoHiSide     /* a_cfiSide */)
 {
     a_locations.define(a_crseGrids);
 
@@ -475,11 +475,11 @@ FluxRegisterFace::normalLocations(
 void
 FluxRegisterFace::transverseLocations(
     LayoutData<Vector<Box>>& a_locations,
-    const DisjointBoxLayout& a_coarsenedFineGrids,
+    const DisjointBoxLayout& /* a_coarsenedFineGrids */,
     const DisjointBoxLayout& a_crseGrids,
-    const size_t             a_bdryDir,
-    const size_t             a_fcDir,
-    const Side::LoHiSide     a_cfiSide)
+    const size_t             /* a_bdryDir */,
+    const size_t             /* a_fcDir */,
+    const Side::LoHiSide     /* a_cfiSide */)
 {
     a_locations.define(a_crseGrids);
 

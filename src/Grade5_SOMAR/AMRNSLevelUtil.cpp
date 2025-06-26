@@ -866,46 +866,6 @@ AMRNSLevel::averageDownToThis(const int a_lmax)
         this->averageDown(amrS, lmin, true);
         this->deallocate(amrS);
     }
-
-    // eddyNu
-    {
-        const auto& ctx            = ProblemContext::getInstance();
-        const auto& eddyViscMethod = ctx->rhs.eddyViscMethod;
-        const auto  AVG_DOWN       = RHSParameters::EddyViscMethods::AVG_DOWN;
-
-        Vector<LevelData<FArrayBox>*> amrEddyNu;
-        this->allocateAndAliasScalars(
-            amrEddyNu, m_time, m_statePtr->eddyNuInterval, lmin, lmax);
-
-        for (int lev = lmax; lev > lmin; --lev) {
-            if (eddyViscMethod[lev - 1] != AVG_DOWN) continue;
-
-            // Is this level null?
-            if (amrEddyNu[lev] == nullptr) continue;
-
-            // Is the coarser level null? If so, we are done.
-            if (amrEddyNu[lev - 1] == nullptr) break;
-
-            // Gather data for the averaging utility.
-            const AMRNSLevel*           fineLevPtr    = getLevel(lev);
-            const CFInterp&             interpObj     = *fineLevPtr->m_cfInterpPtr;
-            const LevelData<FArrayBox>& fineData      = *amrEddyNu[lev];
-            LevelData<FArrayBox>&       crseData      = *amrEddyNu[lev - 1];
-            const bool                  doHarmonicAvg = false;
-
-            const LevelData<FArrayBox>* JPtr =
-                &(fineLevPtr->m_levGeoPtr->getCCJ());
-
-            // Sanity checks.
-            CH_assert(fineData.getBoxes() == fineLevPtr->getBoxes());
-            CH_assert(crseData.getBoxes() == *fineLevPtr->getCrseGridsPtr());
-
-            // Do it!
-            interpObj.coarsen(crseData, fineData, doHarmonicAvg, JPtr);
-        }
-
-        this->deallocate(amrEddyNu);
-    }
 }
 
 

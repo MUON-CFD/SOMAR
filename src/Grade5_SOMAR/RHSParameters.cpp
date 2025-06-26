@@ -141,6 +141,7 @@ RHSParameters::dump() const
             case TempBCType::CUSTOM           : pout() << "           CUSTOM"; break;
             case TempBCType::TIDAL            : pout() << "            TIDAL"; break;
             case TempBCType::OUTFLOW          : pout() << "          OUTFLOW"; break;
+            case TempBCType::ZERO_DIRI_ON_PERT: pout() << "ZERO_DIRI_ON_PERT"; break;
             default:
                 MAYDAYERROR("tempBCTypeLo[" << dir << "] = "
                             << tempBCTypeLo[dir] << " not recognized.");
@@ -159,6 +160,7 @@ RHSParameters::dump() const
             case TempBCType::CUSTOM           : pout() << "           CUSTOM"; break;
             case TempBCType::TIDAL            : pout() << "            TIDAL"; break;
             case TempBCType::OUTFLOW          : pout() << "          OUTFLOW"; break;
+            case TempBCType::ZERO_DIRI_ON_PERT: pout() << "ZERO_DIRI_ON_PERT"; break;
             default:
                 MAYDAYERROR("tempBCTypeHi[" << dir << "] = "
                             << tempBCTypeHi[dir] << " not recognized.");
@@ -178,6 +180,7 @@ RHSParameters::dump() const
             case SalinityBCType::CUSTOM           : pout() << "           CUSTOM"; break;
             case SalinityBCType::TIDAL            : pout() << "            TIDAL"; break;
             case SalinityBCType::OUTFLOW          : pout() << "          OUTFLOW"; break;
+            case SalinityBCType::ZERO_DIRI_ON_PERT: pout() << "ZERO_DIRI_ON_PERT"; break;
             default:
                 MAYDAYERROR("salinityBCTypeLo[" << dir << "] = "
                             << salinityBCTypeLo[dir] << " not recognized.");
@@ -196,6 +199,7 @@ RHSParameters::dump() const
             case SalinityBCType::CUSTOM           : pout() << "           CUSTOM"; break;
             case SalinityBCType::TIDAL            : pout() << "            TIDAL"; break;
             case SalinityBCType::OUTFLOW          : pout() << "          OUTFLOW"; break;
+            case SalinityBCType::ZERO_DIRI_ON_PERT: pout() << "ZERO_DIRI_ON_PERT"; break;
             default:
                 MAYDAYERROR("salinityBCTypeHi[" << dir << "] = "
                             << salinityBCTypeHi[dir] << " not recognized.");
@@ -219,7 +223,6 @@ RHSParameters::dump() const
     for (unsigned int lev = 0; lev < s_defPtr->eddyViscMethod.size(); ++lev) {
         if (lev > 0) pout() << ", ";
         switch (s_defPtr->eddyViscMethod[lev]) {
-            case EddyViscMethods::AVG_DOWN    : pout() << "AVG_DOWN"    ; break;
             case EddyViscMethods::SET_TO_ZERO : pout() << "SET_TO_ZERO" ; break;
             case EddyViscMethods::STATIC_SMAG : pout() << "STATIC_SMAG" ; break;
             case EddyViscMethods::DYNAMIC_SMAG: pout() << "DYNAMIC_SMAG"; break;
@@ -518,41 +521,39 @@ RHSParameters::createDefaults(const BaseParameters& a_baseParams,
 
         bool usesEddyVisc = false;
         for (int lev = 0; lev < a_numLevels; ++lev) {
-            CH_verify(s_defPtr->eddyViscMethod[lev] >= -1);
-            CH_verify(s_defPtr->eddyViscMethod[lev] <
-                      EddyViscMethods::_NUM_EDDYVISCMETHODS);
-
+            CH_verify(s_defPtr->eddyViscMethod[lev] >= 0);
+            CH_verify(s_defPtr->eddyViscMethod[lev] < EddyViscMethods::_NUM_EDDYVISCMETHODS);
             usesEddyVisc |= (s_defPtr->eddyViscMethod[lev] != 0);
         }
 
-        if (usesEddyVisc) {
-            pp.get("eddyPrandtlT", s_defPtr->eddyPrandtlT);
-            pp.get("eddyPrandtlS", s_defPtr->eddyPrandtlS);
+        s_defPtr->eddyPrandtlT = 1.0;
+        pp.query("eddyPrandtlT", s_defPtr->eddyPrandtlT);
 
+        s_defPtr->eddyPrandtlS = 1.0;
+        pp.query("eddyPrandtlS", s_defPtr->eddyPrandtlS);
+
+        s_defPtr->eddyPrandtlScalars = Vector<Real>(1, 1.0);
+        {
             numVals = pp.countval("eddyPrandtlScalars");
             if (numVals > 0) {
                 s_defPtr->eddyPrandtlScalars = Vector<Real>(numVals, quietNAN);
                 pp.getarr("eddyPrandtlScalars", s_defPtr->eddyPrandtlScalars, 0, numVals);
-            } else {
-                s_defPtr->eddyPrandtlScalars.resize(0);
             }
-
-            vreal = Vector<Real>(SpaceDim, 1.0);
-            pp.queryarr("eddyScale", vreal, 0, SpaceDim);
-            s_defPtr->eddyScale = RealVect(vreal);
-        } else {
-            s_defPtr->eddyPrandtlT = 1.0;
-            s_defPtr->eddyPrandtlS = 1.0;
-            s_defPtr->eddyPrandtlScalars = Vector<Real>(1, 1.0);
-            s_defPtr->eddyScale =
-                RealVect(D_DECL(quietNAN, quietNAN, quietNAN));
         }
+
+        vreal = Vector<Real>(SpaceDim, 1.0);
+        pp.queryarr("eddyScale", vreal, 0, SpaceDim);
+        s_defPtr->eddyScale = RealVect(vreal);
+
     } else {
         s_defPtr->eddyPrandtlT = 1.0;
         s_defPtr->eddyPrandtlS = 1.0;
         s_defPtr->eddyPrandtlScalars = Vector<Real>(1, 1.0);
-        s_defPtr->eddyScale =
-            RealVect(D_DECL(quietNAN, quietNAN, quietNAN));
+
+        // Check this no matter what. It may be used for diagnostics.
+        vreal = Vector<Real>(SpaceDim, 1.0);
+        pp.queryarr("eddyScale", vreal, 0, SpaceDim);
+        s_defPtr->eddyScale = RealVect(vreal);
     }
 
     s_defPtr->velReconstruction = Reconstruction::FourthOrder;

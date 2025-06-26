@@ -259,7 +259,7 @@ public:
     }
 
     bool
-    operator!=(const void* other)
+    operator!=(const void* /* other */)
     {
         return dit.ok();
     }

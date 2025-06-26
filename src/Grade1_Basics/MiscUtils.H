@@ -26,6 +26,7 @@
 #ifndef __MiscUtils_H__INCLUDED__
 #define __MiscUtils_H__INCLUDED__
 
+#include "SPACE.H"
 #include "RefCountedPtr.H"
 #include "Vector.H"
 #include "BoxLayoutData.H"
@@ -267,16 +268,23 @@ int
 roundUp(int numToRound, int factor);
 
 
+/// @brief constexpr version of std::ceil.
+constexpr int constexprCeil(const Real r) {
+    const auto i = static_cast<int>(r);
+    return (r - static_cast<Real>(i) > smallReal) ? (i + 1) : (i);
+};
+
+
 /**
  * @brief Rounds each component up to the nearest integer.
  */
 constexpr IntVect
-roundUpToIntVect(const RealVect& a_rv)
+roundUpToIntVect(const RealVect& a_rv) noexcept
 {
     return IntVect{ D_DECL(
-        static_cast<int>(std::ceil(a_rv.getConst(0) + smallReal)),
-        static_cast<int>(std::ceil(a_rv.getConst(1) + smallReal)),
-        static_cast<int>(std::ceil(a_rv.getConst(2) + smallReal))) };
+        static_cast<int>(constexprCeil(a_rv.getConst(0) + smallReal)),
+        static_cast<int>(constexprCeil(a_rv.getConst(1) + smallReal)),
+        static_cast<int>(constexprCeil(a_rv.getConst(2) + smallReal))) };
 }
 
 
