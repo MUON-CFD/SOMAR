@@ -1460,128 +1460,123 @@ AnisotropicAMR::getCurrentTime() const
 void
 AnisotropicAMR::makeBaseLevelMesh(Vector<Box>& a_grids) const
 {
+    // In this function BGS = Base Grid Size.
+
     CH_TIME("AnisotropicAMR::makeBaseLevelMesh");
 
+    // Sanity checks
     CH_assert(m_isDefined);
+    CH_assert(m_splitDirs[0] == 0 || m_splitDirs[0] == 1);
+    CH_assert(m_splitDirs[1] == 0 || m_splitDirs[1] == 1);
+#if CH_SPACEDIM > 2
+    CH_assert(m_splitDirs[2] == 0 || m_splitDirs[2] == 1);
+#endif
 
-    if (m_max_base_grid_size == IntVect::Zero) {
-        // define base level to be single grid
-        a_grids.resize(1);
-        a_grids[0] = m_amrlevels[0]->problemDomain().domainBox();
+    // Gather needed data
+    const auto&   fullDomain    = m_amrlevels[0]->problemDomain();
+    const IntVect unsplitDirs   = IntVect::Unit - m_splitDirs;
+    const IntVect blockFactorIV = m_blockFactor * m_splitDirs + unsplitDirs;
 
-    } else {
-        // Chop base level up into grids of no more than m_max_grid_size on a
-        // side.
+    // // If m_max_base_grid_size is all zeros, do not split the domain and exit.
+    // if (m_max_base_grid_size == IntVect::Zero) {
+    //     a_grids.resize(1);
+    //     a_grids[0] = m_amrlevels[0]->problemDomain().domainBox();
+    //     return;
+    // }
 
-        // Perform some size checks.
-        D_TERM(
-            if (m_max_base_grid_size[0] != 0 &&
-                m_max_base_grid_size[0] < m_blockFactor) {
-                MayDay::Abort(
-                    "Base grid size must be greater than blocking factor");
-            },
-            if (m_max_base_grid_size[1] != 0 &&
-                m_max_base_grid_size[1] < m_blockFactor) {
-                MayDay::Abort(
-                    "Base grid size must be greater than blocking factor");
-            },
-            if (m_max_base_grid_size[2] != 0 &&
-                m_max_base_grid_size[2] < m_blockFactor) {
-                MayDay::Abort(
-                    "Base grid size must be greater than blocking factor");
-            })
+    // Adjust maxBGS if not between 1 and domain size.
+    const IntVect maxBGS = [this]() {
+        IntVect        val     = m_max_base_grid_size;
+        const IntVect& domSize = m_amrlevels[0]->problemDomain().size();
 
-        // BEGIN: This may need to be debugged.
-        // Gather needed data
-        const IntVect        unsplitDirs = IntVect::Unit - m_splitDirs;
-        const ProblemDomain& fullDomain  = m_amrlevels[0]->problemDomain();
-        const IntVect  __attribute__((unused))  Nx          = fullDomain.size();
-        const bool           isPeriodic[CH_SPACEDIM] = { D_DECL(
-            fullDomain.isPeriodic(0),
-            fullDomain.isPeriodic(1),
-            fullDomain.isPeriodic(2)) };
+        for (int d = 0; d < SpaceDim; ++d) {
+            if (val[d] < 0) {
+                MayDay::Abort("Base grid size must be >= 0.");
 
-        // Coarsen the domain in splitDirs to enforce the blocking factor.
-        const IntVect blockFactorIV = m_blockFactor * m_splitDirs + unsplitDirs;
-        ProblemDomain blockDomain   = coarsen(fullDomain, blockFactorIV);
-        if (refine(blockDomain, blockFactorIV) != fullDomain) {
-            MayDay::Error(
-                "level 0 problem domain not coarsenable by blocking factor");
-        }
+            } else if (val[d] == 0) {
+                val[d] = domSize[d];
 
-        // Flatten the domain in unsplit dirs.
-        Box blockDomBox = blockDomain.domainBox();
-        for (int dir = 0; dir < SpaceDim; ++dir) {
-            if (m_splitDirs[dir] == 1) continue;
-            blockDomBox.shift(dir, -blockDomBox.smallEnd(dir));
-            blockDomBox.setBig(dir, blockDomBox.smallEnd(dir));
-        }
-        blockDomain.define(blockDomBox, isPeriodic);
+            } else if (val[d] > domSize[d]) {
+                val[d] = domSize[d];
+            }
 
-        IntVect blockMaxGridSize =
-            m_splitDirs * m_max_base_grid_size / m_blockFactor;
-        Tuple<Vector<int>, SpaceDim> box_sizes;
-        IntVect                      num_grids;
-        IntVect                      base_size;
-
-        for (int dir = 0; dir < SpaceDim; ++dir) {
-            int num_div      = 1;
-            int blockDomSize = blockDomBox.size(dir);
-
-            if (m_splitDirs[dir] == 0) {
-                CH_assert(blockMaxGridSize[dir] == 0);
-
-                // In this case, don't split anything.
-                num_grids[dir] = 1;
-                base_size[dir] = blockDomSize;
-                box_sizes[dir].resize(1, blockDomSize);
-
-            } else {
-                CH_assert(blockMaxGridSize[dir] > 0);
-
-                // What is the smallest number of cuts we need to make so
-                // that the chopped domain respects the max grid size?
-                while (num_div * blockMaxGridSize[dir] < blockDomSize)
-                    ++num_div;
-
-                // Split the domain into num_div parts...
-                num_grids[dir] = num_div;
-
-                // ...each part having size = base_size...
-                base_size[dir] = ceilDiv(blockDomSize, num_div);
-                box_sizes[dir].resize(num_div, base_size[dir]);
-
-                // .. except the last element, whose size = whatever is left.
-                box_sizes[dir][num_div - 1] =
-                    blockDomSize - (num_div - 1) * base_size[dir];
+            if (m_splitDirs[d] == 0 && val[d] < domSize[d]) {
+                MAYDAYWARNING(
+                    "Requested unsplit grids in "
+                    << d << " direction, but supplied a max base grid size of "
+                    << m_max_base_grid_size[d]
+                    << ". Overriding maxBaseGridSize to span domain.");
+                val[d] = domSize[d];
             }
         }
+        return val;
+    }();
 
-        // Loop over each new box and reconstruct the grids properly,
-        // refining by the block factor.
-        Box            b(IntVect::Zero, num_grids - IntVect::Unit);
-        const IntVect& blockDomHi = blockDomBox.bigEnd();
-        const IntVect& blockDomLo = blockDomBox.smallEnd();
-        const IntVect& fullDomHi  = fullDomain.domainBox().bigEnd();
-        const IntVect& fullDomLo  = fullDomain.domainBox().smallEnd();
 
-        BoxIterator bit(b);
-        IntVect     lo, hi;
-        for (bit.begin(); bit.ok(); ++bit) {
-            const IntVect& iv = bit();
+    // Coarsen the domain in splitDirs to enforce the blocking factor.
+    Box blockDomBox = coarsen(fullDomain.domainBox(), blockFactorIV);
+    if (refine(blockDomBox, blockFactorIV) != fullDomain.domainBox()) {
+        MayDay::Error("Level 0 problem domain not coarsenable by blocking factor.");
+    }
 
-            lo = m_splitDirs * (blockDomLo + iv * base_size);
-            lo += unsplitDirs * fullDomLo;
+    // Flatten the domain in unsplit dirs.
+    for (int dir = 0; dir < SpaceDim; ++dir) {
+        if (m_splitDirs[dir] == 1) continue;
+        blockDomBox.shift(dir, -blockDomBox.smallEnd(dir));
+        blockDomBox.setBig(dir, blockDomBox.smallEnd(dir));
+    }
 
-            hi = m_splitDirs * min(lo + base_size - IntVect::Unit, blockDomHi);
-            hi += unsplitDirs * fullDomHi;
+    // Now, blockDomBox is the domain coarsened by blockFactor in splitDirs
+    // and size 1 in unsplitDirs.
 
-            Box thisGrid(lo, hi);
-            thisGrid.refine(blockFactorIV);
-            a_grids.push_back(thisGrid);
+
+    // Plan how we will split the block domain.
+    IntVect num_grids, base_size;
+    for (int dir = 0; dir < SpaceDim; ++dir) {
+        int num_div      = 1;
+        int blockDomSize = blockDomBox.size(dir);
+
+        if (m_splitDirs[dir] == 0) {
+            // Don't split. Span the block domain.
+            num_grids[dir] = 1;
+            base_size[dir] = blockDomSize;
+
+        } else {
+            // What is the smallest number of cuts we need to make so
+            // that the chopped domain respects the max grid size?
+            const int blockMaxBGS = maxBGS[dir] / m_blockFactor;
+            CH_verify(blockMaxBGS > 0);
+            while (num_div * blockMaxBGS < blockDomSize) ++num_div;
+
+            // Split the domain.
+            num_grids[dir] = num_div;
+            base_size[dir] = ceilDiv(blockDomSize, num_div);
         }
     }
-    // END: debug section
+
+
+    // Split the block domain, then refine by the block factor.
+    const IntVect& blockDomHi = blockDomBox.bigEnd();
+    const IntVect& blockDomLo = blockDomBox.smallEnd();
+    const IntVect& fullDomHi  = fullDomain.domainBox().bigEnd();
+    const IntVect& fullDomLo  = fullDomain.domainBox().smallEnd();
+
+    const Box b(IntVect::Zero, num_grids - IntVect::Unit);
+    IntVect lo, hi;
+
+    for (BoxIterator bit(b); bit.ok(); ++bit) {
+        const IntVect& iv = bit();
+
+        lo = m_splitDirs * (blockDomLo + iv * base_size);
+        lo += unsplitDirs * fullDomLo;
+
+        hi = m_splitDirs * min(lo + base_size - IntVect::Unit, blockDomHi);
+        hi += unsplitDirs * fullDomHi;
+
+        Box thisGrid(lo, hi);
+        thisGrid.refine(blockFactorIV);
+        a_grids.push_back(thisGrid);
+    }
 }
 //-----------------------------------------------------------------------
 
