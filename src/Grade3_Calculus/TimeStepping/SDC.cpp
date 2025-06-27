@@ -480,8 +480,6 @@ SDC::FEadvance(LevelData<FluxBox>&   a_vel,
     // interpolations.
     m_finalForcesReady = false;
     m_interpDataReady  = false;
-    // ...also, we will not call postStep. I doubt you want to prepare
-    // plots using this final state.
 }
 
 

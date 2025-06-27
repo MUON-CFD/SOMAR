@@ -371,9 +371,6 @@ RKW3CN::advance(LevelData<FluxBox>&   a_vel,
     setValLevel(m_kqE, quietNAN);
     setValLevel(m_kqE, quietNAN);
 
-    // Allow user to perform postStep operations (e.g., preparing plots)
-    a_rhsPtr->postStep(m_velNew, m_pNew, m_qNew, m_newTime);
-
     m_Q0Ready         = true;
     m_interpDataReady = true;
 
@@ -457,8 +454,6 @@ RKW3CN::FEadvance(LevelData<FluxBox>&   a_vel,
     // ...but the final state is not. We do not want to use it for BC
     // interpolations.
     m_interpDataReady = false;
-    // ...also, we will not call postStep. I doubt you want to prepare
-    // plots using this final state.
 }
 
 

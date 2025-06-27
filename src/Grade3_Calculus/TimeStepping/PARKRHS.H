@@ -100,16 +100,6 @@ public:
                    const Real            a_time,
                    const Real            a_projDt,
                    const Real            a_gammaDt = 0.0) = 0;
-
-    /// Perform any postStep operation necessary.
-    /// By default, this is a no-op.
-    virtual void
-    postStep(const LevelData<FluxBox>&   a_vel  [[maybe_unused]],
-             const LevelData<FArrayBox>& a_p    [[maybe_unused]],
-             const LevelData<FArrayBox>& a_q    [[maybe_unused]],
-             const Real                  a_time [[maybe_unused]]) const
-    {
-    }
 };
 
 

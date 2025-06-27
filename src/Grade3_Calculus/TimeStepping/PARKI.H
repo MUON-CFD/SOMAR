@@ -495,7 +495,6 @@ PARK<RKC>::advance(LevelData<FluxBox>&   a_vel,
         if (s_extrapStagePressure) {
             const Real theta = (RKC::c[r] - RKC::c[rp]) / (RKC::c[r] + RKC::c[rp]);
             this->axby(1.0 + theta, a_p, -theta, m_p[0]);
-
             // this->axby(2.0, a_p, -1.0, m_p[rp]);
         }
 
@@ -535,23 +534,6 @@ PARK<RKC>::advance(LevelData<FluxBox>&   a_vel,
             }
         }
 
-        // // Assemble starting from initial state.
-        // if (rp != s - 1) {
-        //     this->copy(a_vel, m_vel[0]);
-        //     this->copy(  a_q,   m_q[0]);
-        //     this->copy(  a_p,   m_p[0]);
-        // }
-        // for (int j = 0; j < s; ++j) {
-        //     if (abs(RKC::bE[j]) > smallReal) {
-        //         this->plus(a_vel, a_dt * RKC::bE[j], m_kvelE[j]);
-        //         this->plus(  a_q, a_dt * RKC::bE[j],   m_kqE[j]);
-        //     }
-        //     if (abs(RKC::bI[j]) > smallReal) {
-        //         this->plus(a_vel, a_dt * RKC::bI[j], m_kvelI[j]);
-        //         this->plus(  a_q, a_dt * RKC::bI[j],   m_kqI[j]);
-        //     }
-        // }
-
         if (m_needsAssemblyProjection) {
             pout() << Format::fixed;
             pout() << "Assembly:\n";
@@ -564,9 +546,7 @@ PARK<RKC>::advance(LevelData<FluxBox>&   a_vel,
             if (s_extrapAssemblyPressure) {
                 const Real theta = (1.0 - RKC::c[rp]) / (1.0 + RKC::c[rp]);
                 this->axby(1.0 + theta, a_p, -theta, m_p[0]);
-
                 // this->axby(2.0, a_p, -1.0, m_p[rp]);
-
                 // this->axby(2.0, a_p, -1.0, m_p[0]);
             }
 
@@ -605,50 +585,6 @@ PARK<RKC>::advance(LevelData<FluxBox>&   a_vel,
     m_newTime         = m_oldTime + m_dt;
     m_Q0Ready         = true;
     m_interpDataReady = true;
-
-    // Allow user to perform postStep operations (e.g., preparing plots)
-    a_rhsPtr->postStep(a_vel, a_p, a_q, m_newTime);
-
-
-    // Debugging code...
-    if (this->hasEmbeddedScheme()) {
-        // Assemble error approximation.
-        LevelData<FluxBox>   dvel(m_grids, m_velNumComps, m_velGhostVect);
-        LevelData<FArrayBox>   dq(m_grids,   m_qNumComps,   m_qGhostVect);
-        setValLevel(dvel, 0.0);
-        setValLevel(dq, 0.0);
-
-        for (int j = 0; j < RKC::numStages; ++j) {
-            this->plus(dvel, m_dt * (RKC::bE[j] - RKC::bEhat[j]), m_kvelE[j]);
-            this->plus(  dq, m_dt * (RKC::bE[j] - RKC::bEhat[j]),   m_kqE[j]);
-
-            this->plus(dvel, m_dt * (RKC::bI[j] - RKC::bIhat[j]), m_kvelI[j]);
-            this->plus(  dq, m_dt * (RKC::bI[j] - RKC::bIhat[j]),   m_kqI[j]);
-        }
-
-        const RealVect velErrNorm0 = Analysis::pNorm(dvel, 2);
-        const Real       qErrNorm0 = Analysis::pNorm(  dq, 2);
-
-        pout() << Format::scientific;
-        POUT(velErrNorm0);
-        POUT(qErrNorm0);
-
-        // static std::vector<Real> verr0(0);
-        // verr0.push_back(std::max(velErrNorm0[0], velErrNorm0[1]));
-        // POUT(verr0);
-
-        LevelData<FArrayBox> p(m_grids, 1, IntVect::Unit);
-        setValLevel(p, 0.0);
-        a_rhsPtr->projectPredict(dvel, p, m_newTime, m_dt);
-        a_rhsPtr->projectCorrect(dvel, p, m_newTime, m_dt);
-
-        const RealVect velErrNorm1 = Analysis::pNorm(dvel, 2);
-        POUT(velErrNorm1);
-
-        // static std::vector<Real> verr1(0);
-        // verr1.push_back(std::max(velErrNorm1[0], velErrNorm1[1]));
-        // POUT(verr1);
-    }
 }
 
 #else // Use Standard RK...
@@ -833,51 +769,6 @@ PARK<RKC>::advance(LevelData<FluxBox>&   a_vel,
     m_newTime         = m_oldTime + m_dt;
     m_Q0Ready         = true;
     m_interpDataReady = true;
-
-    // Allow user to perform postStep operations (e.g., preparing plots)
-    a_rhsPtr->postStep(a_vel, a_p, a_q, m_newTime);
-
-    if (0 & this->hasEmbeddedScheme()) {
-        // Assemble error approximation.
-        LevelData<FluxBox>   dvel(m_grids, m_velNumComps, m_velGhostVect);
-        LevelData<FArrayBox>   dq(m_grids,   m_qNumComps,   m_qGhostVect);
-        setValLevel(dvel, 0.0);
-        setValLevel(dq, 0.0);
-
-        for (int j = 0; j < RKC::numStages; ++j) {
-            this->plus(dvel, m_dt * (RKC::bE[j] - RKC::bEhat[j]), m_kvelE[j]);
-            this->plus(  dq, m_dt * (RKC::bE[j] - RKC::bEhat[j]),   m_kqE[j]);
-
-            this->plus(dvel, m_dt * (RKC::bI[j] - RKC::bIhat[j]), m_kvelI[j]);
-            this->plus(  dq, m_dt * (RKC::bI[j] - RKC::bIhat[j]),   m_kqI[j]);
-        }
-
-        const RealVect velErrNorm0 = Analysis::pNorm(dvel, 2);
-        const Real       qErrNorm0 = Analysis::pNorm(  dq, 2);
-
-        pout() << Format::scientific;
-        POUT(velErrNorm0);
-        POUT(qErrNorm0);
-
-        // POUT(velErrNorm0 * 0.0159194573264);
-
-        // static std::vector<Real> verr0(0);
-        // verr0.push_back(std::max(velErrNorm0[0], velErrNorm0[1]));
-        // POUT(verr0);
-
-
-        // LevelData<FArrayBox> p(m_grids, 1, IntVect::Unit);
-        // setValLevel(p, 0.0);
-        // a_rhsPtr->projectPredict(dvel, p, m_newTime, m_dt);
-        // a_rhsPtr->projectCorrect(dvel, p, m_newTime, m_dt);
-
-        // const RealVect velErrNorm1 = Analysis::pNorm(dvel, 2);
-        // POUT(velErrNorm1);
-
-        // static std::vector<Real> verr1(0);
-        // verr1.push_back(std::max(velErrNorm1[0], velErrNorm1[1]));
-        // POUT(verr1);
-    }
 }
 #endif
 
@@ -952,8 +843,6 @@ PARK<RKC>::FEadvance(LevelData<FluxBox>&   a_vel,
     // ...but the final state is not. We do not want to use it for BC
     // interpolations.
     m_interpDataReady = false;
-    // ...also, we will not call postStep. I doubt you want to prepare
-    // plots using this final state.
 }
 
 
