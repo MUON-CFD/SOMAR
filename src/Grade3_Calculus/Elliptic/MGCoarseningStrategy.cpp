@@ -46,9 +46,7 @@ namespace Elliptic {
     };
 #endif
 
-// -----------------------------------------------------------------------------
-// Full constructor
-// a_L is the length of the computational domain.
+
 // -----------------------------------------------------------------------------
 SemicoarseningStrategy::SemicoarseningStrategy(const RealVect& a_L,
                                                const int       a_verbosity)
@@ -59,9 +57,6 @@ SemicoarseningStrategy::SemicoarseningStrategy(const RealVect& a_L,
 }
 
 
-// -----------------------------------------------------------------------------
-// Returns the MG refinement schedule.
-// If m_opt.maxDepth = -1, then this function will coarsen as much as possible.
 // -----------------------------------------------------------------------------
 Vector<IntVect>
 SemicoarseningStrategy::createMGRefSchedule(const DisjointBoxLayout& a_grids,
@@ -90,9 +85,8 @@ SemicoarseningStrategy::createMGRefSchedule(const DisjointBoxLayout& a_grids,
             break;
         }
 
-        // pout() << "\ndepth = " << mgRefSchedule.size() << Format::indent() << endl;
+        // Get next suggested ref ratio.
         const IntVect mgRefRatio = computeNextRefRatio(curDx, curGrids);
-        // pout() << Format::unindent << endl;
 
         // Can the grids be coarsened?
         if (mgRefRatio == IntVect::Unit) {
@@ -138,6 +132,7 @@ SemicoarseningStrategy::createMGRefSchedule(const DisjointBoxLayout& a_grids,
     return mgRefSchedule;
 }
 
+
 // -----------------------------------------------------------------------------
 IntVect
 SemicoarseningStrategy::computeNextRefRatio(const RealVect&          a_dx,
@@ -152,28 +147,19 @@ SemicoarseningStrategy::computeNextRefRatio(const RealVect&          a_dx,
     for (size_t curIdx = 0; curIdx < s_refList.size(); ++curIdx) {
         const IntVect& curRef    = s_refList[curIdx];
         const Real     curIsoVal = measureAnisotropy(a_dx * curRef);
-        // pout() << curRef << ": " << curIsoVal;
 
         // Is this amount of coarsening allowed? If not, skip.
-        if (!coarsenable(a_grids, curRef)) {
-            // pout() << " not coarsenable with this ref\n";
-            continue;
-        }
+        if (!coarsenable(a_grids, curRef)) continue;
 
-        // Skip if this reduces the iso too much AND we already found a
-        // candidate ref.
-        if (curIsoVal < isoLimiter * lastIsoVal && isoIdx < s_refList.size()) {
-            // pout() << " skipped\n";
+        // Skip if this reduces the iso too much AND we already found a candidate ref.
+        if (curIsoVal < isoLimiter * lastIsoVal && isoIdx < s_refList.size())
             continue;
-        }
 
         // Accept if this reduces anisotropy.
         if (curIsoVal <= isoVal) {
             isoIdx = curIdx;
             isoVal = curIsoVal;
-            // pout() << " Best so far";
         }
-        // pout() << '\n';
     }
 
     // Report valid result or return (1,1,1).
@@ -194,6 +180,7 @@ SemicoarseningStrategy::computeNextRefRatio(const RealVect&          a_dx,
         IntVect(2, 2, 1)
     };
 #endif
+
 
 // -----------------------------------------------------------------------------
 HorizCoarseningStrategy::HorizCoarseningStrategy(
@@ -237,7 +224,7 @@ HorizCoarseningStrategy::createMGRefSchedule(
             break;
         }
 
-        // The vertical ref will be 1.
+        // Get next suggested ref ratio. The vertical ref will be 1.
         IntVect mgRefRatio = computeNextRefRatio(curDx, curGrids);
 
         // Can the grids be coarsened?
@@ -271,7 +258,7 @@ HorizCoarseningStrategy::createMGRefSchedule(
     mgRefSchedule.push_back(IntVect::Unit);
 
     // Dump schedule to pout.
-    if (m_verbosity > 4) {
+    if (m_verbosity > 2) {
         pout() << "HorizCoarseningStrategy mgRefSchedule:" << Format::indent();
         for (size_t d = 0; d < mgRefSchedule.size(); ++d) {
             pout() << "\nDepth = " << d << ",\tref = " << mgRefSchedule[d]
@@ -285,6 +272,9 @@ HorizCoarseningStrategy::createMGRefSchedule(
     // Done!
     return mgRefSchedule;
 }
+
+
+// =============================================================================
 
 // -----------------------------------------------------------------------------
 IntVect
@@ -321,12 +311,6 @@ HorizCoarseningStrategy::computeNextRefRatio(const RealVect&          a_dx,
 }
 
 
-
-
-
-// -----------------------------------------------------------------------------
-// Full constructor
-// a_L is the length of the computational domain.
 // -----------------------------------------------------------------------------
 MiniVCycleStrategy::MiniVCycleStrategy(const RealVect& a_L,
                                        const IntVect&  a_amrRefRatio,
@@ -341,17 +325,6 @@ MiniVCycleStrategy::MiniVCycleStrategy(const RealVect& a_L,
 }
 
 
-// -----------------------------------------------------------------------------
-// In AMRMGSolvers, you might need to coarsen from l to l-1 where
-// the refinement ratio is > 2 in some or all of the directions.
-// this is bad for MG. For this purpose, you must perform a mini
-// V-cycle before coarsening to l-1. The mini V-Cycle will coarsen
-// in such a way that it tries to go to isotropy as fast as possible
-// and it terminates at a depth that is one coarsening (by 2) away
-// from l-1. In short, we need to eliminate all of the error modes
-// not captured by the grid at l-1.
-
-// a_maxDepth will be ignored. We coarsen as much as is needed.
 // -----------------------------------------------------------------------------
 Vector<IntVect>
 MiniVCycleStrategy::createMGRefSchedule(const DisjointBoxLayout& a_grids,

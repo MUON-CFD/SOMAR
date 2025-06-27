@@ -21,13 +21,7 @@ LevelHybridSolver::getDefaultOptions()
     opt.hang           = proj.hang;
 
     opt.mgOptions = MGSolver<StateType>::getDefaultOptions();
-    opt.mgOptions.absTol    = opt.absTol;
-    opt.mgOptions.relTol    = opt.relTol;
-    opt.mgOptions.hang      = opt.hang;
-    opt.mgOptions.maxDepth  = -1;
-    opt.mgOptions.maxIters  = 10;
     opt.mgOptions.normType  = opt.normType;
-    opt.mgOptions.numCycles = -1;
     opt.mgOptions.verbosity = 0;
     // Use default smoothing options.
 
