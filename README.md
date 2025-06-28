@@ -17,7 +17,7 @@ Main Features
 - **Separation of background density and its deviation -** By splitting the density field into a vertical background stratification and a deviation, we relieve the Poisson solver of computing the associated hydrostatic component of the pressure. This treatment, already implemented in some regional models including [MITgcm](http://mitgcm.org/ 'The MITgcm website'), also prevents diffusion of oceanic features that are maintained by unmodeled phenomena.
 
 
-- **Large Eddy Simulation (LES) -** At local turbulent hotspots, AMR helps resolve the bulk of the energy cascade and LES parameterizes the rest. This two-way feedback between models uses the subgrid closure scheme of [Ducrose, et. al.](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/largeeddy-simulation-of-transition-to-turbulence-in-a-boundary-layer-developing-spatially-over-a-flat-plate/C277DE968A1FD929D3CB05FDBC434AAD)
+- **Large Eddy Simulation (LES) -** At local turbulent hotspots, AMR helps resolve the bulk of the energy cascade and LES parameterizes the rest. This two-way feedback between models uses the subgrid closure scheme of [Ducros, et. al.](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/largeeddy-simulation-of-transition-to-turbulence-in-a-boundary-layer-developing-spatially-over-a-flat-plate/C277DE968A1FD929D3CB05FDBC434AAD)
 
 
 - **Familiar methods -** Unlike SOMAR v1.0, this newer version uses methods familiar to physical oceanographers such as Arakawa-C grids and Runge-Kutta time integration. We also avoid upwinding by using simple, centered finite differences for the advection terms.
