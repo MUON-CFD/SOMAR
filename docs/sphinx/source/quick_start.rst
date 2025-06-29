@@ -92,7 +92,7 @@ We need to copy the script Setup.sh so that it is called when the environment is
 Now you should have a working environment. You can test it as indicated below. If everything checks,
 you are ready to compile SOMAR.
 
-Working with existing hdf5 libraries and/or Intel compiler (HPC environment)
+Configuring in an HPC environment
 ----------------------------------------------------------------------------
 Here, we assume that your HPC environment is
 managed with module. So first thing, make sure you have conda (or mamba), your compiler and your mpi module loaded.

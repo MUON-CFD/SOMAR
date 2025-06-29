@@ -22,7 +22,7 @@ What does "block-structured" mean?
     :width: 800
     :alt: Block-structured AMR.
 
-    2D block-structured AMR with three :term:`levels<level>` of refinement.
+    2D block-structured AMR with two :term:`levels<level>` of refinement (three levels total).
 
 Having said this, there are variants of AMR on structured grids that can refine individual cells, such as quadtrees in 2D or octrees in 3D. But the capability is often used to restrict the refined regions to a very tight region around complex obstacles, not to refine individual cells.
 
@@ -30,7 +30,7 @@ Having said this, there are variants of AMR on structured grids that can refine 
 What gets refined?
 ------------------
 
-Part of the difficulty with AMR is correctly identifying underresolved patches of the domain. There are several black-box solutions that are commonly used. These include, but are not limited to, calculating
+Part of the difficulty with AMR is correctly identifying underresolved patches of the domain. There are several solutions that are commonly used. These include, but are not limited to, calculating
 
 - undivided differences of state variables,
 - vorticity, and
@@ -38,12 +38,27 @@ Part of the difficulty with AMR is correctly identifying underresolved patches o
 
 Of these options, undivided differences are the simplest. Given any discretized state variable, :math:`q`, we compute the jumps between adjacent cells. If the magnitude of the jump is above some threshold, we tag both cells for refinement. A nice detail of this tagging method is that :math:`|\Delta q|` will decrease with resolution. The downside of the method is that it is often difficult to identify proper thresholds for each state variable, as they depend on the physics of the flow.
 
+As an example, consider the following input file snippet.
+
+.. code-block:: python
+
+    amr.velTagTol     = 1.0e-2
+    # amr.bTagTol       =
+    # amr.TTagTol       =
+    # amr.STagTol       =
+    # amr.bpertTagTol   =
+    # amr.TpertTagTol   =
+    # amr.SpertTagTol   =
+    # amr.scalarsTagTol =
+
+This will refine any cell whose :math:`|\Delta u|`, :math:`|\Delta v|`, or :math:`|\Delta w|` exceeds :math:`1.0 \times 10^{-2}`. If you prefer tagging on density differences, then uncomment and set :code:`amr.bTagTol`. If you have a background stratification and would like to tag on temperature perturbations (pert = total - background), then use :code:`amr.TpertTagTol`. Any number of these can be set at once, but don't go crazy. Only set what makes sense for your simulation.
+
 .. todo::
     Tagging on vorticity
 
 Tagging on the error computed via Richardson extrapolation is detailed in (CITE Dan Martin), but is not current implemented in SOMAR.
 
-There are also methods that are specialized to the physics being studied. For example, turbulence in a stratified flow is expected when the gradient Richardson number, defined as the ratio of the local stratification to the horizontal shear squared, becomes less than 0.25 (CITE: Miles, 1961; Howard, 1961). In practice, we tag those cells that satisfy :math:`\text{Ri} \leq \mathcal{O}(1)` in anticipation of turbulence. Unlike other tagging strategies, this strategy is robust in the sense that the tolerance is flow-independent. We can use the same threshold, :math:`\text{Ri} \leq \mathcal{O}(1)`, for all stratified flows and expect satisfactory results.
+There are also methods that are specialized to the physics being studied. For example, turbulence in a stratified flow is expected when the gradient Richardson number, defined as the ratio of the local stratification to the horizontal shear squared, becomes less than 0.25 (`Miles, 1961 <https://doi.org/10.1017/S0022112061000305>`_; `Howard, 1961 <https://doi.org/10.1017/S0022112061000317>`_). In practice, we tag those cells that satisfy :math:`\text{Ri} \leq \mathcal{O}(1)` in anticipation of turbulence. Unlike other tagging strategies, this strategy is robust in the sense that the tolerance is flow-independent. We can use the same threshold, :math:`\text{Ri} \leq \mathcal{O}(1)`, for all stratified flows and expect satisfactory results.
 
 Some disturbances effect the entire water column. An internal solitary wave is a good example. In this case, an option is to project the buoyancy deviation, :math:`b'(x,y,z,t) = b(x,y,z,t) - \bar{b}(z)`, onto the vertical structure function
 
@@ -51,7 +66,7 @@ Some disturbances effect the entire water column. An internal solitary wave is a
 
     A(x,y,t) = \int b'(x,y,z,t) \, \varphi_0(z) \, dz,
 
-where the integral is evaluated over the vertical domain extent. We can then increase the resolution over entire vertical sections where :math:`|A(x,y,t)|` exceeds some threshold. This method was used successfully in (CITE 2015 paper).
+where the integral is evaluated over the vertical domain extent. We can then increase the resolution over entire vertical sections where :math:`|A(x,y,t)|` exceeds some threshold. This method was used successfully in (CITE upcoming JAMES paper).
 
 
 
