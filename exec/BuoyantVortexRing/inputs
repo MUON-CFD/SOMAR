@@ -9,8 +9,8 @@ base.nx                 = 64 64 64      # MUST SPECIFY
 base.nxOffset           = -32 -32 -32         # [0 0 0]
 base.isPeriodic         = 1 1 1         # [0 0 0]
 # base.splitDirs          = 1 1 1         # [1 1 1]
-# base.maxBaseGridSize    =               # [Automated when not defined]
-# base.blockFactor        = 8             # [Automated when not defined]
+base.maxBaseGridSize    = 16 16 16             
+base.blockFactor        = 16             
 
 
 #---------------------------- Timestepping details ----------------------------#
