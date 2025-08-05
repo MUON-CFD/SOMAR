@@ -46,7 +46,7 @@ dummy_F.H
 */*.o
 */*.os
 */*.so
-compileUtils/*
+# compileUtils/*
 *.os
 *.o
 *.f
