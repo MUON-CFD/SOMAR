@@ -168,7 +168,9 @@ class processFlags:
 
         # check for the intel compiler to be actually present
         if self.IntelCompiler:
-            self.IntelCompiler= (shutil.which('ifort') is not None) and (shutil.which('icx') is not None)
+            has_ifx = (shutil.which('ifort') is not None) or (shutil.which('ifx') is not None)
+            has_icx = (shutil.which('icx') is not None)
+            self.IntelCompiler = (has_ifx and has_icx)
             if not self.IntelCompiler: print("Intel compiler missing, reverting to gcc")
         # check of the clang compiler to be actually present
         if self.ClangCompiler:
@@ -345,21 +347,6 @@ def setEnvOptions(Flags, src_dir='src', root_dir='.'):
         "SOURCE_DIR" : src_dir,
         "VARIANT_DIR" : src_dir
     }
-
-    # # here we sepcify the name of the compiler.
-    # if Flags.MPI:
-    #     env_options['CXX']='mpiicpc' if shutil.which('mpiicpc') is not None and Flags.IntelCompiler else 'mpic++'
-
-    # else:
-    #     if Flags.IntelCompiler:
-    #         env_options['CXX']= 'icx'
-    #     elif Flags.ClangCompiler:
-    #         env_options['CXX']= 'clang++'
-    #     else:
-    #         env_options['CXX']= 'g++'
-
-
-    # env_options['FORTRAN']='ifort' if Flags.IntelCompiler else 'gfortran'
 
     # here we sepcify the name of the compiler.
     if Flags.MPI:
