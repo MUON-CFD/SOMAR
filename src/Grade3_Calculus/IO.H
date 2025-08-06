@@ -326,6 +326,50 @@ public:
 //     public:
 //         static constexpr bool value = decltype(check<_T>(0))::value;
 //     };
+
+private:
+    // If you pass in N vectors, this function will read 1 element into each,
+    // for a total of N reads.
+    // It returns if there was an EOF error.
+    template <typename T0, typename... vTs>
+    static bool
+    readOneLine(std::ifstream& ifstream, std::vector<T0>& v0, vTs&... vs);
+
+    // Crops all vectors to size N.
+    // This assumes all vectors are at least size N.
+    template <typename T0, typename... vTs>
+    static void
+    trim(const size_t N, std::vector<T0>& v0, vTs&... vs);
+};
+
+
+// =============================================================================
+// Implementation...
+
+// -----------------------------------------------------------------------------
+template <typename T0, typename... vTs>
+bool
+IO::readOneLine(std::ifstream& ifstream, std::vector<T0>& v0, vTs&... vs)
+{
+    Real data;
+    if (!(ifstream >> data)) {
+        if (ifstream.eof()) return true;
+        MAYDAYERROR("Unknown error while reading file.");
+    }
+    v0.push_back(static_cast<T0>(data));
+
+    if constexpr (sizeof...(vs) > 0) return IO::readOneLine(ifstream, vs...);
+    return false;
+};
+
+
+// -----------------------------------------------------------------------------
+template <typename T0, typename... vTs>
+void
+IO::trim(const size_t N, std::vector<T0>& v0, vTs&... vs)
+{
+    if (v0.size() > N) v0.resize(N);
+    if constexpr (sizeof...(vs) > 0) IO::trim(N, vs...);
 };
 
 
@@ -336,40 +380,11 @@ IO::readASCII(std::ifstream&      a_ifstream,
               std::vector<T0>&    a_v0,
               vTs&...             a_vs)
 {
-    // If you pass in N vectors, this function will read 1 element into each,
-    // for a total of N reads.
-    // It returns if there was an EOF error.
-    auto _readOneLine = [](auto&&             self,
-                           std::ifstream&     ifstream,
-                           std::vector<auto>& v0,
-                           auto&...           vs) -> bool {
-        Real data;
-        if (!(ifstream >> data)) {
-            if (ifstream.eof()) return true;
-            MAYDAYERROR("Unknown error while reading file.");
-        }
-        v0.push_back(static_cast<T0>(data));
-
-        if constexpr (sizeof...(vs) > 0) return self(self, ifstream, vs...);
-        return false;
-    };
-
-    // Crops all vectors to size N.
-    // This assumes all vectors are at least size N.
-    auto _trim = [](auto&&             self,
-                    const size_t       N,
-                    std::vector<auto>& v0,
-                    auto&...           vs) {
-        if (v0.size() > N) v0.resize(N);
-        if constexpr (sizeof...(vs) > 0) self(self, N, vs...);
-    };
-
-    // This is the actual function...
-    _trim(_trim, 0, a_v0, a_vs...);
+    IO::trim(0, a_v0, a_vs...);
     if (!a_ifstream.is_open()) return;
-    while (!_readOneLine(_readOneLine, a_ifstream, a_v0, a_vs...)) {}
+    while (!IO::readOneLine(a_ifstream, a_v0, a_vs...)) {}
     const size_t minSize = std::min({a_v0.size(), a_vs.size()...});
-    _trim(_trim, minSize, a_v0, a_vs...);
+    IO::trim(minSize, a_v0, a_vs...);
 }
 
 
