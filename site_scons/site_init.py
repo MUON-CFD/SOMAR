@@ -346,10 +346,37 @@ def setEnvOptions(Flags, src_dir='src', root_dir='.'):
         "VARIANT_DIR" : src_dir
     }
 
+    # # here we sepcify the name of the compiler.
+    # if Flags.MPI:
+    #     env_options['CXX']='mpiicpc' if shutil.which('mpiicpc') is not None and Flags.IntelCompiler else 'mpic++'
+
+    # else:
+    #     if Flags.IntelCompiler:
+    #         env_options['CXX']= 'icx'
+    #     elif Flags.ClangCompiler:
+    #         env_options['CXX']= 'clang++'
+    #     else:
+    #         env_options['CXX']= 'g++'
+
+
+    # env_options['FORTRAN']='ifort' if Flags.IntelCompiler else 'gfortran'
+
     # here we sepcify the name of the compiler.
     if Flags.MPI:
-        env_options['CXX']='mpiicpc' if shutil.which('mpiicpc') is not None and Flags.IntelCompiler else 'mpic++'
-
+        if Flags.IntelCompiler:
+            if (shutil.which('mpiicpx') is not None):
+                env_options['CXX']='mpiicpx'
+            elif (shutil.which('mpiicpc') is not None):
+                env_options['CXX']='mpiicpc'
+            else:
+                raise RuntimeError("Cannot find MPI wrapper for Intel C++ compiler.")
+        else:
+            if (shutil.which('mpic++') is not None):
+                env_options['CXX']='mpic++'
+            elif (shutil.which('mpicxx') is not None):
+                env_options['CXX']='mpicxx'
+            else:
+                raise RuntimeError("Cannot find MPI wrapper for C++ compiler.")
     else:
         if Flags.IntelCompiler:
             env_options['CXX']= 'icx'
@@ -359,7 +386,17 @@ def setEnvOptions(Flags, src_dir='src', root_dir='.'):
             env_options['CXX']= 'g++'
 
 
-    env_options['FORTRAN']='ifort' if Flags.IntelCompiler else 'gfortran'
+    if Flags.IntelCompiler:
+        if (shutil.which('ifx') is not None):
+            env_options['FORTRAN']='ifx'
+        elif (shutil.which('ifort') is not None):
+            env_options['FORTRAN']='ifort'
+        else:
+            raise RuntimeError("Cannot find Intel Fortran compiler.")
+    else:
+        env_options['FORTRAN']='gfortran'
+
+
 
     #env_options['CXX'] += ' -pg' if Flags.Profile else []
     env_options['IncludePath']=IncludePath
