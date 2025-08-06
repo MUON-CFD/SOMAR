@@ -519,12 +519,12 @@ RHSParameters::createDefaults(const BaseParameters& a_baseParams,
     if (pp.contains("eddyViscMethod")) {
         pp.queryarr("eddyViscMethod", s_defPtr->eddyViscMethod, 0, a_numLevels);
 
-        bool usesEddyVisc = false;
-        for (int lev = 0; lev < a_numLevels; ++lev) {
-            CH_verify(s_defPtr->eddyViscMethod[lev] >= 0);
-            CH_verify(s_defPtr->eddyViscMethod[lev] < EddyViscMethods::_NUM_EDDYVISCMETHODS);
-            usesEddyVisc |= (s_defPtr->eddyViscMethod[lev] != 0);
-        }
+        // bool usesEddyVisc = false;
+        // for (int lev = 0; lev < a_numLevels; ++lev) {
+        //     CH_verify(s_defPtr->eddyViscMethod[lev] >= 0);
+        //     CH_verify(s_defPtr->eddyViscMethod[lev] < EddyViscMethods::_NUM_EDDYVISCMETHODS);
+        //     usesEddyVisc |= (s_defPtr->eddyViscMethod[lev] != 0);
+        // }
 
         s_defPtr->eddyPrandtlT = 1.0;
         pp.query("eddyPrandtlT", s_defPtr->eddyPrandtlT);

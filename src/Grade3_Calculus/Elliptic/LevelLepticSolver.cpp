@@ -403,7 +403,7 @@ LevelLepticSolver::solve(StateType&       a_phi,
                          const Real       a_time,
                          const bool       a_useHomogBCs,
                          const bool       a_setPhiToZero,
-                         const Real       a_convergenceMetric) const
+                         const Real       /* a_convergenceMetric */) const
 {
     SolverStatus& solverStatus = this->getSolverStatusRef();
     solverStatus.setSolverStatus(SolverStatus::UNDEFINED);

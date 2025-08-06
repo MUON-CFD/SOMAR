@@ -610,8 +610,8 @@ AMRNSLevel::simpleRefluxing(Vector<LevelData<FluxBox>*>&   a_amrVel,
 // You must call this from lbase = the coarsest refluxed level.
 // -----------------------------------------------------------------------------
 void
-AMRNSLevel::explicitRefluxing(Vector<LevelData<FluxBox>*>&   a_amrVel,
-                              Vector<LevelData<FArrayBox>*>& a_amrQ)
+AMRNSLevel::explicitRefluxing(Vector<LevelData<FluxBox>*>&   /* a_amrVel */,
+                              Vector<LevelData<FArrayBox>*>& /* a_amrQ */)
 {
     // Commented out because we need to take in the eddyVisc.
     UNDEFINED_FUNCTION();

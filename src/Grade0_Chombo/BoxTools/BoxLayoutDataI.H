@@ -859,62 +859,63 @@ void BoxLayoutData<T>::unpackReceivesToMe_append(LayoutData<Vector<RefCountedPtr
 #endif
 
 template <class T>
-void BoxLayoutData<T>::generalCopyTo(const BoxLayout& a_destGrids,
-                                     LayoutData<Vector<RefCountedPtr<T> > >& a_dest,
-                                     const Interval& a_srcComps,
-                                     const ProblemDomain& a_domain,
-                                     const Copier& a_copier,
-                                     const DataFactory<T>& factory) const
+void
+BoxLayoutData<T>::generalCopyTo(const BoxLayout& a_destGrids,
+                                LayoutData<Vector<RefCountedPtr<T>>>& a_dest,
+                                const Interval&       a_srcComps,
+                                const ProblemDomain&  /* a_domain */,
+                                const Copier&         a_copier,
+                                const DataFactory<T>& factory) const
 {
+    CH_assert(T::preAllocatable() == 0);
+    a_dest.define(a_destGrids);
 
-  CH_assert(T::preAllocatable() == 0);
-  a_dest.define(a_destGrids);
+    LDOperator<T> a_op;
 
-  LDOperator<T> a_op;
+    int      ncomp = a_srcComps.size();
+    Interval destComps(0, ncomp - 1);
+    allocateBuffers(*this, a_srcComps, *this, destComps, a_copier, a_op);
 
-  int ncomp = a_srcComps.size();
-  Interval destComps(0, ncomp-1);
-  allocateBuffers(*this,  a_srcComps,
-                  *this,  destComps,
-                  a_copier, a_op);
+    writeSendDataFromMeIntoBuffers(*this, a_srcComps, a_op);
 
-  writeSendDataFromMeIntoBuffers(*this, a_srcComps, a_op);
-
-  // If there is nothing to recv/send, don't go into these functions
-  // and allocate memory that will not be freed later.  (ndk)
-  // The #ifdef CH_MPI is for the m_buff->m_toMe and m_buff->m_fromMe
+    // If there is nothing to recv/send, don't go into these functions
+    // and allocate memory that will not be freed later.  (ndk)
+    // The #ifdef CH_MPI is for the m_buff->m_toMe and m_buff->m_fromMe
 #ifdef CH_MPI
-  this->numReceives = m_buff->m_toMe.size();
-  if (this->numReceives > 0)
-  {
-    postReceivesToMe(); // all non-blocking
-  }
+    this->numReceives = m_buff->m_toMe.size();
+    if (this->numReceives > 0) {
+        postReceivesToMe();  // all non-blocking
+    }
 
-  this->numSends = m_buff->m_fromMe.size();
-  if (this->numSends > 0)
-  {
-    postSendsFromMe();  // all non-blocking
-  }
+    this->numSends = m_buff->m_fromMe.size();
+    if (this->numSends > 0) {
+        postSendsFromMe();  // all non-blocking
+    }
 #endif
 
     // perform local copy
-  for (CopyIterator it(a_copier, CopyIterator::LOCAL); it.ok(); ++it)
-    {
-      const MotionItem& item = it();
-      RefCountedPtr<T> newT( factory.create(item.toRegion, ncomp, item.toIndex) );
+    for (CopyIterator it(a_copier, CopyIterator::LOCAL); it.ok(); ++it) {
+        const MotionItem& item = it();
+        RefCountedPtr<T>  newT(
+            factory.create(item.toRegion, ncomp, item.toIndex));
 
-      a_op.op(*newT, item.fromRegion,
-              destComps,
-              item.toRegion,
-              this->operator[](item.fromIndex),
-              a_srcComps);
-      a_dest[item.toIndex].push_back(newT);
+        a_op.op(*newT,
+                item.fromRegion,
+                destComps,
+                item.toRegion,
+                this->operator[](item.fromIndex),
+                a_srcComps);
+        a_dest[item.toIndex].push_back(newT);
     }
 
-  // Uncomment and Move this out of unpackReceivesToMe()  (ndk)
-  completePendingSends(); // wait for sends from possible previous operation
+    // Uncomment and Move this out of unpackReceivesToMe()  (ndk)
+    completePendingSends();  // wait for sends from possible previous operation
 
-  unpackReceivesToMe_append(a_dest, destComps, ncomp, factory, a_op); // nullOp in uniprocessor mode
+    unpackReceivesToMe_append(a_dest,
+                              destComps,
+                              ncomp,
+                              factory,
+                              a_op);  // nullOp in uniprocessor mode
 }
 
 
@@ -973,16 +974,19 @@ public:
 
 
 template <class T>
-void BoxLayoutData<T>::addTo(const Interval& a_srcComps,
-                             BoxLayoutData<T>& a_dest,
-                             const Interval& a_destComps,
-                             const ProblemDomain& a_domain,
-                             const Copier& a_copier) const
+void
+BoxLayoutData<T>::addTo(const Interval&      a_srcComps,
+                        BoxLayoutData<T>&    a_dest,
+                        const Interval&      a_destComps,
+                        const ProblemDomain& /*a_domain*/,
+                        const Copier&        a_copier) const
 {
-  CH_TIME("addTo");
-  LDaddOp<T> addOp;
-  makeItSo(a_srcComps, *this, a_dest, a_destComps, a_copier, addOp);
+    CH_TIME("addTo");
+    LDaddOp<T> addOp;
+    makeItSo(a_srcComps, *this, a_dest, a_destComps, a_copier, addOp);
 }
+
+
 #ifdef CH_USE_PYTHON
 template <typename T>
   PyObject* BoxLayoutData<T>::pack()  {

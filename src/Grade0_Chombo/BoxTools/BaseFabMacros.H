@@ -762,7 +762,7 @@
     const T* _th_p = this->m_dptr;                                      \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        int nR = _n; nR += 0;                                           \
+        [[maybe_unused]] int nR = _n; nR += 0;                                           \
         for (int _j = 0; _j < _b_len[1]; ++_j)                          \
           {                                                             \
             const int jR = _j + _b_lo[1];                               \
@@ -785,7 +785,7 @@
     T* _th_p = this->m_dptr;                                            \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        const int nR = _n; (int&)nR += 0;                               \
+        [[maybe_unused]] const int nR = _n; (int&)nR += 0;                               \
         for (int _j = 0; _j < _b_len[1]; ++_j)                          \
           {                                                             \
             const int jR = _j + _b_lo[1]; (int&)jR += 0;                \
@@ -810,7 +810,7 @@
       {                                                                 \
         for (int _j = 0; _j < _b_len[1]; ++_j)                          \
           {                                                             \
-            const int jR = _j + _b_lo[1];  (int&)jR += 0;               \
+            [[maybe_unused]] const int jR = _j + _b_lo[1];  (int&)jR += 0;               \
             T *xR = _th_p                                               \
                 + ((_b_lo[0] - _th_plo[0])                              \
                    + _th_plen[0]*(                                      \
@@ -829,7 +829,7 @@
     T* _x_p = (x) .dataPtr();                                           \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        const int nR = _n; (int&)nR += 0;                               \
+        [[maybe_unused]] const int nR = _n; (int&)nR += 0;                               \
         for (int _j = 0; _j < _b_len[1]; ++_j)                          \
           {                                                             \
             const int jR = _j + _b_lo[1]; (int&)jR += 0;                \
@@ -840,7 +840,7 @@
                            + _n * _x_plen[1]));                         \
             for (int _i = 0; _i < _b_len[0]; ++_i, ++_x_pp)             \
               {                                                         \
-                const int iR = _i + _b_lo[0];  (int&)iR += 0;           \
+                [[maybe_unused]] const int iR = _i + _b_lo[0];  (int&)iR += 0;           \
                 T &x##R = * _x_pp;
 
 #define ForAllXBNNnoindx2(T,x,b,ns,nc)                                  \
@@ -877,7 +877,7 @@
     const T* _x_p = (x).dataPtr();                                      \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        const int nR = _n; (int&)nR += 0;                               \
+        [[maybe_unused]] const int nR = _n; (int&)nR += 0;              \
         for (int _j = 0; _j < _b_len[1]; ++_j)                          \
           {                                                             \
             const int jR = _j + _b_lo[1];                               \
@@ -888,7 +888,7 @@
                            + _n * _x_plen[1]));                         \
             for (int _i = 0; _i < _b_len[0]; ++_i)                      \
               {                                                         \
-                const int iR = _i + _b_lo[0];   (int&)iR += 0;          \
+                [[maybe_unused]] const int iR = _i + _b_lo[0];   (int&)iR += 0;          \
                 const T & x##R = _x_pp[_i];
 
 #define ForAllThisBNN2(T,b,ns,nc)                                       \
@@ -902,7 +902,7 @@
     T* _th_p = this->m_dptr;                                            \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        int nR = _n; nR += 0;                                           \
+        [[maybe_unused]] int nR = _n; nR += 0;                          \
         for (int _j = 0; _j < _b_len[1]; ++_j)                          \
           {                                                             \
             const int jR = _j + _b_lo[1];                               \
@@ -913,7 +913,7 @@
                        + _n * _th_plen[1]));                            \
             for (int _i = 0; _i < _b_len[0]; ++_i, ++_th_pp)            \
               {                                                         \
-                int iR = _i + _b_lo[0]; iR += 0;                        \
+                [[maybe_unused]] int iR = _i + _b_lo[0]; iR += 0;       \
                 T &thisR = * _th_pp;
 
 #define ForAllThisCBNN2(T,b,ns,nc)                                      \
@@ -930,7 +930,7 @@
         const int nR = _n; (int&)nR += 0;                               \
         for (int _j = 0; _j < _b_len[1]; ++_j)                          \
           {                                                             \
-            const int jR = _j + _b_lo[1]; (int&)jR+=0;;                 \
+            [[maybe_unused]] const int jR = _j + _b_lo[1]; (int&)jR+=0;;                 \
             const T *_th_pp = _th_p                                     \
                 + ((_b_lo[0] - _th_plo[0])                              \
                    + _th_plen[0]*(                                      \
@@ -938,7 +938,7 @@
                        + _n * _th_plen[1]));                            \
             for (int _i = 0; _i < _b_len[0]; ++_i)                      \
               {                                                         \
-                const int iR = _i + _b_lo[0]; (int&)iR +=0;             \
+                [[maybe_unused]] const int iR = _i + _b_lo[0]; (int&)iR +=0;             \
                 const T &thisR = _th_pp[_i];
 
 #define ForAllThisBNNXC2(T,b,ns,nc,x,nss)                               \
@@ -960,7 +960,7 @@
         const T* _x_p  = (x).dataPtr(nss);                              \
         for (int _n = 0; _n < (nc); ++_n)                               \
           {                                                             \
-            int nR = _n; nR += 0;                                       \
+            [[maybe_unused]] int nR = _n; nR += 0;                                       \
             for (int _j = 0; _j < _subbox_len[1]; ++_j)                 \
               {                                                         \
                 const int jR = _j + _subbox_lo[1];                      \
@@ -976,7 +976,7 @@
                            + _n * _x_plen[1]));                         \
                 for (int _i = 0; _i < _subbox_len[0]; ++_i, ++_th_pp)   \
                   {                                                     \
-                    int iR = _i + _subbox_lo[0]; iR += 0;               \
+                    [[maybe_unused]] int iR = _i + _subbox_lo[0]; iR += 0;               \
                     T &thisR = * _th_pp;                                \
                     const T & x##R = _x_pp[_i];
 
@@ -999,7 +999,7 @@
         const T* _x_p  = (x).dataPtr(nss);                              \
         for (int _n = 0; _n < (nc); ++_n)                               \
           {                                                             \
-            int nR = _n; nR += 0;                                       \
+            [[maybe_unused]] int nR = _n; nR += 0;                                       \
             for (int _j = 0; _j < _subbox_len[1]; ++_j)                 \
               {                                                         \
                 const int jR = _j + _subbox_lo[1];                      \
@@ -1015,7 +1015,7 @@
                            + _n * _x_plen[1]));                         \
                 for (int _i = 0; _i < _subbox_len[0]; ++_i, ++_th_pp)   \
                   {                                                     \
-                    int iR = _i + _subbox_lo[0]; iR += 0;               \
+                    [[maybe_unused]] int iR = _i + _subbox_lo[0]; iR += 0;               \
                     const T &thisR = * _th_pp;                          \
                     const T & x##R = _x_pp[_i];
 
@@ -1034,7 +1034,7 @@
         const IntVect _subbox_len = (b).size();                         \
         const int *_bx_lo = (bx).loVect();                              \
         T* _th_p = this->dataPtr(ns);                                   \
-        int nR = ns; int n##x##R = nss;                                 \
+        [[maybe_unused]] int nR = ns; int n##x##R = nss;                                 \
         const T* _x_p  = (x).dataPtr(nss);                              \
         for (int _n = 0; _n < (nc); ++_n, ++nR, ++n##x##R )             \
           {                                                             \
@@ -1052,7 +1052,7 @@
                        + _x_plen[0]*(                                   \
                            (j##x##R - _x_plo[1])                        \
                            + _n * _x_plen[1]));                         \
-                int iR = _subbox_lo[0]; int i##x##R = _bx_lo[0];        \
+                [[maybe_unused]] int iR = _subbox_lo[0]; int i##x##R = _bx_lo[0];        \
                 for (int _i = 0; _i < _subbox_len[0];                   \
                      ++_i, ++_th_pp, ++_x_pp, ++iR, ++i##x##R)          \
                   {                                                     \
@@ -1085,14 +1085,14 @@
         const T* _y_p  = (y).dataPtr(nsy);                              \
         for (int _n = 0; _n < (nc); ++_n)                               \
           {                                                             \
-            int nR = _n + ns; nR += 0;                                  \
-            int n##x##R = _n + nsx; n##x##R += 0;                       \
-            int n##y##R = _n + nsy; n##y##R += 0;                       \
+            [[maybe_unused]] int nR = _n + ns; nR += 0;                                  \
+            [[maybe_unused]] int n##x##R = _n + nsx; n##x##R += 0;                       \
+            [[maybe_unused]] int n##y##R = _n + nsy; n##y##R += 0;                       \
             for (int _j = 0; _j < _subbox_len[1]; ++_j)                 \
               {                                                         \
-                const int jR = _j + _subbox_lo[1];                      \
-                const int j##x##R = _j + _bx_lo[1];                     \
-                const int j##y##R = _j + _by_lo[1];                     \
+                [[maybe_unused]] const int jR = _j + _subbox_lo[1];                      \
+                [[maybe_unused]] const int j##x##R = _j + _bx_lo[1];                     \
+                [[maybe_unused]] const int j##y##R = _j + _by_lo[1];                     \
                 T *_th_pp = _th_p                                       \
                     + ((_subbox_lo[0] - _th_plo[0])                     \
                        + _th_plen[0]*(                                  \
@@ -1110,9 +1110,9 @@
                            + _n * _y_plen[1]));                         \
                 for (int _i = 0; _i < _subbox_len[0]; ++_i, ++_th_pp)   \
                   {                                                     \
-                    int iR = _i + _subbox_lo[0];  iR += 0;              \
-                    int i##x##R = _i + _bx_lo[0]; i##x##R += 0;         \
-                    int i##y##R = _i + _by_lo[0]; i##y##R += 0;         \
+                    [[maybe_unused]] int iR = _i + _subbox_lo[0];  iR += 0;              \
+                    [[maybe_unused]] int i##x##R = _i + _bx_lo[0]; i##x##R += 0;         \
+                    [[maybe_unused]] int i##y##R = _i + _by_lo[0]; i##y##R += 0;         \
                     T &thisR = * _th_pp;                                \
                     const T & x##R = _x_pp[_i];                         \
                     const T & y##R = _y_pp[_i];
@@ -1136,13 +1136,13 @@
     const T* _y_p  = (y).dataPtr(nsy);                                  \
     for (int _n = 0; _n < (nc); ++_n)                                   \
       {                                                                 \
-        int n##x##R = _n + nsx; n##x##R += 0;                           \
-        int n##y##R = _n + nsy; n##y##R += 0;                           \
+        [[maybe_unused]] int n##x##R = _n + nsx; n##x##R += 0;                           \
+        [[maybe_unused]] int n##y##R = _n + nsy; n##y##R += 0;                           \
         for (int _j = 0; _j < _len[1]; ++_j)                            \
           {                                                             \
-            const int j##x##R = _j + _bx_lo[1];                         \
-            const int jrev##x##R = _len[1]-1-_j + _bx_lo[1];            \
-            const int j##y##R = _j + _by_lo[1];                         \
+            [[maybe_unused]] const int j##x##R = _j + _bx_lo[1];                         \
+            [[maybe_unused]] const int jrev##x##R = _len[1]-1-_j + _bx_lo[1];            \
+            [[maybe_unused]] const int j##y##R = _j + _by_lo[1];                         \
             T *_x_pp;                                                   \
             int _ix = 0;                                                \
             int _istrd;                                                 \
@@ -1169,7 +1169,7 @@
                        + _y_plen[0]*(                                   \
                            (j##y##R - _y_plo[1])                        \
                            + _n * _y_plen[1]));                         \
-            int _x_rev = _len[0]-1; _x_rev += 0;                        \
+            [[maybe_unused]] int _x_rev = _len[0]-1; _x_rev += 0;                        \
             for (int _i = 0; _i < _len[0]; ++_i, _ix+=_istrd)           \
               {                                                         \
                 T & x##R = _x_pp[_ix];                                  \
@@ -1748,15 +1748,15 @@
     _pencil_box.setBig(0,b.smallEnd(0));                                \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        int nR = _n; nR += 0;                                           \
+        [[maybe_unused]] int nR = _n; nR += 0;                          \
         BoxIterator _bit( _pencil_box );                                \
         for (_bit.begin(); _bit.ok(); ++_bit)                           \
           {                                                             \
             IntVect _iv = _bit();                                       \
             const T &thisR = this->operator()(_iv,_n);                  \
             const int thisLen = _b_len[0];                              \
-            int jR = _iv[1]; jR += 0;                                   \
-            int kR = _iv[2]; kR += 0;
+            [[maybe_unused]] int jR = _iv[1]; jR += 0;                  \
+            [[maybe_unused]] int kR = _iv[2]; kR += 0;
 
 #define ForAllThisPencilHiDim(T,b,ns,nc)                                \
   {                                                                     \
@@ -1767,15 +1767,15 @@
     _pencil_box.setBig(0,b.smallEnd(0));                                \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        const int nR = _n;                                              \
+        [[maybe_unused]] const int nR = _n;                             \
         BoxIterator _bit( _pencil_box );                                \
         for (_bit.begin(); _bit.ok(); ++_bit)                           \
           {                                                             \
             IntVect _iv = _bit();                                       \
             T &thisR = this->operator()(_iv,nR);                        \
             const int thisLen = _b_len[0];                              \
-            int jR = _iv[1]; jR += 0;                                   \
-            int kR = _iv[2]; kR += 0;
+            [[maybe_unused]] int jR = _iv[1]; jR += 0;                  \
+            [[maybe_unused]] int kR = _iv[2]; kR += 0;
 
 #define ForAllXBPencilHiDim(T,x,b,ns,nc)                                \
   {                                                                     \
@@ -1792,8 +1792,8 @@
             IntVect _iv = _bit();                                       \
             T *xR = &(x).operator()(_iv,nR);                            \
             const int thisLen = _b_len[0];                              \
-            int jR = _iv[1]; jR += 0;                                   \
-            int kR = _iv[2]; kR += 0;
+            [[maybe_unused]] int jR = _iv[1]; jR += 0;                  \
+            [[maybe_unused]] int kR = _iv[2]; kR += 0;
 
 #define ForAllXBNNHiDim(T,x,b,ns,nc)                                    \
   {                                                                     \
@@ -1801,16 +1801,16 @@
     CH_assert((ns) >= 0 && (ns) + (nc) <= (x).nComp());                 \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        const int nR = _n; (int&)nR += 0;                               \
+        [[maybe_unused]] const int nR = _n; (int&)nR += 0;              \
         BoxIterator _bit( (b) );                                        \
         for (_bit.begin(); _bit.ok(); ++_bit)                           \
           {                                                             \
             IntVect _iv = _bit();                                       \
             T &x##R = (x)(_iv,nR);                                      \
             T *_x_pp = &x##R; _x_pp += 0;                               \
-            int iR = _iv[0]; iR += 0;                                   \
-            int jR = _iv[1]; jR += 0;                                   \
-            int kR = _iv[2]; kR += 0;
+            [[maybe_unused]] int iR = _iv[0]; iR += 0;                  \
+            [[maybe_unused]] int jR = _iv[1]; jR += 0;                  \
+            [[maybe_unused]] int kR = _iv[2]; kR += 0;
 
 
 #define ForAllXBNNnoindxHiDim(T,x,b,ns,nc)                              \
@@ -1824,9 +1824,9 @@
          {                                                              \
           IntVect _iv = _bit();                                         \
           T& x##R = (x)(_iv,_n);                                        \
-          int iR = _iv[0]; iR += 0;                                     \
-          int jR = _iv[1]; jR += 0;                                     \
-          int kR = _iv[2]; kR += 0;
+          [[maybe_unused]] int iR = _iv[0]; iR += 0;                    \
+          [[maybe_unused]] int jR = _iv[1]; jR += 0;                    \
+          [[maybe_unused]] int kR = _iv[2]; kR += 0;
 
 #define ForAllXCBNNHiDim(T,x,b,ns,nc)                                   \
   {                                                                     \
@@ -1834,16 +1834,16 @@
     CH_assert((ns) >= 0 && (ns) + (nc) <= (x).nComp());                 \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        const int nR = _n;                                              \
+        [[maybe_unused]] const int nR = _n;                             \
         BoxIterator _bit( (b) );                                        \
         for (_bit.begin(); _bit.ok(); ++_bit)                           \
           {                                                             \
             IntVect _iv = _bit();                                       \
             const T & x##R = (x)(_iv, nR);                              \
             const T *_x_pp = &x##R; _x_pp += 0;                         \
-            const int iR = _iv[0]; (int&)iR += 0;                       \
-            const int jR = _iv[1]; (int&)jR += 0;                       \
-            const int kR = _iv[2]; (int&)kR += 0;
+            [[maybe_unused]] const int iR = _iv[0]; (int&)iR += 0;      \
+            [[maybe_unused]] const int jR = _iv[1]; (int&)jR += 0;      \
+            [[maybe_unused]] const int kR = _iv[2]; (int&)kR += 0;
 
 
 #define ForAllThisBNNHiDim(T,b,ns,nc)                                   \
@@ -1852,15 +1852,15 @@
     CH_assert((ns) >= 0 && (ns) + (nc) <= this->nComp());               \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        int nR = _n; nR += 0;                                           \
+        [[maybe_unused]] int nR = _n; nR += 0;                          \
         BoxIterator _bit( (b));                                         \
         for (_bit.begin(); _bit.ok(); ++_bit)                           \
           {                                                             \
            IntVect _iv = _bit();                                        \
            T &thisR = this->operator()(_iv,nR);                         \
-           int iR = _iv[0]; iR += 0;                                    \
-           int jR = _iv[1]; jR += 0;                                    \
-           int kR = _iv[2]; kR += 0;
+           [[maybe_unused]] int iR = _iv[0]; iR += 0;                   \
+           [[maybe_unused]] int jR = _iv[1]; jR += 0;                   \
+           [[maybe_unused]] int kR = _iv[2]; kR += 0;
 
 
 #define ForAllThisCBNNHiDim(T,b,ns,nc)                                  \
@@ -1869,15 +1869,15 @@
     CH_assert((ns) >= 0 && (ns) + (nc) <= this->nComp());               \
     for (int _n = (ns); _n < (ns)+(nc); ++_n)                           \
       {                                                                 \
-        const int nR = _n;                                              \
+        [[maybe_unused]] const int nR = _n;                             \
         BoxIterator _bit( (b) );                                        \
         for (_bit.begin(); _bit.ok(); ++_bit)                           \
           {                                                             \
            IntVect _iv = _bit();                                        \
            const T &thisR = this->operator()(_iv,nR);                   \
-           const int iR = _iv[0];  (int&)iR +=0;                        \
-           const int jR = _iv[1];  (int&)jR +=0;                        \
-           const int kR = _iv[2];  (int&)kR +=0;
+           [[maybe_unused]] const int iR = _iv[0];  (int&)iR +=0;       \
+           [[maybe_unused]] const int jR = _iv[1];  (int&)jR +=0;       \
+           [[maybe_unused]] const int kR = _iv[2];  (int&)kR +=0;
 
 #define ForAllThisBNNXCHiDim(T,b,ns,nc,x,nss)                           \
   {                                                                     \
@@ -1890,16 +1890,16 @@
       {                                                                 \
         for (int _n = 0; _n < (nc); ++_n)                               \
           {                                                             \
-            int nR = _n; nR += 0;                                       \
+            [[maybe_unused]] int nR = _n; nR += 0;                      \
             BoxIterator _bit(_subbox_);                                 \
             for (_bit.begin(); _bit.ok(); ++_bit)                       \
               {                                                         \
                IntVect _iv = _bit();                                    \
                T &thisR = this->operator()(_iv, ns+nR);                 \
                const T & x##R = (x)(_iv, nss+nR);                       \
-               const int iR = _iv[0]; (int&)iR += 0;                    \
-               const int jR = _iv[1]; (int&)jR += 0;                    \
-               const int kR = _iv[2]; (int&)kR += 0;
+               [[maybe_unused]] const int iR = _iv[0]; (int&)iR += 0;   \
+               [[maybe_unused]] const int jR = _iv[1]; (int&)jR += 0;   \
+               [[maybe_unused]] const int kR = _iv[2]; (int&)kR += 0;
 
 #define ForAllThisCBNNXCHiDim(T,b,ns,nc,x,nss)                          \
   {                                                                     \
@@ -1912,16 +1912,16 @@
       {                                                                 \
         for (int _n = 0; _n < (nc); ++_n)                               \
           {                                                             \
-            int nR = _n; nR += 0;                                       \
+            [[maybe_unused]] int nR = _n; nR += 0;                      \
             BoxIterator _bit(_subbox_);                                 \
             for (_bit.begin(); _bit.ok(); ++_bit)                       \
               {                                                         \
                IntVect _iv = _bit();                                    \
                const T &thisR = this->operator()(_iv,ns+nR);            \
                const T & x##R = (x)(_iv,nss+nR);                        \
-               const int iR = _iv[0]; (int&)iR += 0;                    \
-               const int jR = _iv[1]; (int&)jR += 0;                    \
-               const int kR = _iv[2]; (int&)kR += 0;
+               [[maybe_unused]] const int iR = _iv[0]; (int&)iR += 0;   \
+               [[maybe_unused]] const int jR = _iv[1]; (int&)jR += 0;   \
+               [[maybe_unused]] const int kR = _iv[2]; (int&)kR += 0;
 
 #define ForAllThisBNNXCBNHiDim(T,b,ns,nc,x,bx,nss)                      \
   {                                                                     \

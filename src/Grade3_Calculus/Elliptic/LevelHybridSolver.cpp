@@ -456,7 +456,7 @@ LevelHybridSolver::solveResidualEq(StateType&       a_cor,
 LevelHybridSolver::SolveMode
 LevelHybridSolver::computeSolveMode(
     std::shared_ptr<const MGOperator<StateType>>& a_mgOpPtr,
-    const Options&                                a_options)
+    const Options&                                /* a_options */)
 {
     const auto& grids  = a_mgOpPtr->getBoxes();
     const auto& dXi    = a_mgOpPtr->getDXi();
