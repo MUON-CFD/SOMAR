@@ -266,8 +266,8 @@ RobinBC_FCSide::operator()(FArrayBox&            a_alpha,
                            const FArrayBox&      a_stateFAB,
                            const FArrayBox&      /* a_xFAB */,
                            const DataIndex&      /* a_di */,
-                           const int             a_bdryDir,
-                           const Side::LoHiSide& a_side,
+                           const int             a_bdryDir [[maybe_unused]],
+                           const Side::LoHiSide& a_side    [[maybe_unused]],
                            const Real            /* a_time */,
                            const bool            a_homogBCs) const
 {
