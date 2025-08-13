@@ -192,7 +192,7 @@ In your input file, locate and set the following parameters.
     base.nx              = 1024 128    # MUST SPECIFY
     base.nxOffset        = 0 -128      # [0 0 0]
     base.maxBaseGridSize = 256 64      # MUST SPECIFY
-    base.blockFactor     = 16          # MUST SPECIFY
+    base.blockFactor     = 32          # MUST SPECIFY
 
     #---------------------------- Timestepping details ----------------------------#
     time.stopTime        = 100.0
@@ -357,19 +357,21 @@ Okay, it's time to put it all together. In your input file, be sure to have the 
 .. code-block:: python
 
     #------------------- Base level geometry and decomposition --------------------#
-    base.L        = 128.0 1.0          # MUST SPECIFY
-    base.nx       = 1024 128           # MUST SPECIFY
-    base.nxOffset = 0 -128             # [0 0 0]
+    base.L               = 128.0 1.0   # MUST SPECIFY
+    base.nx              = 1024 128    # MUST SPECIFY
+    base.nxOffset        = 0 -128      # [0 0 0]
+    base.maxBaseGridSize = 256 64      # MUST SPECIFY
+    base.blockFactor     = 32          # MUST SPECIFY
 
     #---------------------------- Timestepping details ----------------------------#
-    time.stopTime = 100.0
-    time.maxSteps = 2000
-    time.maxDt    = 0.1                # [1.0e8]
-    time.dtMult   = 0.90               # [0.80]
+    time.stopTime        = 100.0
+    time.maxSteps        = 2000
+    time.maxDt           = 0.1         # [1.0e8]
+    time.dtMult          = 0.90        # [0.80]
 
     #------------------------------ Model parameters ------------------------------#
-    rhs.nu        = 0.000001           # [0.]
-    rhs.TKappa    = 0.000001           # [0.]
+    rhs.nu               = 0.000001    # [0.]
+    rhs.TKappa           = 0.000001    # [0.]
 
 We reduced the viscosity/diffusion values to :math:`10^{-6}` because solitary waves are not driven by diffusive effects. Elevated values will only serve to diffuse the vertical stratification, which we'd like to prevent! The :code:`UserPhysics::setICs` function should be updated as well.
 
@@ -473,7 +475,7 @@ We reduced the viscosity/diffusion values to :math:`10^{-6}` because solitary wa
         }  // dit
     }
 
-This code should compile and run without error. The images below show the results. The pseudocolor plots are the :math:`log_{10}(KE)` clipped to a range of :math:`[-6, 0]`. The three contours are the total buoyancy at values of -0.4, -0.5, and -0.6.
+This code should compile and run on 1, 2, or 4 processors without error. The images below show the results. The pseudocolor plots are the :math:`log_{10}(KE)` clipped to a range of :math:`[-6, 0]`. The three contours are the total buoyancy at values of -0.4, -0.5, and -0.6.
 
 .. image:: img/DJLCollage1_scaled.png
     :width: 800
