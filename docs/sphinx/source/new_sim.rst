@@ -188,19 +188,21 @@ In your input file, locate and set the following parameters.
 .. code-block:: python
 
     #------------------- Base level geometry and decomposition --------------------#
-    base.L        = 12.8 1.0           # MUST SPECIFY
-    base.nx       = 1024 128           # MUST SPECIFY
-    base.nxOffset = 0 -128             # [0 0 0]
+    base.L               = 12.8 1.0    # MUST SPECIFY
+    base.nx              = 1024 128    # MUST SPECIFY
+    base.nxOffset        = 0 -128      # [0 0 0]
+    base.maxBaseGridSize = 256 64      # MUST SPECIFY
+    base.blockFactor     = 16          # MUST SPECIFY
 
     #---------------------------- Timestepping details ----------------------------#
-    time.stopTime = 100.0
-    time.maxSteps = 2000
-    time.maxDt    = 0.1                # [1.0e8]
-    time.dtMult   = 0.90               # [0.80]
+    time.stopTime        = 100.0
+    time.maxSteps        = 2000
+    time.maxDt           = 0.1         # [1.0e8]
+    time.dtMult          = 0.90        # [0.80]
 
     #------------------------------ Model parameters ------------------------------#
-    rhs.nu        = 0.0001             # [0.]
-    rhs.TKappa    = 0.0001             # [0.]
+    rhs.nu               = 0.0001      # [0.]
+    rhs.TKappa           = 0.0001      # [0.]
 
 Using :code:`base.L` and :code:`base.nx`, we can calulate the cell sizes along with the physical coordinates of the nodes and cell-centers.
 
@@ -216,12 +218,49 @@ Using :code:`base.L` and :code:`base.nx`, we can calulate the cell sizes along w
 .. warning::
     These formula are only true in a simple, unstretched, Cartesian coordinate system. We will revisit these formulas when we introduce grid stretching.
 
+:code:`base.nxOffset`
+^^^^^^^^^^^^^^^^^^^^^
 In 2D, each cell has 4 vertex nodes. The node at the lower left of each cell shares its index with the cell-center. Notice that :math:`z=0` is at the :math:`j=0` nodes, which is why we vertically shift the domain using :code:`base.nxOffset`. This can be a point of confusion, so let's elaborate.
 
 By setting :code:`base.nxOffset = 0 -128`, we shift the *cell* indices from :math:`(i,j)_{\rm{cells}} = (0,0)..(1023, 127)` to :math:`(0,-128)..(1023, -1)`. Similarly, the *nodal* indices shift from :math:`(i,j)_{\rm{nodes}} = (0,0)..(1024, 128)` to :math:`(0,-128)..(1024, 0)`. So, by vertically shifting the domain, the bottom nodes are at :math:`z_{-128} = -128 \Delta z = -128 \cdot (1/128) = -1.0` and the top nodes are at :math:`z_{0} = 0 \cdot \Delta z = 0`.
 
+:code:`base.blockFactor`
+^^^^^^^^^^^^^^^^^^^^^^^^
+Solving the pressure Poisson problem at each Runge-Kutta stage is the most time-consuming operation in any incompressible fluid solver. In SOMAR, we use several techniques to speed up its convergence and ensure its solution's accuracy. For now, we will only discuss one technique -- *geometric multigrid with semicoarsening*, or MG for short. Unless your simulation is *leptic*, meaning :math:`H < \Delta x`, MG will be the SOMAR's default solution method.
 
-One last point about resolution and load balancing. Our domain is discretized into 1024-by-128 cells. This divides nicely into :math:`2^p`-by-:math:`2^p` blocks. This simulation will have a balanced load if we use 1, 2, 4, 8, 16, or even 32 MPI ranks. If you choose a number of MPI ranks that does not allow a balanced load, a warning will be emitted at the start of the simulation along with a suggestion. Choosing appropriate settings to obtain fast and balanced simulations is tricky. Especially when multigrid is used to solve the pressure Poisson problem. We will save this conversation for later. For now, we will rely on SOMAR to do the load balancing.
+In order for MG to work properly, it needs to be able to coarsen the grids by factors of 2. If :math:`\Delta x \approx \Delta z`, then MG will coarsen in all directions. If the grids are anisotropic, then MG will coarsen in a way that promotes isotropy. For example, our grids have :math:`(\Delta x, \Delta z) = (0.0125, 0.0078125)`, so MG will decide to first only coarsen in the vertical, bringing us to :math:`(\Delta x, \Delta z) = (0.0125, 0.015625)`. At this point, the grid scales are roughly the same, so from here on, SOMAR will coarsen in all directions to preserve isotropy.
+
+In theory, the coarser MG can go, the more efficient and accurate the pressure Poisson solver will be. In practice, coarsening creates overhead, and coarsening down to a 1-by-1 grid is more expensive than necessary. Worse yet, the Laplacian's stencil would not have enough room to accurately compute curvatures. (Does curvature even exist on a grid this coarse?) We found that most benefits are achieved when MG can coarsen enough to achieve isotropy and then at least two times further. Therefore, it is not necessary (and ill-advised) to coarsen down to a 1-by-1 grid. The :code:`base.blockFactor` input parameter controls how coarse a grid can be. If we set :code:`base.blockFactor = 16`, then MG will coarsen until one of the domain's grids has 16 cells on a side. We suggest setting this parameter to 16 or 32 for most simulations.
+
+:code:`base.maxBaseGridSize`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In a HPC environment, we have two competing needs. On one hand, we want to use as many processors as possible, which requires decomposing the domain into many small grids. On the other hand, we want to give MG enough room on each grid to facilitate coarsening. The :code:`base.maxBaseGridSize` input file parameter is our way of telling SOMAR how to make this compromise. Suppose we want to run our :math:`(1024, 128)` simulation on four processors. Let's consider each option.
+
+.. code-block:: python
+
+    maxBaseGridSize    number of grids in each direction
+    ----------------------------------------------------
+    256  128           4 1
+    512  64            2 2
+    1024 32            1 4
+
+Of these options, the first would perform best (although, it may be hard to tell since all three would be very fast in a 2D simulation). To see why, let's set :code:`base.maxBaseGridSize = 256 128` and :code:`base.blockFactor = 32`. This would lead to the following MG coarsening schedule.
+
+.. code-block:: python
+
+    MG depth    grid Nx  grid Nz    dx       dz           refinement   isotropic
+    ----------------------------------------------------------------------------
+    0           256      128        0.0125   0.0078125    --           No
+    1           128      128        0.0125   0.015625     (2,1)        Yes
+    2           64       64         0.025    0.03125      (2,2)        Yes
+    3           32       32         0.05     0.0625       (2,2)        Yes
+    Our blockFactor prevents further coarsening.
+
+Notice that this choice does several things. First, our 1024-by-128 domain is decomposed into four grids, each with an equal size of 256-by-128 at MG depth 0. The simulation is *load balanced*. Second, we coarsen twice after reaching isotropy, making MG roughly as efficient as possible. Third, the coarsest grids have the same number of cells in all directions. This is not mandatory, but tells us that we've done a good job. If the coarsest grid was, say, 128-by-32, then MG would need to stop coarsening because of `Nz`, wasting the opportunity to coarsen in the horizontal.
+
+Feel free to play with these parameters. Try setting :code:`base.blockFactor` to different values to see how it effects the simulation speed. And remember, what causes a small speedup in 2D may cause a drastic speedup in 3D!
+
+One last point about resolution and load balancing. Our domain is discretized into 1024-by-128 cells. Setting :code:`base.maxBaseGridSize = 256 128` and :code:`base.blockFactor = 32` results in a balanced load if we use 1, 2, or 4 MPI ranks / processors. If you choose a number of processors that does not allow a balanced load, a warning will be emitted at the start of the simulation. (Try it!) Choosing appropriate settings to obtain fast and balanced simulations is tricky, especially when AMR or lepticity is involved. We will save these more advanced topics for later.
 
 
 Visualizing the output
