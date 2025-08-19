@@ -234,31 +234,30 @@ In theory, the coarser MG can go, the more efficient and accurate the pressure P
 
 :code:`base.maxBaseGridSize`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-In a HPC environment, we have two competing needs. On one hand, we want to use as many processors as possible, which requires decomposing the domain into many small grids. On the other hand, we want to give MG enough room on each grid to facilitate coarsening. The :code:`base.maxBaseGridSize` input file parameter is our way of telling SOMAR how to make this compromise. Suppose we want to run our :math:`(1024, 128)` simulation on four processors. Let's consider each option.
+In a HPC environment, we have two competing needs. On one hand, we want to use as many processors as possible, which requires decomposing the domain into many small grids. On the other hand, we want to give MG enough room on each grid to facilitate coarsening. The :code:`base.maxBaseGridSize` input file parameter is our way of telling SOMAR how to make this compromise. Suppose we want to run our :math:`(1024, 128)` simulation on eight processors. Let's consider some options.
 
 .. code-block:: python
 
     maxBaseGridSize    number of grids in each direction
     ----------------------------------------------------
-    256  128           4 1
-    512  64            2 2
-    1024 32            1 4
+    128  128           8 1
+    256  64            4 2
+    512  32            2 4
+    1024 16            1 8
 
-Of these options, the first would perform best (although, it may be hard to tell since all three would be very fast in a 2D simulation). To see why, let's set :code:`base.maxBaseGridSize = 256 128` and :code:`base.blockFactor = 32`. This would lead to the following MG coarsening schedule.
+Of these options, the first would perform best (although, it may be hard to tell since all of these options would be very fast in a 2D simulation). To see why, let's set :code:`base.maxBaseGridSize = 128 128` and :code:`base.blockFactor = 16`. This would lead to the following MG coarsening schedule.
 
 .. code-block:: python
 
     MG depth    grid Nx  grid Nz    dx       dz           refinement   isotropic
     ----------------------------------------------------------------------------
-    0           256      128        0.0125   0.0078125    --           No
-    1           128      128        0.0125   0.015625     (2,1)        Yes
-    2           64       64         0.025    0.03125      (2,2)        Yes
-    3           32       32         0.05     0.0625       (2,2)        Yes
+    0           128      128        0.0125   0.0078125    --           No
+    1           128      64         0.0125   0.015625     (1,2)        Yes
+    2           64       32         0.025    0.03125      (2,2)        Yes
+    3           32       16         0.05     0.0625       (2,2)        Yes
     Our blockFactor prevents further coarsening.
 
-Notice that this choice does several things. First, our 1024-by-128 domain is decomposed into four grids, each with an equal size of 256-by-128 at MG depth 0. The simulation is *load balanced*. Second, we coarsen twice after reaching isotropy, making MG roughly as efficient as possible. Third, the coarsest grids have the same number of cells in all directions. This is not mandatory, but tells us that we've done a good job. If the coarsest grid was, say, 128-by-32, then MG would need to stop coarsening because of `Nz`, wasting the opportunity to coarsen in the horizontal.
-
-Feel free to play with these parameters. Try setting :code:`base.blockFactor` to different values to see how it effects the simulation speed. And remember, what causes a small speedup in 2D may cause a drastic speedup in 3D!
+Notice that this choice does several things. Our 1024-by-128 domain is decomposed into eight grids, each with an equal size of 128-by-128 at MG depth 0 -- the simulation is *load balanced*. Also, we coarsen twice after reaching isotropy, making MG roughly as efficient as possible. Feel free to play with these parameters. Try setting :code:`base.blockFactor` to different values to see how it effects the simulation speed. And remember, what causes a small speedup in 2D may cause a drastic speedup in 3D!
 
 One last point about resolution and load balancing. Our domain is discretized into 1024-by-128 cells. Setting :code:`base.maxBaseGridSize = 256 128` and :code:`base.blockFactor = 32` results in a balanced load if we use 1, 2, or 4 MPI ranks / processors. If you choose a number of processors that does not allow a balanced load, a warning will be emitted at the start of the simulation. (Try it!) Choosing appropriate settings to obtain fast and balanced simulations is tricky, especially when AMR or lepticity is involved. We will save these more advanced topics for later.
 
