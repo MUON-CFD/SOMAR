@@ -49,17 +49,17 @@ and `Arizona State University's School of Engineering <https://semte.engineering
 ..     DJL solitary wave
 ..     ???
 
-.. toctree::
-    :caption: Software reference
-    :maxdepth: 2
-    :hidden:
+.. .. toctree::
+..     :caption: Software reference
+..     :maxdepth: 2
+..     :hidden:
 
-    grade0_ref
-    grade1_ref
-    grade2_ref
-    grade3_ref
-    grade4_ref
-    grade5_ref
+..     grade0_ref
+..     grade1_ref
+..     grade2_ref
+..     grade3_ref
+..     grade4_ref
+..     grade5_ref
 
 
 
